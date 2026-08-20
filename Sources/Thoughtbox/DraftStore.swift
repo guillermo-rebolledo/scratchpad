@@ -32,7 +32,7 @@ final class DraftStore {
     }
 
     var canSave: Bool {
-        !markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        markdown.containsNonWhitespace
     }
 
     func clear() {
@@ -40,4 +40,3 @@ final class DraftStore {
         projectID = nil
     }
 }
-

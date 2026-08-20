@@ -10,6 +10,6 @@ swift build -c "$configuration"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
 cp "$binary_directory/Thoughtbox" "$app_path/Contents/MacOS/Thoughtbox"
 cp Resources/Info.plist "$app_path/Contents/Info.plist"
+codesign --force --sign - --entitlements Resources/Thoughtbox.entitlements "$app_path"
 
 printf '%s\n' "$app_path"
-

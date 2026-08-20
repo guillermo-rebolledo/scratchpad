@@ -35,3 +35,8 @@ enum CaptureError: LocalizedError, Equatable {
     }
 }
 
+extension String {
+    var containsNonWhitespace: Bool {
+        !trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}

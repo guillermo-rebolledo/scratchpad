@@ -16,6 +16,7 @@
 		A10000000000000000000008 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* Persistence.swift */; };
 		A10000000000000000000009 /* ThoughtboxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* ThoughtboxApp.swift */; };
 		A10000000000000000000010 /* ThoughtboxRealAppAcceptanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* ThoughtboxRealAppAcceptanceTests.swift */; };
+		A10000000000000000000011 /* GlobalShortcutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* GlobalShortcutManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -42,6 +43,8 @@
 		B10000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000012 /* Thoughtbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Thoughtbox.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000013 /* ThoughtboxUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ThoughtboxUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000014 /* GlobalShortcutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutManager.swift; sourceTree = "<group>"; };
+		B10000000000000000000015 /* Thoughtbox.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Thoughtbox.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +71,7 @@
 				B10000000000000000000003 /* CaptureService.swift */,
 				B10000000000000000000004 /* CaptureView.swift */,
 				B10000000000000000000005 /* DraftStore.swift */,
+				B10000000000000000000014 /* GlobalShortcutManager.swift */,
 				B10000000000000000000006 /* MainView.swift */,
 				B10000000000000000000007 /* Models.swift */,
 				B10000000000000000000008 /* Persistence.swift */,
@@ -84,7 +88,7 @@
 		};
 		G10000000000000000000004 /* Resources */ = {
 			isa = PBXGroup;
-			children = (B10000000000000000000011 /* Info.plist */,);
+			children = (B10000000000000000000011 /* Info.plist */, B10000000000000000000015 /* Thoughtbox.entitlements */,);
 			path = Resources;
 			sourceTree = "<group>";
 		};
@@ -155,7 +159,7 @@
 		I10000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009,);
+			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000011, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		I10000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000010,); runOnlyForDeploymentPostprocessing = 0; };
@@ -168,8 +172,8 @@
 /* Begin XCBuildConfiguration section */
 		L10000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_VERSION = 6.0;}; name = Debug;};
 		L10000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 6.0;}; name = Release;};
-		L10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = YES; INFOPLIST_FILE = Resources/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.Thoughtbox; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0;}; name = Debug;};
-		L10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = YES; INFOPLIST_FILE = Resources/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.Thoughtbox; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0;}; name = Release;};
+		L10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = Resources/Thoughtbox.entitlements; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; ENABLE_APP_SANDBOX = YES; ENABLE_HARDENED_RUNTIME = YES; INFOPLIST_FILE = Resources/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.Thoughtbox; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0;}; name = Debug;};
+		L10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = Resources/Thoughtbox.entitlements; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; ENABLE_APP_SANDBOX = YES; ENABLE_HARDENED_RUNTIME = YES; INFOPLIST_FILE = Resources/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.Thoughtbox; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0;}; name = Release;};
 		L10000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.ThoughtboxUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_TARGET_NAME = Thoughtbox;}; name = Debug;};
 		L10000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.ThoughtboxUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_TARGET_NAME = Thoughtbox;}; name = Release;};
 /* End XCBuildConfiguration section */
@@ -182,4 +186,3 @@
 	};
 	rootObject = D10000000000000000000001 /* Project object */;
 }
-

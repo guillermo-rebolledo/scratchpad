@@ -23,7 +23,7 @@ final class ThoughtRepository {
 
     @discardableResult
     func capture(markdown: String, at date: Date = .now) throws -> Thought {
-        guard !markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard markdown.containsNonWhitespace else {
             throw CaptureError.emptyThought
         }
 
@@ -72,4 +72,3 @@ enum PersistenceFactory {
         return defaults
     }
 }
-

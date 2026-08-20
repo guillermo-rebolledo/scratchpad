@@ -6,10 +6,12 @@ private enum LibraryCollection: String, CaseIterable, Identifiable {
     case inbox = "Inbox"
 
     var id: Self { self }
-    var systemImage: String {
+    var presentation: (systemImage: String, help: String) {
         switch self {
-        case .allThoughts: "rectangle.stack"
-        case .inbox: "tray"
+        case .allThoughts:
+            ("rectangle.stack", "Shows every active Thought, newest first.")
+        case .inbox:
+            ("tray", "Shows Thoughts that are not assigned to a Project.")
         }
     }
 }
@@ -22,10 +24,10 @@ struct MainView: View {
     var body: some View {
         NavigationSplitView {
             List(LibraryCollection.allCases, selection: $collection) { item in
-                Label(item.rawValue, systemImage: item.systemImage)
+                Label(item.rawValue, systemImage: item.presentation.systemImage)
                     .tag(item)
-                    .help(help(for: item))
-                    .accessibilityHint(help(for: item))
+                    .help(item.presentation.help)
+                    .accessibilityHint(item.presentation.help)
             }
             .navigationTitle("Thoughtbox")
             .accessibilityIdentifier("library.sidebar")
@@ -78,12 +80,6 @@ struct MainView: View {
         selectedThoughtID = thoughts.first?.id
     }
 
-    private func help(for collection: LibraryCollection) -> String {
-        switch collection {
-        case .allThoughts: "Shows every active Thought, newest first."
-        case .inbox: "Shows Thoughts that are not assigned to a Project."
-        }
-    }
 }
 
 private struct ThoughtRow: View {
