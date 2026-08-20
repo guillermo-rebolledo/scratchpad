@@ -37,35 +37,38 @@ private struct MarkdownBlockView: View {
             Text(InlineMarkdown.attributed(text))
                 .textSelection(.enabled)
 
-        case let .blockQuote(text):
+        case let .blockQuote(blocks):
             HStack(alignment: .top, spacing: 10) {
                 Rectangle()
                     .fill(.secondary)
                     .frame(width: 3)
-                Text(InlineMarkdown.attributed(text))
-                    .italic()
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                        AnyView(MarkdownBlockView(block: block))
+                    }
+                }
             }
             .padding(.vertical, 2)
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .contain)
             .accessibilityLabel("Block quote")
-            .accessibilityValue(MarkdownDocument.plainText(fromInlineMarkdown: text))
 
-        case let .unorderedListItem(text):
-            listRow(marker: "•", text: text)
-
-        case let .orderedListItem(number, text):
-            listRow(marker: "\(number).", text: text)
-
-        case let .taskListItem(isComplete, text):
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: isComplete ? "checkmark.square" : "square")
-                    .accessibilityHidden(true)
-                Text(InlineMarkdown.attributed(text))
+        case let .unorderedList(items):
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                    MarkdownListItemView(marker: "•", item: item)
+                }
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(isComplete ? "Completed task" : "Incomplete task")
-            .accessibilityValue(MarkdownDocument.plainText(fromInlineMarkdown: text))
-            .accessibilityHint("Task checkboxes are visual. Switch to Edit to change the task.")
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Unordered list with \(items.count) items")
+
+        case let .orderedList(start, items):
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(items.enumerated()), id: \.offset) { offset, item in
+                    MarkdownListItemView(marker: "\(start + offset).", item: item)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Ordered list with \(items.count) items")
 
         case let .code(language, source):
             VStack(alignment: .leading, spacing: 4) {
@@ -92,13 +95,18 @@ private struct MarkdownBlockView: View {
                     ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
                         Text(InlineMarkdown.attributed(header))
                             .fontWeight(.semibold)
+                            .accessibilityAddTraits(.isHeader)
                     }
                 }
                 Divider()
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     GridRow {
-                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
+                        ForEach(Array(row.enumerated()), id: \.offset) { column, cell in
                             Text(InlineMarkdown.attributed(cell))
+                                .accessibilityLabel(tableCellLabel(
+                                    header: headers.indices.contains(column) ? headers[column] : "Column \(column + 1)",
+                                    value: cell
+                                ))
                         }
                     }
                 }
@@ -107,16 +115,17 @@ private struct MarkdownBlockView: View {
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Table with \(headers.count) columns and \(rows.count) rows")
+
+        case .thematicBreak:
+            Divider()
+                .accessibilityLabel("Section break")
         }
     }
 
-    private func listRow(marker: String, text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(marker)
-                .frame(minWidth: 20, alignment: .trailing)
-            Text(InlineMarkdown.attributed(text))
-        }
-        .accessibilityElement(children: .combine)
+    private func tableCellLabel(header: String, value: String) -> String {
+        let plainHeader = MarkdownDocument.plainText(fromInlineMarkdown: header)
+        let plainValue = MarkdownDocument.plainText(fromInlineMarkdown: value)
+        return "\(plainHeader): \(plainValue)"
     }
 
     private func font(forHeadingLevel level: Int) -> Font {
@@ -127,6 +136,39 @@ private struct MarkdownBlockView: View {
         case 4: .title3
         default: .headline
         }
+    }
+}
+
+private struct MarkdownListItemView: View {
+    let marker: String
+    let item: MarkdownListItem
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            if let isComplete = item.isComplete {
+                Image(systemName: isComplete ? "checkmark.square" : "square")
+                    .frame(minWidth: 20, alignment: .trailing)
+                    .accessibilityHidden(true)
+            } else {
+                Text(marker)
+                    .frame(minWidth: 20, alignment: .trailing)
+                    .accessibilityHidden(true)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(item.blocks.enumerated()), id: \.offset) { _, block in
+                    AnyView(MarkdownBlockView(block: block))
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(item.isComplete == nil ? "List item" : "Task checkboxes are visual. Switch to Edit to change the task.")
+    }
+
+    private var accessibilityLabel: String {
+        guard let isComplete = item.isComplete else { return "List item" }
+        return isComplete ? "Completed task" : "Incomplete task"
     }
 }
 
@@ -149,4 +191,3 @@ enum InlineMarkdown {
         return result
     }
 }
-

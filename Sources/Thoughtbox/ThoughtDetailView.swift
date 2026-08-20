@@ -120,8 +120,8 @@ private struct ThoughtSourceEditor: View {
         guard markdown != lastSavedMarkdown else { return }
 
         do {
-            let service = ThoughtEditingService(repository: ThoughtRepository(context: modelContext))
-            try service.update(thought, markdown: markdown)
+            let repository = ThoughtRepository(context: modelContext)
+            try repository.update(thought, markdown: markdown)
             lastSavedMarkdown = markdown
             saveError = nil
         } catch {
@@ -129,4 +129,3 @@ private struct ThoughtSourceEditor: View {
         }
     }
 }
-

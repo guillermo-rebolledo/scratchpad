@@ -121,7 +121,15 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Image not loaded: private"].exists)
         XCTAssertFalse(app.images["private"].exists)
         XCTAssertFalse(app.staticTexts["https://tracker.example/pixel.png"].exists)
-        XCTAssertTrue(app.links["Example"].isEnabled)
+        let externalLink = app.links["Example"]
+        XCTAssertTrue(externalLink.isEnabled)
+        externalLink.click()
+        let browserOpened = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "state == %d", XCUIApplication.State.runningBackground.rawValue),
+            object: app
+        )
+        wait(for: [browserOpened], timeout: 3)
+        app.activate()
         XCTAssertTrue(app.staticTexts["Table with 2 columns and 1 rows"].exists || app.staticTexts["Name"].exists)
     }
 
@@ -161,6 +169,28 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Saved"].waitForExistence(timeout: 3))
 
         XCTAssertLessThan(newerRow.frame.minY, app.staticTexts["Older Thought edited"].frame.minY)
+    }
+
+    func testEditSavesImmediatelyOnFocusAndThoughtSelectionChanges() throws {
+        let app = try launch(reset: true)
+        capture("First Thought", in: app)
+        capture("Second Thought", in: app)
+
+        app.staticTexts["First Thought"].click()
+        app.radioButtons["Edit"].click()
+        var editor = app.textViews["thought.editor"]
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeText("Saved by selection")
+        app.staticTexts["Second Thought"].click()
+        app.staticTexts["Saved by selection"].click()
+        XCTAssertTrue(app.staticTexts["Saved by selection"].exists)
+
+        app.radioButtons["Edit"].click()
+        editor = app.textViews["thought.editor"]
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeText("Saved by focus")
+        app.radioButtons["Read"].click()
+        XCTAssertTrue(app.staticTexts["Saved by focus"].waitForExistence(timeout: 3))
     }
 
     private func application() throws -> XCUIApplication {

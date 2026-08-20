@@ -8,9 +8,15 @@ let package = Package(
     products: [
         .executable(name: "Thoughtbox", targets: ["Thoughtbox"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.8.0")
+    ],
     targets: [
         .executableTarget(
             name: "Thoughtbox",
+            dependencies: [
+                .product(name: "Markdown", package: "swift-markdown")
+            ],
             path: "Sources/Thoughtbox"
         ),
         .testTarget(
@@ -20,4 +26,3 @@ let package = Package(
         )
     ]
 )
-
