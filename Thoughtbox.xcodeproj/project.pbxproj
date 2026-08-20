@@ -17,6 +17,10 @@
 		A10000000000000000000009 /* ThoughtboxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* ThoughtboxApp.swift */; };
 		A10000000000000000000010 /* ThoughtboxRealAppAcceptanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* ThoughtboxRealAppAcceptanceTests.swift */; };
 		A10000000000000000000011 /* GlobalShortcutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* GlobalShortcutManager.swift */; };
+		A10000000000000000000012 /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* MarkdownDocument.swift */; };
+		A10000000000000000000013 /* MarkdownReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* MarkdownReader.swift */; };
+		A10000000000000000000014 /* ThoughtDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* ThoughtDetailView.swift */; };
+		A10000000000000000000015 /* ThoughtEditingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* ThoughtEditingService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,6 +49,10 @@
 		B10000000000000000000013 /* ThoughtboxUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ThoughtboxUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000014 /* GlobalShortcutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutManager.swift; sourceTree = "<group>"; };
 		B10000000000000000000015 /* Thoughtbox.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Thoughtbox.entitlements; sourceTree = "<group>"; };
+		B10000000000000000000016 /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* MarkdownReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownReader.swift; sourceTree = "<group>"; };
+		B10000000000000000000018 /* ThoughtDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtDetailView.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* ThoughtEditingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtEditingService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,10 +80,14 @@
 				B10000000000000000000004 /* CaptureView.swift */,
 				B10000000000000000000005 /* DraftStore.swift */,
 				B10000000000000000000014 /* GlobalShortcutManager.swift */,
+				B10000000000000000000016 /* MarkdownDocument.swift */,
+				B10000000000000000000017 /* MarkdownReader.swift */,
 				B10000000000000000000006 /* MainView.swift */,
 				B10000000000000000000007 /* Models.swift */,
 				B10000000000000000000008 /* Persistence.swift */,
 				B10000000000000000000009 /* ThoughtboxApp.swift */,
+				B10000000000000000000018 /* ThoughtDetailView.swift */,
+				B10000000000000000000019 /* ThoughtEditingService.swift */,
 			);
 			path = Sources/Thoughtbox;
 			sourceTree = "<group>";
@@ -159,7 +171,7 @@
 		I10000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000011, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009,);
+			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000011, A10000000000000000000012, A10000000000000000000013, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009, A10000000000000000000014, A10000000000000000000015,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		I10000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000010,); runOnlyForDeploymentPostprocessing = 0; };

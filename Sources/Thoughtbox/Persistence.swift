@@ -12,7 +12,12 @@ final class ThoughtRepository {
     }
 
     convenience init(context: ModelContext) {
-        self.init(container: context.container)
+        self.init(container: context.container, context: context)
+    }
+
+    private init(container: ModelContainer, context: ModelContext) {
+        self.container = container
+        self.context = context
     }
 
     static func inMemory() throws -> ThoughtRepository {
@@ -38,6 +43,13 @@ final class ThoughtRepository {
             sortBy: [SortDescriptor(\Thought.createdAt, order: .reverse)]
         )
         return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func update(_ thought: Thought, markdown: String, at date: Date = .now) throws {
+        guard thought.markdown != markdown else { return }
+        thought.markdown = markdown
+        thought.editedAt = date
+        try context.save()
     }
 }
 

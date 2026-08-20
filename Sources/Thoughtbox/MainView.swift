@@ -55,14 +55,8 @@ struct MainView: View {
             .navigationTitle(collection?.rawValue ?? "Thoughts")
         } detail: {
             if let selectedThought {
-                ScrollView {
-                    Text(selectedThought.markdown)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .accessibilityLabel("Thought Markdown")
-                        .accessibilityValue(selectedThought.markdown)
-                }
+                ThoughtDetailView(thought: selectedThought)
+                    .id(selectedThought.id)
             } else {
                 ContentUnavailableView("Select a Thought", systemImage: "doc.text")
             }
@@ -94,7 +88,7 @@ private struct ThoughtRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(thought.markdown)
+            Text(MarkdownDocument(source: thought.markdown).excerpt)
                 .lineLimit(2)
             Text(Self.dateFormatter.string(from: thought.createdAt))
                 .font(.caption)

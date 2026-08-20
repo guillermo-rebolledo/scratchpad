@@ -93,6 +93,76 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    func testMarkdownRendersSupportedBlocksWithoutImages() throws {
+        let app = try launch(reset: true)
+        capture(
+            """
+            # Rendered heading
+
+            **Bold** and ~~finished~~ with [Example](https://example.com) and ![private](https://tracker.example/pixel.png).
+
+            > Quoted
+
+            - [ ] Visual task
+
+            | Name | Value |
+            | --- | --- |
+            | One | Two |
+
+            ```swift
+            let answer = 42
+            ```
+            """,
+            in: app
+        )
+
+        XCTAssertTrue(app.descendants(matching: .any)["thought.rendered"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Rendered heading"].exists)
+        XCTAssertTrue(app.staticTexts["Image not loaded: private"].exists)
+        XCTAssertFalse(app.images["private"].exists)
+        XCTAssertFalse(app.staticTexts["https://tracker.example/pixel.png"].exists)
+        XCTAssertTrue(app.links["Example"].isEnabled)
+        XCTAssertTrue(app.staticTexts["Table with 2 columns and 1 rows"].exists || app.staticTexts["Name"].exists)
+    }
+
+    func testEditAutoSavesAndSurvivesRelaunch() throws {
+        let app = try launch(reset: true)
+        capture("Before edit", in: app)
+
+        app.radioButtons["Edit"].click()
+        let editor = app.textViews["thought.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeText("After edit")
+        XCTAssertTrue(app.staticTexts["Saved"].waitForExistence(timeout: 3))
+        app.radioButtons["Read"].click()
+        XCTAssertTrue(app.staticTexts["After edit"].exists)
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["After edit"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Edited '")).firstMatch.exists)
+    }
+
+    func testEditingOlderThoughtDoesNotChangeCreationOrder() throws {
+        let app = try launch(reset: true)
+        capture("Older Thought", in: app)
+        capture("Newer Thought", in: app)
+
+        let newerRow = app.staticTexts["Newer Thought"]
+        let olderRow = app.staticTexts["Older Thought"]
+        XCTAssertLessThan(newerRow.frame.minY, olderRow.frame.minY)
+        olderRow.click()
+        app.radioButtons["Edit"].click()
+        let editor = app.textViews["thought.editor"]
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeText("Older Thought edited")
+        XCTAssertTrue(app.staticTexts["Saved"].waitForExistence(timeout: 3))
+
+        XCTAssertLessThan(newerRow.frame.minY, app.staticTexts["Older Thought edited"].frame.minY)
+    }
+
     private func application() throws -> XCUIApplication {
         if let path = ProcessInfo.processInfo.environment["THOUGHTBOX_APP_PATH"] {
             return XCUIApplication(url: URL(fileURLWithPath: path, isDirectory: true))
@@ -119,5 +189,12 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let editor = app.textViews["capture.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         return editor
+    }
+
+    private func capture(_ markdown: String, in app: XCUIApplication) {
+        let editor = openCapture(in: app)
+        editor.typeText(markdown)
+        app.buttons["capture.save"].click()
+        XCTAssertFalse(editor.exists)
     }
 }
