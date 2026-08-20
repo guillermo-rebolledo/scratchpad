@@ -35,7 +35,7 @@ struct CapturePersistenceTests {
         let older = try repository.capture(markdown: "First", at: olderDate)
         let newer = try repository.capture(markdown: "Second", at: newerDate)
 
-        #expect(repository.allThoughts().map(\.id) == [newer.id, older.id])
+        #expect(try repository.allThoughts().map(\.id) == [newer.id, older.id])
         #expect(older.markdown == "First")
         #expect(older.createdAt == older.editedAt)
     }
@@ -54,7 +54,7 @@ struct CapturePersistenceTests {
 
         try successfulCapture.save()
         #expect(draft.markdown.isEmpty)
-        #expect(repository.allThoughts().map(\.markdown) == ["Keep me safe"])
+        #expect(try repository.allThoughts().map(\.markdown) == ["Keep me safe"])
 
         draft.markdown = "Still here after failure"
         let failedCapture = CaptureService(draft: draft) { _ in

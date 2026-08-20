@@ -1,3 +1,4 @@
+import Markdown
 import SwiftUI
 
 struct MarkdownReader: View {
@@ -175,19 +176,43 @@ private struct MarkdownListItemView: View {
 enum InlineMarkdown {
     static func attributed(_ source: String) -> AttributedString {
         let safeSource = MarkdownDocument.replacingImages(in: source)
-        let segments = safeSource.components(separatedBy: "~~")
-        var result = AttributedString()
+        let parsed = Document(parsing: safeSource)
+        var sanitizer = StrikethroughSanitizer()
+        let markedDocument = (sanitizer.visit(parsed) as? Document) ?? parsed
+        var result = parse(markedDocument.format())
 
-        for (index, segment) in segments.enumerated() {
-            var attributed = (try? AttributedString(
-                markdown: segment,
-                options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-            )) ?? AttributedString(segment)
-            if index.isMultiple(of: 2) == false {
-                attributed.strikethroughStyle = .single
-            }
-            result.append(attributed)
+        for replacement in sanitizer.replacements {
+            guard let tokenRange = String(result.characters).range(of: replacement.token),
+                  let attributedRange = Range(tokenRange, in: result) else { continue }
+
+            var struck = attributed(replacement.markdown)
+            struck.strikethroughStyle = .single
+            result.replaceSubrange(attributedRange, with: struck)
         }
         return result
+    }
+
+    private static func parse(_ source: String) -> AttributedString {
+        (try? AttributedString(
+            markdown: source,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(source)
+    }
+}
+
+private struct StrikethroughSanitizer: MarkupRewriter {
+    struct Replacement {
+        let token: String
+        let markdown: String
+    }
+
+    private(set) var replacements: [Replacement] = []
+
+    mutating func visitStrikethrough(_ strikethrough: Strikethrough) -> Markup? {
+        let token = "THOUGHTBOXSTRIKE\(replacements.count)TOKEN"
+        let markdown = Paragraph(Array(strikethrough.inlineChildren)).format()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        replacements.append(Replacement(token: token, markdown: markdown))
+        return Text(token)
     }
 }

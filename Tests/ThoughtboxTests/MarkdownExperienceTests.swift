@@ -42,6 +42,12 @@ struct MarkdownExperienceTests {
         #expect(document.renderableSource.contains("Image not loaded: private"))
         #expect(!document.renderableSource.contains("https://tracker.example/pixel.png"))
         #expect(!document.renderableSource.contains("https://tracker.example/escaped.png"))
+
+        let inlineCode = InlineMarkdown.attributed("`a~~b` and ~~removed~~ and \\~~literal")
+        #expect(String(inlineCode.characters) == "a~~b and removed and ~~literal")
+        let struckRuns = inlineCode.runs.filter { $0.strikethroughStyle != nil }
+        #expect(struckRuns.count == 1)
+        #expect(String(inlineCode[struckRuns[0].range].characters) == "removed")
     }
 
     @Test("Excerpt removes Markdown syntax and limits itself to two lines")
@@ -89,6 +95,41 @@ struct MarkdownExperienceTests {
         #expect(thought.markdown == "After")
         #expect(thought.createdAt == createdAt)
         #expect(thought.editedAt == editedAt)
-        #expect(repository.allThoughts().first?.id == thought.id)
+        #expect(try repository.allThoughts().first?.id == thought.id)
+    }
+
+    @Test("A failed edit remains retryable and never reports a reverted value as saved")
+    func failedEditCanBeRetried() throws {
+        struct SimulatedFailure: Error {}
+
+        let repository = try ThoughtRepository.inMemory()
+        let originalDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let thought = try repository.capture(markdown: "Before", at: originalDate)
+
+        #expect(throws: SimulatedFailure.self) {
+            try repository.update(
+                thought,
+                markdown: "After",
+                at: originalDate.addingTimeInterval(60),
+                saveChanges: { throw SimulatedFailure() }
+            )
+        }
+        #expect(thought.markdown == "Before")
+        #expect(thought.editedAt == originalDate)
+
+        try repository.update(thought, markdown: "After", at: originalDate.addingTimeInterval(120))
+        #expect(thought.markdown == "After")
+        #expect(thought.editedAt == originalDate.addingTimeInterval(120))
+    }
+
+    @Test("Editing cannot turn a Thought into blank content")
+    func editingRejectsBlankContent() throws {
+        let repository = try ThoughtRepository.inMemory()
+        let thought = try repository.capture(markdown: "Keep me")
+
+        #expect(throws: CaptureError.emptyThought) {
+            try repository.update(thought, markdown: " \n\t")
+        }
+        #expect(thought.markdown == "Keep me")
     }
 }

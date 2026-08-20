@@ -38,18 +38,38 @@ final class ThoughtRepository {
         return thought
     }
 
-    func allThoughts() -> [Thought] {
+    func allThoughts() throws -> [Thought] {
         let descriptor = FetchDescriptor<Thought>(
             sortBy: [SortDescriptor(\Thought.createdAt, order: .reverse)]
         )
-        return (try? context.fetch(descriptor)) ?? []
+        return try context.fetch(descriptor)
     }
 
-    func update(_ thought: Thought, markdown: String, at date: Date = .now) throws {
+    func update(
+        _ thought: Thought,
+        markdown: String,
+        at date: Date = .now,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws {
+        guard markdown.containsNonWhitespace else {
+            throw CaptureError.emptyThought
+        }
         guard thought.markdown != markdown else { return }
+        let previousMarkdown = thought.markdown
+        let previousEditedAt = thought.editedAt
         thought.markdown = markdown
         thought.editedAt = date
-        try context.save()
+        do {
+            if let saveChanges {
+                try saveChanges()
+            } else {
+                try context.save()
+            }
+        } catch {
+            thought.markdown = previousMarkdown
+            thought.editedAt = previousEditedAt
+            throw error
+        }
     }
 }
 

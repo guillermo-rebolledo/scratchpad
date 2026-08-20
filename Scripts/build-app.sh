@@ -1,8 +1,12 @@
 #!/bin/sh
 set -eu
 
+script_directory="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+repository_directory="$(dirname "$script_directory")"
+cd "$repository_directory"
+
 configuration="${CONFIGURATION:-debug}"
-output_directory="${THOUGHTBOX_OUTPUT_DIRECTORY:-$PWD/.build/app}"
+output_directory="${THOUGHTBOX_OUTPUT_DIRECTORY:-$repository_directory/.build/app}"
 app_path="$output_directory/Thoughtbox.app"
 binary_directory="$(swift build -c "$configuration" --show-bin-path)"
 
