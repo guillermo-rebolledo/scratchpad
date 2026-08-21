@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 2 ]; then
+    printf '%s\n' "Usage: $0 APPCAST CANDIDATE_BUILD" >&2
+    exit 64
+fi
+
+appcast_path="$1"
+candidate_build="$2"
+case "$candidate_build" in
+    ''|*[!0-9]*)
+        printf '%s\n' "Release build number must be a positive integer." >&2
+        exit 64
+        ;;
+esac
+if [ "$candidate_build" -le 0 ]; then
+    printf '%s\n' "Release build number must be greater than zero." >&2
+    exit 64
+fi
+
+xmllint --noout "$appcast_path"
+highest_build="$(ruby -r rexml/document -e '
+  document = REXML::Document.new(File.read(ARGV.fetch(0)))
+  versions = REXML::XPath.match(document, "//*[local-name()=\"version\"]").map do |node|
+    value = node.text.to_s.strip
+    Integer(value, 10) if value.match?(/\A[0-9]+\z/)
+  end.compact
+  puts(versions.max || 0)
+' "$appcast_path")"
+
+if [ "$candidate_build" -le "$highest_build" ]; then
+    printf '%s\n' "Build $candidate_build must be newer than appcast build $highest_build." >&2
+    exit 1
+fi
+
+printf '%s\n' "Version ordering verified: $candidate_build > $highest_build"

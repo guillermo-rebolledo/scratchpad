@@ -24,7 +24,9 @@
 		A10000000000000000000018 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000020 /* Settings.swift */; };
 		A10000000000000000000019 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000021 /* Localizable.xcstrings */; };
 		A10000000000000000000020 /* KeyboardLayoutKeyNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000022 /* KeyboardLayoutKeyNameResolver.swift */; };
+		A10000000000000000000021 /* UpdateConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000023 /* UpdateConfiguration.swift */; };
 		A10000000000000000000016 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = N10000000000000000000001 /* Markdown */; };
+		A10000000000000000000022 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = N10000000000000000000002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,10 +62,11 @@
 		B10000000000000000000020 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		B10000000000000000000021 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B10000000000000000000022 /* KeyboardLayoutKeyNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardLayoutKeyNameResolver.swift; sourceTree = "<group>"; };
+		B10000000000000000000023 /* UpdateConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateConfiguration.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		F10000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000016 /* Markdown in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		F10000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000016 /* Markdown in Frameworks */, A10000000000000000000022 /* Sparkle in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
 		F10000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
@@ -93,6 +96,7 @@
 				B10000000000000000000020 /* Settings.swift */,
 				B10000000000000000000021 /* Localizable.xcstrings */,
 				B10000000000000000000022 /* KeyboardLayoutKeyNameResolver.swift */,
+				B10000000000000000000023 /* UpdateConfiguration.swift */,
 				B10000000000000000000006 /* MainView.swift */,
 				B10000000000000000000007 /* Models.swift */,
 				B10000000000000000000008 /* Persistence.swift */,
@@ -130,7 +134,7 @@
 			buildRules = ();
 			dependencies = ();
 			name = Thoughtbox;
-			packageProductDependencies = (N10000000000000000000001 /* Markdown */,);
+			packageProductDependencies = (N10000000000000000000001 /* Markdown */, N10000000000000000000002 /* Sparkle */,);
 			productName = Thoughtbox;
 			productReference = B10000000000000000000012 /* Thoughtbox.app */;
 			productType = "com.apple.product-type.application";
@@ -166,7 +170,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (en, Base,);
 			mainGroup = G10000000000000000000001;
-			packageReferences = (M10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-markdown" */,);
+			packageReferences = (M10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-markdown" */, M10000000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,);
 			productRefGroup = G10000000000000000000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -183,7 +187,7 @@
 		I10000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000011, A10000000000000000000012, A10000000000000000000013, A10000000000000000000017, A10000000000000000000018, A10000000000000000000020, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009, A10000000000000000000014,);
+			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000011, A10000000000000000000012, A10000000000000000000013, A10000000000000000000017, A10000000000000000000018, A10000000000000000000020, A10000000000000000000021, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009, A10000000000000000000014,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		I10000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000010,); runOnlyForDeploymentPostprocessing = 0; };
@@ -197,7 +201,7 @@
 		L10000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; ONLY_ACTIVE_ARCH = YES; SDKROOT = macosx; SWIFT_VERSION = 6.0;}; name = Debug;};
 		L10000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 6.0;}; name = Release;};
 		L10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = Resources/Thoughtbox.entitlements; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; ENABLE_APP_SANDBOX = YES; ENABLE_HARDENED_RUNTIME = YES; INFOPLIST_FILE = Resources/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.Thoughtbox; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0;}; name = Debug;};
-		L10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = Resources/Thoughtbox.entitlements; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; ENABLE_APP_SANDBOX = YES; ENABLE_HARDENED_RUNTIME = YES; INFOPLIST_FILE = Resources/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.Thoughtbox; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0;}; name = Release;};
+		L10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_ENTITLEMENTS = Resources/Thoughtbox.entitlements; CODE_SIGN_IDENTITY = "Developer ID Application"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = LY8CA9554J; ENABLE_APP_SANDBOX = YES; ENABLE_HARDENED_RUNTIME = YES; INFOPLIST_FILE = Resources/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; OTHER_CODE_SIGN_FLAGS = "--timestamp"; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.Thoughtbox; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0;}; name = Release;};
 		L10000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.ThoughtboxUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_TARGET_NAME = Thoughtbox;}; name = Debug;};
 		L10000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.memoji.ThoughtboxUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_TARGET_NAME = Thoughtbox;}; name = Release;};
 /* End XCBuildConfiguration section */
@@ -214,6 +218,11 @@
 			repositoryURL = "https://github.com/swiftlang/swift-markdown.git";
 			requirement = {kind = upToNextMajorVersion; minimumVersion = 0.8.0;};
 		};
+		M10000000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle.git";
+			requirement = {kind = exactVersion; version = 2.9.2;};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -221,6 +230,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = M10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-markdown" */;
 			productName = Markdown;
+		};
+		N10000000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = M10000000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

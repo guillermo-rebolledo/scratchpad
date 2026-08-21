@@ -18,6 +18,12 @@ struct ThoughtboxApp: App {
                 Button("New Thought") { appState.showCapture() }
                     .keyboardShortcut("n", modifiers: .command)
             }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    appState.updaterController.checkForUpdates(nil)
+                }
+                .accessibilityHint("Checks the signed Thoughtbox update channel for a newer version.")
+            }
         }
 
         Settings {

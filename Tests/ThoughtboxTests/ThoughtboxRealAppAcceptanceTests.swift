@@ -2,6 +2,81 @@ import XCTest
 
 @MainActor
 final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
+    func testCheckForUpdatesCommandIsKeyboardAndAccessibilityReachable() throws {
+        let app = try launch(reset: true)
+        let appMenu = app.menuBars.menuBarItems["Thoughtbox"]
+        XCTAssertTrue(appMenu.waitForExistence(timeout: 3))
+        appMenu.click()
+        let command = app.menuItems["Check for Updates…"]
+        XCTAssertTrue(command.waitForExistence(timeout: 3))
+        XCTAssertTrue(command.isEnabled)
+    }
+
+    func testStagedSparkleUpdatePreservesAllLocalData() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["THOUGHTBOX_RUN_UPDATE_TEST"] == "1" else {
+            throw XCTSkip("Run through Scripts/release/verify-staged-update.sh on a clean Mac.")
+        }
+        let stagedAppcast = try XCTUnwrap(environment["THOUGHTBOX_STAGED_APPCAST_URL"])
+        let expectedVersion = try XCTUnwrap(environment["THOUGHTBOX_EXPECTED_UPDATE_VERSION"])
+        let app = try application()
+        app.launchArguments = ["--test-sparkle-update", "-SUFeedURL", stagedAppcast]
+        app.launch()
+
+        createProject("Update Project", in: app)
+        capture("Inbox survives update", in: app)
+        capture("Project Thought survives update", destination: "Update Project", in: app)
+        capture("Trash survives update", destination: "Update Project", in: app)
+        app.staticTexts["Trash survives update"].click()
+        app.buttons["trash.move"].click()
+
+        let editor = openCapture(in: app)
+        choose("Update Project", from: "capture.destination", in: app)
+        editor.typeText("Draft survives update")
+        editor.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        let recorder = openSettings(in: app)
+        recorder.click()
+        recorder.typeKey("j", modifierFlags: [.control, .option])
+        XCTAssertEqual(recorder.value as? String, "Control–Option–J")
+        app.typeKey("w", modifierFlags: .command)
+
+        let appMenu = app.menuBars.menuBarItems["Thoughtbox"]
+        XCTAssertTrue(appMenu.waitForExistence(timeout: 3))
+        appMenu.click()
+        let checkCommand = app.menuItems["Check for Updates…"]
+        XCTAssertTrue(checkCommand.waitForExistence(timeout: 3))
+        checkCommand.click()
+
+        let installUpdate = app.buttons["Install Update"]
+        XCTAssertTrue(installUpdate.waitForExistence(timeout: 60))
+        installUpdate.click()
+        let installAndRelaunch = app.buttons["Install and Relaunch"]
+        XCTAssertTrue(installAndRelaunch.waitForExistence(timeout: 180))
+        installAndRelaunch.click()
+
+        let appPath = try XCTUnwrap(environment["THOUGHTBOX_APP_PATH"])
+        XCTAssertTrue(waitForVersion(expectedVersion, in: appPath, timeout: 180))
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 60))
+        XCTAssertTrue(app.staticTexts["Inbox survives update"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Project Thought survives update"].exists)
+        XCTAssertTrue(app.staticTexts["Update Project"].exists)
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        XCTAssertTrue(app.staticTexts["Trash survives update"].waitForExistence(timeout: 3))
+
+        let relaunchedDraft = openCapture(in: app)
+        XCTAssertEqual(relaunchedDraft.value as? String, "Draft survives update")
+        XCTAssertEqual(
+            app.descendants(matching: .any)["capture.destination"].value as? String,
+            "Update Project"
+        )
+        relaunchedDraft.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        let relaunchedRecorder = openSettings(in: app)
+        XCTAssertEqual(relaunchedRecorder.value as? String, "Control–Option–J")
+    }
+
     func testCaptureAndReviewThroughAccessibility() throws {
         let app = try launch(reset: true)
 
@@ -774,6 +849,22 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
             object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForVersion(_ version: String, in appPath: String, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        let infoURL = URL(fileURLWithPath: appPath, isDirectory: true)
+            .appending(path: "Contents/Info.plist")
+        repeat {
+            if let data = try? Data(contentsOf: infoURL),
+               let propertyList = try? PropertyListSerialization.propertyList(from: data, format: nil),
+               let info = propertyList as? [String: Any],
+               info["CFBundleShortVersionString"] as? String == version {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        } while Date() < deadline
+        return false
     }
 
     private func markdownFiles(in directory: URL) throws -> [URL] {

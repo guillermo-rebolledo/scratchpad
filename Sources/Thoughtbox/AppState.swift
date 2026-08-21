@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+import Sparkle
 import SwiftData
 
 @MainActor
@@ -10,10 +11,17 @@ final class AppState {
     let container: ModelContainer
     let draft: DraftStore
     let settings: SettingsModel
+    let updaterController: SPUStandardUpdaterController
     private(set) var captureController: CaptureController?
     private(set) var shortcutManager: GlobalShortcutManager?
 
     private init() {
+        let processInfo = ProcessInfo.processInfo
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: !processInfo.arguments.contains("--ui-testing"),
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
         do {
             container = try PersistenceFactory.makeContainer()
         } catch {
@@ -21,7 +29,6 @@ final class AppState {
         }
         let defaults = PersistenceFactory.makeDraftDefaults()
         draft = DraftStore(defaults: defaults)
-        let processInfo = ProcessInfo.processInfo
         let loginItemService: LoginItemServicing = processInfo.arguments.contains("--ui-testing")
             ? UITestLoginItemService(
                 defaults: defaults,
