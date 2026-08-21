@@ -2,6 +2,12 @@ import AppKit
 import Sparkle
 import SwiftUI
 
+enum ThoughtboxWindowMetrics {
+    /// The smallest content size where all three Library columns remain independently operable.
+    static let minimumWidth: CGFloat = 1_050
+    static let minimumHeight: CGFloat = 540
+}
+
 @main
 struct ThoughtboxApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -10,10 +16,15 @@ struct ThoughtboxApp: App {
     var body: some Scene {
         Window("Thoughtbox", id: "main") {
             MainView()
+                .frame(
+                    minWidth: ThoughtboxWindowMetrics.minimumWidth,
+                    minHeight: ThoughtboxWindowMetrics.minimumHeight
+                )
                 .environment(appState.draft)
                 .modelContainer(appState.container)
         }
         .defaultSize(width: 1_050, height: 680)
+        .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Thought") { appState.showCapture() }

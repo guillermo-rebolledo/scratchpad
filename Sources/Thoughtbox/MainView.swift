@@ -67,6 +67,7 @@ struct MainView: View {
                     .tag(LibrarySelection.allThoughts)
                     .help("Shows every active Thought, newest first.")
                     .accessibilityHint("Shows every active Thought, newest first.")
+                    .accessibilityIdentifier("library.sidebar.all")
 
                 Label("Inbox", systemImage: "tray")
                     .tag(LibrarySelection.inbox)

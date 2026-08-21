@@ -75,6 +75,7 @@ struct ThoughtDetailView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
                     .frame(width: 150)
                     .help("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")
                     .accessibilityHint("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")

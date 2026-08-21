@@ -96,6 +96,30 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["# Durable\n\nCaptured from the real app"].waitForExistence(timeout: 3))
     }
 
+    func testThoughtControlsRemainUsableAtMinimumWindowSize() throws {
+        let app = try launch(reset: true)
+        capture("Minimum boundary Thought", in: app)
+
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 3))
+        let resizeHandle = window.coordinate(withNormalizedOffset: CGVector(dx: 0.995, dy: 0.995))
+        let undersizedTarget = window.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.35))
+        resizeHandle.press(forDuration: 0.1, thenDragTo: undersizedTarget, withVelocity: .slow, thenHoldForDuration: 0)
+
+        XCTAssertGreaterThanOrEqual(window.frame.width, 1_050)
+        XCTAssertGreaterThanOrEqual(window.frame.height, 540)
+        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["library.thoughts"].isHittable)
+
+        let destination = app.descendants(matching: .any)["thought.destination"]
+        let presentation = app.descendants(matching: .any)["thought.mode"]
+        XCTAssertTrue(destination.isHittable)
+        XCTAssertTrue(presentation.isHittable)
+        XCTAssertEqual(presentation.label, "Thought presentation")
+        XCTAssertTrue(app.radioButtons["Read"].isHittable)
+        XCTAssertTrue(app.radioButtons["Edit"].isHittable)
+    }
+
     func testFailedSaveKeepsDraftAndShowsAccessibleError() throws {
         let app = try launch(reset: true, simulateSaveFailure: true)
         let editor = openCapture(in: app)
