@@ -286,6 +286,7 @@ struct MainView: View {
                         onMoveToTrash: collection == .trash ? nil : { trashSelection() }
                     )
                         .id(selectedThought.id)
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("thought.detail")
                 } else if selectedThoughtIDs.count > 1 {
                     ContentUnavailableView(
