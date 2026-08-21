@@ -791,19 +791,21 @@ private struct ThoughtRow: View {
                 Text(Self.dateFormatter.string(from: thought.createdAt))
                 if showsDestination {
                     Text("·")
-                    Text(thought.project?.name ?? "Inbox")
+                    Text(thought.project?.name ?? String(localized: "Inbox"))
                         .accessibilityIdentifier("thought.destination.\(thought.id.uuidString)")
                 }
                 if isInTrash {
                     Text("·")
-                    Text("Trash")
+                    Text(String(localized: "Trash"))
                 }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Thought created \(Self.dateFormatter.string(from: thought.createdAt)), in \(isInTrash ? "Trash" : thought.project?.name ?? "Inbox")")
+        .accessibilityLabel(
+            "Thought created \(Self.dateFormatter.string(from: thought.createdAt)), in \(isInTrash ? String(localized: "Trash") : thought.project?.name ?? String(localized: "Inbox"))"
+        )
         .accessibilityValue(thought.markdown)
     }
 }

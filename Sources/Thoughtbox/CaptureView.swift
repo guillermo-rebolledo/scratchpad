@@ -33,7 +33,7 @@ struct CaptureView: View {
                 .padding(4)
                 .background(.background.secondary, in: RoundedRectangle(cornerRadius: 8))
                 .accessibilityLabel("Draft Markdown")
-                .accessibilityValue(draft.markdown.isEmpty ? "Empty" : draft.markdown)
+                .accessibilityValue(draft.markdown.isEmpty ? String(localized: "Empty") : draft.markdown)
                 .help("Enter raw Markdown. Press Command Return to save; Return inserts a new line.")
                 .accessibilityHint("Enter raw Markdown. Press Command Return to save; Return inserts a new line.")
                 .accessibilityIdentifier("capture.editor")

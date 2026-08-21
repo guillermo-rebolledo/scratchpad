@@ -102,6 +102,15 @@ git merge-base --is-ancestor "$source_commit" main || {
     printf '%s\n' "The artifact source commit is not part of local main." >&2
     exit 1
 }
+reviewed_release_notes="$verification_directory/release-notes.md"
+git show "$source_commit:docs/releases/$version.md" >"$reviewed_release_notes" || {
+    printf '%s\n' "The artifact source commit does not contain release notes for $version." >&2
+    exit 1
+}
+cmp -s "$release_notes" "$reviewed_release_notes" || {
+    printf '%s\n' "Current release notes differ from the reviewed artifact source commit." >&2
+    exit 1
+}
 remote_source_commit="$(gh api "repos/guillermo-rebolledo/scratchpad/commits/$source_commit" --jq .sha)"
 [ "$remote_source_commit" = "$source_commit" ] || {
     printf '%s\n' "GitHub does not contain the exact artifact source commit." >&2
@@ -123,7 +132,7 @@ gh release create "$tag" "$update_zip" \
     --repo guillermo-rebolledo/scratchpad \
     --target "$source_commit" \
     --title "Thoughtbox $version" \
-    --notes-file "$release_notes" \
+    --notes-file "$reviewed_release_notes" \
     --draft
 
 printf '%s\n' "Draft release $tag created. Review it before publishing."

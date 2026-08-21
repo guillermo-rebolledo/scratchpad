@@ -73,4 +73,22 @@ struct SearchOrganizationTests {
         #expect(moved.map(\.markdown) == ["Duplicate", "Duplicate"])
         #expect(moved.map(\.createdAt) == [newerDate, olderDate])
     }
+
+    @Test("A large active library remains searchable without losing order")
+    func largeLibrarySearch() {
+        let count = 500
+        let thoughts = (0..<count).map { index in
+            Thought(
+                markdown: index.isMultiple(of: 199) ? "Scale SearchNeedle \(index)" : "Scale Thought \(index)",
+                createdAt: Date(timeIntervalSince1970: TimeInterval(index))
+            )
+        }.reversed()
+
+        let matches = ThoughtSearch.filter(Array(thoughts), query: "searchneedle")
+
+        #expect(matches.count == 3)
+        #expect(matches.map(\.createdAt) == matches.map(\.createdAt).sorted(by: >))
+        #expect(matches.first?.markdown == "Scale SearchNeedle 398")
+        #expect(matches.last?.markdown == "Scale SearchNeedle 0")
+    }
 }

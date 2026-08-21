@@ -139,7 +139,7 @@ enum ThoughtSearch {
 private struct ImageSanitizer: MarkupRewriter {
     mutating func visitImage(_ image: Markdown.Image) -> Markup? {
         let altText = image.plainText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return Text("Image not loaded: \(altText.isEmpty ? "image" : altText)")
+        return Text("Image not loaded: \(altText.isEmpty ? String(localized: "image") : altText)")
     }
 }
 

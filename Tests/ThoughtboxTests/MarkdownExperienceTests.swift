@@ -142,4 +142,22 @@ struct MarkdownExperienceTests {
         guardrail.saveBeforeLeaving = { true }
         #expect(guardrail.canLeaveEditor())
     }
+
+    @Test("Unusually long Markdown remains canonical, searchable, and editable")
+    func unusuallyLongMarkdown() throws {
+        let paragraphs = (0..<1_000).map { "Paragraph \($0) with **durable** content." }
+        let source = paragraphs.joined(separator: "\n\n") + "\n\nFinal SearchNeedle"
+        let document = MarkdownDocument(source: source)
+
+        #expect(document.source == source)
+        #expect(document.searchableText.contains("Final SearchNeedle"))
+        #expect(document.excerpt == "Paragraph 0 with durable content.\nParagraph 1 with durable content.")
+
+        let repository = try ThoughtRepository.inMemory()
+        let thought = try repository.capture(markdown: source)
+        let edited = source + "\n\nEdited tail"
+        try repository.update(thought, markdown: edited)
+        #expect(thought.markdown == edited)
+        #expect(thought.searchableText.hasSuffix("Edited tail"))
+    }
 }

@@ -224,6 +224,9 @@
     "Edited %@" : {
 
     },
+    "Empty" : {
+
+    },
     "Enter a Project name." : {
 
     },
@@ -680,6 +683,9 @@
 
     },
     "active" : {
+
+    },
+    "image" : {
 
     },
     "settings.login.approval" : {
