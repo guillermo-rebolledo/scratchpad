@@ -286,6 +286,10 @@ struct MarkdownExportWriter {
                 failures.append(.init(relativePath: file.relativePath, message: "Unsafe output path."))
                 continue
             }
+            guard isContainedOutput(file.relativePath, in: destination) else {
+                failures.append(.init(relativePath: file.relativePath, message: "Unsafe output path."))
+                continue
+            }
             let output = availableOutput(for: file, in: destination)
             switch output {
             case let .success((relativePath, url)):
@@ -294,6 +298,10 @@ struct MarkdownExportWriter {
                         at: url.deletingLastPathComponent(),
                         withIntermediateDirectories: true
                     )
+                    guard isContainedOutput(relativePath, in: destination) else {
+                        failures.append(.init(relativePath: relativePath, message: "Unsafe output path."))
+                        continue
+                    }
                     try writeData(Data(file.content.utf8), url)
                     written.append(relativePath)
                 } catch {
@@ -360,6 +368,34 @@ struct MarkdownExportWriter {
             if value == "id: \"\(id.uuidString)\"" { foundStableID = true }
         }
         return false
+    }
+
+    private func isContainedOutput(_ relativePath: String, in destination: URL) -> Bool {
+        let selectedRoot = destination.standardizedFileURL
+        let resolvedRoot = selectedRoot.resolvingSymlinksInPath().standardizedFileURL
+        let outputParent = selectedRoot
+            .appending(path: relativePath)
+            .deletingLastPathComponent()
+            .standardizedFileURL
+
+        let rootComponents = selectedRoot.pathComponents
+        let parentComponents = outputParent.pathComponents
+        guard parentComponents.starts(with: rootComponents) else { return false }
+
+        var current = selectedRoot
+        for component in parentComponents.dropFirst(rootComponents.count) {
+            current.append(path: component, directoryHint: .isDirectory)
+            guard fileManager.fileExists(atPath: current.path) else { continue }
+            guard
+                let attributes = try? fileManager.attributesOfItem(atPath: current.path),
+                attributes[.type] as? FileAttributeType != .typeSymbolicLink
+            else { return false }
+        }
+
+        let resolvedParent = outputParent.resolvingSymlinksInPath().standardizedFileURL
+        let resolvedRootComponents = resolvedRoot.pathComponents
+        let resolvedParentComponents = resolvedParent.pathComponents
+        return resolvedParentComponents.starts(with: resolvedRootComponents)
     }
 
     private static func isSafeRelativePath(_ path: String) -> Bool {

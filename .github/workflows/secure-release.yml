@@ -116,6 +116,7 @@ jobs:
             .build/release/channel/Thoughtbox-${{ inputs.version }}.zip
             .build/release/channel/appcast.xml
             .build/release/notary.json
+            .build/release/source-commit.txt
           if-no-files-found: error
           retention-days: 14
 

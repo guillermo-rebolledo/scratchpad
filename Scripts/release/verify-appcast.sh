@@ -9,7 +9,19 @@ fi
 appcast_path="$1"
 expected_build="$2"
 download_prefix="$3"
-script_directory="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+case "$download_prefix" in
+    https://*/) ;;
+    *)
+        printf '%s\n' "The expected Sparkle download prefix must use HTTPS and end in a slash." >&2
+        exit 64
+        ;;
+esac
+script_path="$0"
+case "$script_path" in
+    */*) ;;
+    *) script_path="$(command -v "$script_path")" ;;
+esac
+script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
 
 xmllint --noout "$appcast_path"
 builds="$(ruby "$script_directory/read-appcast-builds.rb" "$appcast_path")"

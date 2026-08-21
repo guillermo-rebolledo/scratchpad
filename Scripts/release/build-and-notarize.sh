@@ -26,9 +26,9 @@ case "$RELEASE_VERSION" in
         ;;
 esac
 case "$THOUGHTBOX_DOWNLOAD_URL_PREFIX" in
-    https://*) ;;
+    https://*/) ;;
     *)
-        printf '%s\n' "THOUGHTBOX_DOWNLOAD_URL_PREFIX must use HTTPS." >&2
+        printf '%s\n' "THOUGHTBOX_DOWNLOAD_URL_PREFIX must use HTTPS and end in a slash." >&2
         exit 64
         ;;
 esac
@@ -54,8 +54,10 @@ notary_log="$output_directory/notary-log.json"
 submission_zip="$output_directory/Thoughtbox-notarization.zip"
 update_zip="$channel_directory/Thoughtbox-$RELEASE_VERSION.zip"
 app_path="$archive_path/Products/Applications/Thoughtbox.app"
+source_commit_file="$output_directory/source-commit.txt"
 
 mkdir -p "$output_directory" "$channel_directory"
+git -C "$repository_directory" rev-parse HEAD >"$source_commit_file"
 "$script_directory/verify-version-order.sh" "$repository_directory/appcast.xml" "$RELEASE_BUILD"
 
 xcodebuild archive \

@@ -1,14 +1,15 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 3 ]; then
-    printf '%s\n' "Usage: $0 VERSION UPDATE_ZIP APPCAST" >&2
+if [ "$#" -ne 4 ]; then
+    printf '%s\n' "Usage: $0 VERSION UPDATE_ZIP APPCAST SOURCE_COMMIT_FILE" >&2
     exit 64
 fi
 
 version="$1"
 update_zip="$2"
 generated_appcast="$3"
+source_commit_file="$4"
 tag="thoughtbox-v$version"
 case "$version" in
     ''|*[!0-9A-Za-z.-]*|.*|*..*|*.)
@@ -17,7 +18,7 @@ case "$version" in
         ;;
 esac
 
-for artifact in "$update_zip" "$generated_appcast"; do
+for artifact in "$update_zip" "$generated_appcast" "$source_commit_file"; do
     [ -f "$artifact" ] || {
         printf '%s\n' "Artifact not found: $artifact" >&2
         exit 66
@@ -25,6 +26,17 @@ for artifact in "$update_zip" "$generated_appcast"; do
 done
 xmllint --noout "$generated_appcast"
 grep -F 'sparkle:edSignature=' "$generated_appcast" >/dev/null
+source_commit="$(tr -d '\r\n' <"$source_commit_file")"
+case "$source_commit" in
+    *[!0-9a-fA-F]*|'')
+        printf '%s\n' "The source commit evidence is not a hexadecimal Git commit ID." >&2
+        exit 64
+        ;;
+esac
+[ "${#source_commit}" -eq 40 ] || {
+    printf '%s\n' "The source commit evidence must contain a full 40-character commit ID." >&2
+    exit 64
+}
 
 branch="$(git branch --show-current)"
 [ "$branch" = "main" ] || {
@@ -35,9 +47,24 @@ branch="$(git branch --show-current)"
     printf '%s\n' "Publish requires a clean worktree." >&2
     exit 1
 }
+resolved_source_commit="$(git rev-parse --verify "$source_commit^{commit}")"
+[ "$resolved_source_commit" = "$source_commit" ] || {
+    printf '%s\n' "The source commit evidence does not resolve exactly in this checkout." >&2
+    exit 1
+}
+git merge-base --is-ancestor "$source_commit" main || {
+    printf '%s\n' "The artifact source commit is not part of local main." >&2
+    exit 1
+}
+remote_source_commit="$(gh api "repos/guillermo-rebolledo/scratchpad/commits/$source_commit" --jq .sha)"
+[ "$remote_source_commit" = "$source_commit" ] || {
+    printf '%s\n' "GitHub does not contain the exact artifact source commit." >&2
+    exit 1
+}
 
 gh release create "$tag" "$update_zip" \
     --repo guillermo-rebolledo/scratchpad \
+    --target "$source_commit" \
     --title "Thoughtbox $version" \
     --generate-notes \
     --draft

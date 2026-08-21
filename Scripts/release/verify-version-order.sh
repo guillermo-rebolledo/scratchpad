@@ -21,7 +21,8 @@ fi
 
 xmllint --noout "$appcast_path"
 script_directory="$(CDPATH= cd "$(dirname "$0")" && pwd)"
-highest_build="$(ruby "$script_directory/read-appcast-builds.rb" "$appcast_path" | tail -1)"
+builds="$(ruby "$script_directory/read-appcast-builds.rb" "$appcast_path")"
+highest_build="$(printf '%s\n' "$builds" | tail -1)"
 highest_build="${highest_build:-0}"
 
 if [ "$candidate_build" -le "$highest_build" ]; then

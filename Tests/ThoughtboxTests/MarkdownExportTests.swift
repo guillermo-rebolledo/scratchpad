@@ -269,6 +269,32 @@ struct MarkdownExportTests {
         #expect(writeAttempted == false)
     }
 
+    @Test("Writer rejects a symlink that escapes the selected destination")
+    func symlinkEscapeIsRejected() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appending(path: "ThoughtboxSymlinkExport-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let destination = root.appending(path: "Selected", directoryHint: .isDirectory)
+        let outside = root.appending(path: "Outside", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: destination.appending(path: "Inbox", directoryHint: .isDirectory),
+            withDestinationURL: outside
+        )
+        let file = PlannedMarkdownFile(
+            thoughtID: UUID(),
+            relativePath: "Inbox/escaped.md",
+            content: "must remain inside the selected folder"
+        )
+
+        let result = MarkdownExportWriter().write(.init(files: [file]), to: destination)
+
+        #expect(result.writtenRelativePaths.isEmpty)
+        #expect(result.failures.map(\.message) == ["Unsafe output path."])
+        #expect(FileManager.default.fileExists(atPath: outside.appending(path: "escaped.md").path) == false)
+    }
+
     @Test("An in-progress export stops between files when its task is canceled")
     func inProgressCancellation() async {
         let plan = MarkdownExportPlan(files: (0..<5_000).map { index in

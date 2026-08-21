@@ -185,9 +185,8 @@ private struct ThoughtSourceEditor: View {
             editorFocused = true
         }
         .onDisappear {
-            if saveNow() {
-                editNavigationGuard.saveBeforeLeaving = nil
-            }
+            saveNow()
+            editNavigationGuard.saveBeforeLeaving = nil
         }
     }
 

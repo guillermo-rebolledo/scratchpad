@@ -25,9 +25,16 @@ esac
 script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
 repository_directory="$(dirname "$(dirname "$script_directory")")"
 test_directory="$(mktemp -d /tmp/thoughtbox-clean-update.XXXXXX)"
+installed_directory=""
+cleanup() {
+    rm -rf "$test_directory"
+    if [ -n "$installed_directory" ]; then
+        rm -rf "$installed_directory"
+    fi
+}
+trap cleanup EXIT HUP INT TERM
 installed_directory="$(mktemp -d '/Applications/Thoughtbox-Update-Test.XXXXXX')"
 installed_app="$installed_directory/Thoughtbox.app"
-trap 'rm -rf "$test_directory"; rm -rf "$installed_directory"' EXIT HUP INT TERM
 
 ditto -x -k "$previous_zip" "$test_directory"
 source_app="$(find "$test_directory" -maxdepth 2 -type d -name 'Thoughtbox.app' -print -quit)"

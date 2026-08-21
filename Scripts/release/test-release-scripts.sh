@@ -30,6 +30,15 @@ do
         "https://updates.example.test/" >/dev/null
 done
 
+if "$script_directory/verify-appcast.sh" \
+    "$repository_directory/Tests/ReleaseFixtures/appcast-element-version.xml" \
+    42 \
+    "" >/dev/null 2>&1
+then
+    printf '%s\n' "An empty download prefix unexpectedly passed." >&2
+    exit 1
+fi
+
 test_app="$test_directory/Thoughtbox.app"
 mkdir -p "$test_app/Contents"
 cp "$repository_directory/Resources/Info.plist" "$test_app/Contents/Info.plist"
