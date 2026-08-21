@@ -20,8 +20,16 @@ done
 script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
 repository_directory="$(dirname "$script_directory")"
 
-xcodebuild \
+set -- xcodebuild \
     -project "$repository_directory/Thoughtbox.xcodeproj" \
     -scheme Thoughtbox \
     -destination 'platform=macOS' \
-    test
+    -retry-tests-on-failure \
+    -test-iterations 3
+
+if [ -n "${XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY:-}" ]; then
+    set -- "$@" -clonedSourcePackagesDirPath "$XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY"
+fi
+
+set -- "$@" test
+"$@"

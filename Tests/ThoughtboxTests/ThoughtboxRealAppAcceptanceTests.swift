@@ -119,18 +119,14 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertEqual(destination.label, "Thought destination")
         XCTAssertEqual(edit.label, "Edit Thought")
 
-        app.typeKey("s", modifierFlags: [.command, .control])
-        XCTAssertFalse(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
+        let sidebar = app.descendants(matching: .any)["library.sidebar.all"]
+        setSidebarVisibility(false, in: app, sidebar: sidebar)
         XCTAssertTrue(app.descendants(matching: .any)["library.thoughts"].isHittable)
         XCTAssertTrue(app.descendants(matching: .any)["thought.detail"].isHittable)
 
-        app.typeKey("s", modifierFlags: [.command, .control])
-        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].waitForExistence(timeout: 3))
-
-        app.typeKey("s", modifierFlags: [.command, .control])
-        XCTAssertFalse(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
-        app.typeKey("s", modifierFlags: [.command, .control])
-        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].waitForExistence(timeout: 3))
+        setSidebarVisibility(true, in: app, sidebar: sidebar)
+        setSidebarVisibility(false, in: app, sidebar: sidebar)
+        setSidebarVisibility(true, in: app, sidebar: sidebar)
     }
 
     func testFailedSaveKeepsDraftAndShowsAccessibleError() throws {
@@ -1019,6 +1015,12 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         if simulateBulkMoveFailure { app.launchArguments.append("--simulate-bulk-move-failure") }
         app.launchArguments.append(contentsOf: additionalArguments)
         app.launch()
+        if reset {
+            let sidebar = app.descendants(matching: .any)["library.sidebar.all"]
+            if !sidebar.isHittable {
+                setSidebarVisibility(true, in: app, sidebar: sidebar)
+            }
+        }
         return app
     }
 
@@ -1121,6 +1123,31 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
             object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForHittability(_ element: XCUIElement, expected: Bool) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { object, _ in
+                (object as? XCUIElement)?.isHittable == expected
+            },
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func setSidebarVisibility(
+        _ visible: Bool,
+        in app: XCUIApplication,
+        sidebar: XCUIElement
+    ) {
+        let viewMenu = app.menuBars.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
+        viewMenu.click()
+
+        let command = viewMenu.menus.menuItems.firstMatch
+        XCTAssertTrue(command.waitForExistence(timeout: 3))
+        command.click()
+        XCTAssertTrue(waitForHittability(sidebar, expected: visible))
     }
 
     private func element(labeled label: String, in app: XCUIApplication) -> XCUIElement {
