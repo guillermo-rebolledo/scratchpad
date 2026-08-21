@@ -479,6 +479,42 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(accessibilityText(of: thoughtRow("Project Thought", in: app)).contains("in Inbox"))
     }
 
+    func testThoughtRowsExposeCanonicalExcerptAndCompactCollectionContext() throws {
+        let app = try launch(reset: true)
+        let longProjectName = "A Project Name Long Enough to Require Predictable Truncation"
+        let longMarkdown = String(repeating: "Long canonical Markdown content ", count: 12)
+        createProject(longProjectName, in: app)
+        capture("Inbox Thought", in: app)
+        capture("Project Thought", destination: longProjectName, in: app)
+        capture("Duplicate Thought", in: app)
+        capture("Duplicate Thought", in: app)
+        capture(longMarkdown, destination: longProjectName, in: app)
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        let list = app.descendants(matching: .any)["library.thoughts"]
+        XCTAssertTrue(list.waitForExistence(timeout: 3))
+        let inboxRow = thoughtRow("Inbox Thought", in: app)
+        let projectRow = thoughtRow("Project Thought", in: app)
+        XCTAssertTrue(accessibilityText(of: inboxRow).contains("created"))
+        XCTAssertTrue(accessibilityText(of: inboxRow).contains("Inbox"))
+        XCTAssertTrue(accessibilityText(of: projectRow).contains(longProjectName))
+        XCTAssertEqual(
+            list.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", "Duplicate Thought", "Duplicate Thought")).count,
+            2
+        )
+        let longRow = thoughtRow(longMarkdown, in: app)
+        XCTAssertLessThanOrEqual(longRow.frame.maxX, list.frame.maxX + 1)
+
+        app.staticTexts[longProjectName].firstMatch.click()
+        XCTAssertTrue(accessibilityText(of: thoughtRow("Project Thought", in: app)).contains(longProjectName))
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        inboxRow.click()
+        app.buttons["trash.move"].click()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        XCTAssertTrue(accessibilityText(of: thoughtRow("Inbox Thought", in: app)).contains("Trash"))
+    }
+
     func testDraftProjectDestinationPersistsAndResetsAfterCapture() throws {
         let app = try launch(reset: true)
         createProject("Persistent Destination", in: app)

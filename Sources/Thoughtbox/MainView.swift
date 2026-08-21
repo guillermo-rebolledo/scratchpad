@@ -161,7 +161,6 @@ struct MainView: View {
                     List(visibleThoughts, selection: guardedSelection) { thought in
                         ThoughtRow(
                             thought: thought,
-                            showsDestination: collection == .allThoughts,
                             isInTrash: collection == .trash
                         )
                             .tag(thought.id)
@@ -879,38 +878,54 @@ struct MainView: View {
 
 private struct ThoughtRow: View {
     let thought: Thought
-    let showsDestination: Bool
     let isInTrash: Bool
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
+        formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter
     }()
 
+    private var creationDate: String {
+        Self.dateFormatter.string(from: thought.createdAt)
+    }
+
+    private var contextTitle: String {
+        if isInTrash { return String(localized: "Trash") }
+        return thought.project?.name ?? String(localized: "Inbox")
+    }
+
+    private var contextSystemImage: String {
+        if isInTrash { return "trash" }
+        return thought.project == nil ? "tray" : "folder"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(MarkdownDocument(source: thought.markdown).excerpt)
+                .font(.body)
                 .lineLimit(2)
-            HStack {
-                Text(Self.dateFormatter.string(from: thought.createdAt))
-                if showsDestination {
-                    Text("·")
-                    Text(thought.project?.name ?? String(localized: "Inbox"))
-                        .accessibilityIdentifier("thought.destination.\(thought.id.uuidString)")
-                }
-                if isInTrash {
-                    Text("·")
-                    Text(String(localized: "Trash"))
-                }
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 8) {
+                Label(creationDate, systemImage: "clock")
+                    .lineLimit(1)
+                    .layoutPriority(1)
+
+                Label(contextTitle, systemImage: contextSystemImage)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .accessibilityIdentifier("thought.destination.\(thought.id.uuidString)")
             }
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "Thought created \(Self.dateFormatter.string(from: thought.createdAt)), in \(isInTrash ? String(localized: "Trash") : thought.project?.name ?? String(localized: "Inbox"))"
+            "Thought created \(creationDate), in \(contextTitle)"
         )
         .accessibilityValue(thought.markdown)
     }
