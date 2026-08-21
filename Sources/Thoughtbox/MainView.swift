@@ -30,7 +30,7 @@ struct MainView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $collection) {
+            List(selection: guardedCollection) {
                 Label("All Thoughts", systemImage: "rectangle.stack")
                     .tag(LibrarySelection.allThoughts)
                     .help("Shows every active Thought, newest first.")
@@ -112,7 +112,7 @@ struct MainView: View {
         .onChange(of: collection) { _, _ in selectNewestThought(force: true) }
         .sheet(item: $projectEditor) { editor in
             ProjectEditorSheet(project: editor.project) { savedProject in
-                collection = .project(savedProject.id)
+                requestCollection(.project(savedProject.id))
             }
         }
     }
@@ -168,6 +168,16 @@ struct MainView: View {
         )
     }
 
+    private var guardedCollection: Binding<LibrarySelection?> {
+        Binding(
+            get: { collection },
+            set: { requestedCollection in
+                guard requestedCollection == collection || editNavigationGuard.canLeaveEditor() else { return }
+                collection = requestedCollection
+            }
+        )
+    }
+
     private func selectNewestThought(force: Bool = false) {
         guard force || selectedThought == nil else { return }
         selectedThoughtID = filteredThoughts.first?.id
@@ -184,6 +194,11 @@ struct MainView: View {
     private func renameSelectedProject() {
         guard let selectedProject else { return }
         beginRename(selectedProject)
+    }
+
+    private func requestCollection(_ requestedCollection: LibrarySelection) {
+        guard requestedCollection == collection || editNavigationGuard.canLeaveEditor() else { return }
+        collection = requestedCollection
     }
 }
 
@@ -223,6 +238,7 @@ private struct ProjectEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @FocusState private var nameFocused: Bool
+    @AccessibilityFocusState private var errorFocused: Bool
     @State private var name: String
     @State private var errorMessage: String?
 
@@ -252,6 +268,7 @@ private struct ProjectEditorSheet: View {
                     .foregroundStyle(.red)
                     .accessibilityLabel("Project error: \(errorMessage)")
                     .accessibilityIdentifier("project.error")
+                    .accessibilityFocused($errorFocused)
             }
 
             HStack {
@@ -284,7 +301,12 @@ private struct ProjectEditorSheet: View {
             onSaved(savedProject)
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            if let projectError = error as? ProjectError {
+                errorMessage = projectError.localizedDescription
+            } else {
+                errorMessage = ProjectError.couldNotSave.localizedDescription
+            }
+            errorFocused = true
             nameFocused = true
         }
     }

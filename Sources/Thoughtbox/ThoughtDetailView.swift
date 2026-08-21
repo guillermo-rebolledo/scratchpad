@@ -22,6 +22,7 @@ struct ThoughtDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var destinationError: String?
+    @AccessibilityFocusState private var destinationErrorFocused: Bool
 
     let thought: Thought
     let editNavigationGuard: ThoughtEditNavigationGuard
@@ -73,6 +74,7 @@ struct ThoughtDetailView: View {
                     .padding(.horizontal)
                     .accessibilityLabel("Destination error: \(destinationError)")
                     .accessibilityIdentifier("thought.destination.error")
+                    .accessibilityFocused($destinationErrorFocused)
             }
 
             Divider()
@@ -103,12 +105,18 @@ struct ThoughtDetailView: View {
         Binding(
             get: { thought.project?.id },
             set: { requestedID in
+                guard editNavigationGuard.canLeaveEditor() else { return }
                 do {
                     let destination = requestedID.flatMap { id in projects.first { $0.id == id } }
                     try ThoughtRepository(context: modelContext).move(thought, to: destination)
                     destinationError = nil
                 } catch {
-                    destinationError = error.localizedDescription
+                    if let projectError = error as? ProjectError {
+                        destinationError = projectError.localizedDescription
+                    } else {
+                        destinationError = ProjectError.couldNotSave.localizedDescription
+                    }
+                    destinationErrorFocused = true
                 }
             }
         )

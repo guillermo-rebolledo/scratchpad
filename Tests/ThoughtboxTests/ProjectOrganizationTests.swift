@@ -16,6 +16,16 @@ struct ProjectOrganizationTests {
         #expect(throws: ProjectError.emptyName) {
             try repository.createProject(name: " \n\t")
         }
+
+        _ = try repository.createProject(name: "Straße")
+        #expect(throws: ProjectError.duplicateName("STRASSE")) {
+            try repository.createProject(name: "STRASSE")
+        }
+
+        _ = try repository.createProject(name: "Café")
+        #expect(throws: ProjectError.duplicateName("Café")) {
+            try repository.createProject(name: "Cafe\u{301}")
+        }
     }
 
     @Test("Projects stay newest-first when renamed")

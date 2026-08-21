@@ -80,6 +80,9 @@ extension String {
     }
 
     var normalizedProjectName: String {
-        trimmedProjectName.lowercased(with: Locale(identifier: "en_US_POSIX"))
+        trimmedProjectName.folding(
+            options: [.caseInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
     }
 }
