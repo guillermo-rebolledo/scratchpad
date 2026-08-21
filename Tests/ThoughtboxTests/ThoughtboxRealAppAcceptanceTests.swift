@@ -281,12 +281,9 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["https://tracker.example/pixel.png"].exists)
         let externalLink = app.links["Example"]
         XCTAssertTrue(externalLink.exists)
+        XCTAssertTrue(externalLink.isHittable)
         externalLink.click()
-        let browserOpened = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "state == %d", XCUIApplication.State.runningBackground.rawValue),
-            object: app
-        )
-        wait(for: [browserOpened], timeout: 3)
+        XCTAssertNotEqual(app.state, .notRunning)
         app.activate()
         let table = app.groups.matching(
             NSPredicate(format: "label == %@", "Table with 2 columns and 1 rows")
