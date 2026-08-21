@@ -129,6 +129,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertEqual(editor.value as? String, "Do not lose this")
         let error = app.descendants(matching: .any)["capture.error"]
         XCTAssertTrue(error.exists)
+        XCTAssertTrue(error.label.contains("Save error"))
         XCTAssertTrue(accessibilityText(of: error).contains("Your Draft is still here"))
     }
 
@@ -190,6 +191,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.typeKey("k", modifierFlags: [.control, .option])
         let conflict = app.descendants(matching: .any)["settings.shortcut.error"]
         XCTAssertTrue(conflict.waitForExistence(timeout: 3))
+        XCTAssertTrue(conflict.label.contains("Settings error"))
         XCTAssertTrue(accessibilityText(of: conflict).contains("previous shortcut is still active"))
         XCTAssertEqual(recorder.value as? String, "Control–Option–Space")
 
@@ -248,6 +250,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertFalse(controlIsOn(toggle))
         let error = app.descendants(matching: .any)["settings.login.error"]
         XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("Settings error"))
         XCTAssertTrue(accessibilityText(of: error).contains("system setting was not changed"))
     }
 
@@ -335,6 +338,24 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["thought.edited.at"].exists)
     }
 
+    func testThoughtEditErrorKeepsAccessibleRecoveryGuidance() throws {
+        let app = try launch(reset: true)
+        capture("Thought cannot become blank", in: app)
+
+        app.radioButtons["Edit"].click()
+        let editor = app.textViews["thought.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        app.radioButtons["Read"].click()
+
+        let error = app.descendants(matching: .any)["thought.edit.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("Edit error"))
+        XCTAssertTrue(error.label.contains("Restore non-empty content or retry"))
+        XCTAssertTrue(editor.exists)
+    }
+
     func testEditingOlderThoughtDoesNotChangeCreationOrder() throws {
         let app = try launch(reset: true)
         capture("Older Thought", in: app)
@@ -393,6 +414,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.buttons["project.save"].click()
         let duplicateError = app.descendants(matching: .any)["project.error"]
         XCTAssertTrue(duplicateError.waitForExistence(timeout: 3))
+        XCTAssertTrue(duplicateError.label.contains("Project error"))
         XCTAssertTrue(accessibilityText(of: duplicateError).contains("without regard to capitalization"))
         app.buttons["Cancel"].click()
 
@@ -553,6 +575,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         let error = app.descendants(matching: .any)["bulk.status"]
         XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("Library error"))
         XCTAssertTrue(error.label.contains("could not move"))
         XCTAssertTrue(app.staticTexts["First Failure Thought"].exists)
         XCTAssertTrue(app.staticTexts["Second Failure Thought"].exists)

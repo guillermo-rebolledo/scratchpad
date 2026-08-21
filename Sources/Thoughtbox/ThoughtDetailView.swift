@@ -85,11 +85,12 @@ struct ThoughtDetailView: View {
             .padding()
 
             if let destinationError {
-                Label(destinationError, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
+                AccessibleErrorMessage(
+                    message: destinationError,
+                    accessibilityLabel: "Destination error: \(destinationError)",
+                    identifier: "thought.destination.error"
+                )
                     .padding(.horizontal)
-                    .accessibilityLabel("Destination error: \(destinationError)")
-                    .accessibilityIdentifier("thought.destination.error")
                     .accessibilityFocused($destinationErrorFocused)
             }
 
@@ -172,10 +173,11 @@ private struct ThoughtSourceEditor: View {
                 }
 
             if let saveError {
-                Label(saveError, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Edit error: \(saveError)")
-                    .accessibilityIdentifier("thought.edit.error")
+                AccessibleErrorMessage(
+                    message: saveError,
+                    accessibilityLabel: "Edit error: \(saveError)",
+                    identifier: "thought.edit.error"
+                )
             } else if markdown != lastSavedMarkdown {
                 Text("Saving…")
                     .font(.caption)

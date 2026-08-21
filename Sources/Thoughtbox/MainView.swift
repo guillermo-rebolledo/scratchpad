@@ -196,13 +196,12 @@ struct MainView: View {
                                 .accessibilityIdentifier("export.cancel")
                         }
                     }
-                    .foregroundStyle(operationIsError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .padding(.horizontal)
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.bar)
+                    .statusMessageStyle(isError: operationIsError)
                     .accessibilityElement(children: .contain)
-                    .accessibilityLabel(operationMessage)
+                    .accessibilityLabel(operationIsError ? "Library error: \(operationMessage)" : operationMessage)
                     .accessibilityFocused($operationFocused)
                     .accessibilityIdentifier("bulk.status")
                 }
@@ -840,10 +839,11 @@ private struct ProjectEditorSheet: View {
                 .onSubmit(save)
 
             if let errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Project error: \(errorMessage)")
-                    .accessibilityIdentifier("project.error")
+                AccessibleErrorMessage(
+                    message: errorMessage,
+                    accessibilityLabel: "Project error: \(errorMessage)",
+                    identifier: "project.error"
+                )
                     .accessibilityFocused($errorFocused)
             }
 

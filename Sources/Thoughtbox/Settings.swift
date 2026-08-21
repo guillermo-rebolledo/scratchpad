@@ -277,7 +277,11 @@ struct ThoughtboxSettingsView: View {
                 .accessibilityIdentifier("settings.shortcut.restore")
 
                 if let shortcutError = model.shortcutError {
-                    SettingsErrorLabel(message: shortcutError, identifier: "settings.shortcut.error")
+                    AccessibleErrorMessage(
+                        message: shortcutError,
+                        accessibilityLabel: "Settings error: \(shortcutError)",
+                        identifier: "settings.shortcut.error"
+                    )
                         .accessibilityFocused($shortcutErrorFocused)
                 }
             } header: {
@@ -304,7 +308,11 @@ struct ThoughtboxSettingsView: View {
                         .accessibilityIdentifier("settings.login.approval")
                 }
                 if let launchAtLoginError = model.launchAtLoginError {
-                    SettingsErrorLabel(message: launchAtLoginError, identifier: "settings.login.error")
+                    AccessibleErrorMessage(
+                        message: launchAtLoginError,
+                        accessibilityLabel: "Settings error: \(launchAtLoginError)",
+                        identifier: "settings.login.error"
+                    )
                         .accessibilityFocused($loginErrorFocused)
                 }
             }
@@ -318,18 +326,6 @@ struct ThoughtboxSettingsView: View {
         }
         .onChange(of: model.shortcutError) { _, error in shortcutErrorFocused = error != nil }
         .onChange(of: model.launchAtLoginError) { _, error in loginErrorFocused = error != nil }
-    }
-}
-
-private struct SettingsErrorLabel: View {
-    let message: String
-    let identifier: String
-
-    var body: some View {
-        Label(message, systemImage: "exclamationmark.triangle.fill")
-            .foregroundStyle(.red)
-            .accessibilityLabel(message)
-            .accessibilityIdentifier(identifier)
     }
 }
 

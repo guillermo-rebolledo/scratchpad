@@ -44,10 +44,11 @@ struct CaptureView: View {
                 }
 
             if let errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Save error: \(errorMessage)")
-                    .accessibilityIdentifier("capture.error")
+                AccessibleErrorMessage(
+                    message: errorMessage,
+                    accessibilityLabel: "Save error: \(errorMessage)",
+                    identifier: "capture.error"
+                )
             }
 
             if let destinationNotice = draft.destinationNotice {
