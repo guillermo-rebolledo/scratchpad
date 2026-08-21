@@ -46,6 +46,6 @@ final class DraftStore {
 
     func fallBackToInboxBecauseProjectIsUnavailable() {
         projectID = nil
-        destinationNotice = "The selected Project no longer exists. Your Draft is intact and will save to Inbox."
+        destinationNotice = String(localized: "The selected Project no longer exists. Your Draft is intact and will save to Inbox.")
     }
 }

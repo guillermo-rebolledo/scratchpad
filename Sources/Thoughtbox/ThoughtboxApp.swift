@@ -52,12 +52,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let selector = #selector(SPUStandardUpdaterController.checkForUpdates(_:))
         guard !applicationMenu.items.contains(where: { $0.action == selector }) else { return }
         let item = NSMenuItem(
-            title: "Check for Updates…",
+            title: String(localized: "Check for Updates…"),
             action: selector,
             keyEquivalent: ""
         )
         item.target = AppState.shared.updaterController
-        item.toolTip = "Checks the signed Thoughtbox update channel for a newer version."
+        item.toolTip = String(localized: "Checks the signed Thoughtbox update channel for a newer version.")
         applicationMenu.insertItem(item, at: min(1, applicationMenu.items.count))
     }
 }

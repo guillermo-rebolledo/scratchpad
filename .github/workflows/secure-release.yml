@@ -100,6 +100,27 @@ jobs:
           Scripts/release/test-release-scripts.sh
           swift test --disable-automatic-resolution
 
+      - name: Compile the app and acceptance suite
+        run: |
+          xcodebuild build-for-testing \
+            -project Thoughtbox.xcodeproj \
+            -scheme Thoughtbox \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build/release-product-gate \
+            -clonedSourcePackagesDirPath "$XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Verify product, accessibility, localization, and privacy boundaries
+        run: |
+          Scripts/release/verify-product-release.sh \
+            .build/release-product-gate \
+            "docs/releases/${RELEASE_VERSION}.md"
+
+      - name: Exercise complete real-app journeys
+        env:
+          THOUGHTBOX_RUN_UI_TESTS: "1"
+        run: Scripts/test-ui.sh
+
       - name: Build, sign, notarize, staple, and sign update
         run: Scripts/release/build-and-notarize.sh
 
@@ -117,6 +138,8 @@ jobs:
             .build/release/channel/appcast.xml
             .build/release/notary.json
             .build/release/source-commit.txt
+            docs/releases/${{ inputs.version }}.md
+            docs/releases/MEM-177-verification.md
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 14

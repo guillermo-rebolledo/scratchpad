@@ -17,6 +17,8 @@ case "$script_path" in
     *) script_path="$(command -v "$script_path")" ;;
 esac
 script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
+repository_directory="$(dirname "$(dirname "$script_directory")")"
+release_notes="$repository_directory/docs/releases/$version.md"
 case "$version" in
     ''|*[!0-9A-Za-z.-]*|.*|*..*|*.)
         printf '%s\n' "VERSION must contain only letters, numbers, dots, and hyphens without empty path-like segments." >&2
@@ -30,6 +32,10 @@ for artifact in "$update_zip" "$generated_appcast" "$source_commit_file"; do
         exit 66
     }
 done
+[ -f "$release_notes" ] || {
+    printf '%s\n' "Reviewed release notes not found: $release_notes" >&2
+    exit 66
+}
 verification_directory="$(mktemp -d /tmp/thoughtbox-publish-verification.XXXXXX)"
 trap 'rm -rf "$verification_directory"' EXIT
 trap 'exit 129' HUP
@@ -117,7 +123,7 @@ gh release create "$tag" "$update_zip" \
     --repo guillermo-rebolledo/scratchpad \
     --target "$source_commit" \
     --title "Thoughtbox $version" \
-    --generate-notes \
+    --notes-file "$release_notes" \
     --draft
 
 printf '%s\n' "Draft release $tag created. Review it before publishing."

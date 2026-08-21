@@ -307,7 +307,7 @@ struct MarkdownExportWriter {
                 } catch {
                     failures.append(.init(
                         relativePath: relativePath,
-                        message: "Could not write this output."
+                        message: String(localized: "Could not write this output.")
                     ))
                 }
             case let .failure(failure):
@@ -328,7 +328,7 @@ struct MarkdownExportWriter {
         if existingOutput(at: requestedURL, hasStableID: file.thoughtID) {
             return .failure(.init(
                 relativePath: file.relativePath,
-                message: "An export with this stable ID already exists. No file was overwritten."
+                message: String(localized: "An export with this stable ID already exists. No file was overwritten.")
             ))
         }
 
@@ -347,13 +347,13 @@ struct MarkdownExportWriter {
             if existingOutput(at: collisionURL, hasStableID: file.thoughtID) {
                 return .failure(.init(
                     relativePath: collisionPath,
-                    message: "An export with this stable ID already exists. No file was overwritten."
+                    message: String(localized: "An export with this stable ID already exists. No file was overwritten.")
                 ))
             }
         }
         return .failure(.init(
             relativePath: file.relativePath,
-            message: "An export with this stable ID already exists. No file was overwritten."
+            message: String(localized: "An export with this stable ID already exists. No file was overwritten.")
         ))
     }
 
@@ -433,9 +433,9 @@ struct MarkdownExportService {
 struct SystemExportDestinationPicker {
     func chooseDestination() async -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "Export Thoughtbox Markdown"
-        panel.message = "Choose a folder. Thoughtbox will create Inbox and Project folders inside it."
-        panel.prompt = "Export"
+        panel.title = String(localized: "Export Thoughtbox Markdown")
+        panel.message = String(localized: "Choose a folder. Thoughtbox will create Inbox and Project folders inside it.")
+        panel.prompt = String(localized: "Export")
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true

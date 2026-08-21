@@ -11,11 +11,18 @@ final class ThoughtEditNavigationGuard {
     }
 }
 
-private enum ThoughtPresentationMode: String, CaseIterable, Identifiable {
-    case read = "Read"
-    case edit = "Edit"
+private enum ThoughtPresentationMode: CaseIterable, Identifiable {
+    case read
+    case edit
 
     var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .read: String(localized: "Read")
+        case .edit: String(localized: "Edit")
+        }
+    }
 }
 
 struct ThoughtDetailView: View {
@@ -63,7 +70,7 @@ struct ThoughtDetailView: View {
 
                     Picker("Thought presentation", selection: guardedMode) {
                         ForEach(ThoughtPresentationMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
+                            Text(mode.title).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -214,7 +221,7 @@ private struct ThoughtSourceEditor: View {
             saveError = nil
             return true
         } catch {
-            saveError = "Thoughtbox could not save these changes. Restore non-empty content or retry before leaving Edit."
+            saveError = String(localized: "Thoughtbox could not save these changes. Restore non-empty content or retry before leaving Edit.")
             editorFocused = true
             return false
         }

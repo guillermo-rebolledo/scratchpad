@@ -87,7 +87,7 @@ private struct MarkdownBlockView: View {
                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(language.map { "\($0) code" } ?? "Code")
+            .accessibilityLabel(language.map { String(localized: "\($0) code") } ?? String(localized: "Code"))
             .accessibilityValue(source)
 
         case let .table(headers, rows):
@@ -105,7 +105,9 @@ private struct MarkdownBlockView: View {
                         ForEach(Array(row.enumerated()), id: \.offset) { column, cell in
                             Text(InlineMarkdown.attributed(cell))
                                 .accessibilityLabel(tableCellLabel(
-                                    header: headers.indices.contains(column) ? headers[column] : "Column \(column + 1)",
+                                    header: headers.indices.contains(column)
+                                        ? headers[column]
+                                        : String(localized: "Column \(column + 1)"),
                                     value: cell
                                 ))
                         }
@@ -126,7 +128,7 @@ private struct MarkdownBlockView: View {
     private func tableCellLabel(header: String, value: String) -> String {
         let plainHeader = MarkdownDocument.plainText(fromInlineMarkdown: header)
         let plainValue = MarkdownDocument.plainText(fromInlineMarkdown: value)
-        return "\(plainHeader): \(plainValue)"
+        return String(localized: "\(plainHeader): \(plainValue)")
     }
 
     private func font(forHeadingLevel level: Int) -> Font {
@@ -164,12 +166,16 @@ private struct MarkdownListItemView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint(item.isComplete == nil ? "List item" : "Task checkboxes are visual. Switch to Edit to change the task.")
+        .accessibilityHint(
+            item.isComplete == nil
+                ? String(localized: "List item")
+                : String(localized: "Task checkboxes are visual. Switch to Edit to change the task.")
+        )
     }
 
     private var accessibilityLabel: String {
-        guard let isComplete = item.isComplete else { return "List item" }
-        return isComplete ? "Completed task" : "Incomplete task"
+        guard let isComplete = item.isComplete else { return String(localized: "List item") }
+        return isComplete ? String(localized: "Completed task") : String(localized: "Incomplete task")
     }
 }
 

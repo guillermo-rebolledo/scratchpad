@@ -54,9 +54,9 @@ enum CaptureError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .emptyThought:
-            "Enter a Thought before saving."
+            String(localized: "Enter a Thought before saving.")
         case .couldNotSave:
-            "Thoughtbox could not save this Thought. Your Draft is still here. Try again."
+            String(localized: "Thoughtbox could not save this Thought. Your Draft is still here. Try again.")
         }
     }
 }
@@ -69,11 +69,11 @@ enum ProjectError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .emptyName:
-            "Enter a Project name."
+            String(localized: "Enter a Project name.")
         case let .duplicateName(name):
-            "A Project named “\(name)” already exists. Project names are compared without regard to capitalization."
+            String(localized: "A Project named “\(name)” already exists. Project names are compared without regard to capitalization.")
         case .couldNotSave:
-            "Thoughtbox could not save this Project change. Try again."
+            String(localized: "Thoughtbox could not save this Project change. Try again.")
         }
     }
 }
@@ -82,7 +82,7 @@ enum OrganizationError: LocalizedError, Equatable {
     case bulkMoveFailed
 
     var errorDescription: String? {
-        "Thoughtbox could not move the selected Thoughts. Nothing was moved; try again."
+        String(localized: "Thoughtbox could not move the selected Thoughts. Nothing was moved; try again.")
     }
 }
 
@@ -97,17 +97,17 @@ enum TrashError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case let .onlyTrashCanBePermanentlyDeleted(count):
-            "Permanent deletion is only available in Trash. \(count) selected Thought\(count == 1 ? " is" : "s are") still active."
+            String(localized: "Permanent deletion is only available in Trash. \(count) selected Thought\(count == 1 ? " is" : "s are") still active.")
         case let .projectContainsActiveThoughts(count):
-            "This Project contains \(count) active Thought\(count == 1 ? "" : "s"). Move or delete \(count == 1 ? "it" : "them") before deleting the Project."
+            String(localized: "This Project contains \(count) active Thought\(count == 1 ? "" : "s"). Move or delete \(count == 1 ? "it" : "them") before deleting the Project.")
         case .trashFailed:
-            "Thoughtbox could not move the selected Thoughts to Trash. Nothing was moved; try again."
+            String(localized: "Thoughtbox could not move the selected Thoughts to Trash. Nothing was moved; try again.")
         case .restoreFailed:
-            "Thoughtbox could not restore the selected Thoughts. Nothing was restored; try again."
+            String(localized: "Thoughtbox could not restore the selected Thoughts. Nothing was restored; try again.")
         case .permanentDeletionFailed:
-            "Thoughtbox could not permanently delete the selected Thoughts. They remain in Trash; try again."
+            String(localized: "Thoughtbox could not permanently delete the selected Thoughts. They remain in Trash; try again.")
         case .projectDeletionFailed:
-            "Thoughtbox could not delete this Project. It was not removed; try again."
+            String(localized: "Thoughtbox could not delete this Project. It was not removed; try again.")
         }
     }
 }

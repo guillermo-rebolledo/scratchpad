@@ -14,9 +14,9 @@ final class CaptureController: NSObject, NSPopoverDelegate {
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "square.and.pencil",
-                accessibilityDescription: "Capture Thought"
+                accessibilityDescription: String(localized: "Capture Thought")
             )
-            button.toolTip = "Capture a Thought"
+            button.toolTip = String(localized: "Capture a Thought")
             button.target = self
             button.action = #selector(toggleCapture)
             button.sendAction(on: [.leftMouseUp])

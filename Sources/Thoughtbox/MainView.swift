@@ -10,10 +10,10 @@ private enum LibrarySelection: Hashable {
 
     var title: String {
         switch self {
-        case .allThoughts: "All Thoughts"
-        case .inbox: "Inbox"
-        case .project: "Project"
-        case .trash: "Trash"
+        case .allThoughts: String(localized: "All Thoughts")
+        case .inbox: String(localized: "Inbox")
+        case .project: String(localized: "Project")
+        case .trash: String(localized: "Trash")
         }
     }
 }
@@ -237,7 +237,7 @@ struct MainView: View {
             announceSearchResults()
         }
         .onChange(of: selectedThoughtIDs) { _, selection in
-            announce("\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected")
+            announce(String(localized: "\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected"))
         }
         .sheet(item: $projectEditor) { editor in
             ProjectEditorSheet(project: editor.project) { savedProject in
@@ -297,48 +297,54 @@ struct MainView: View {
 
     private var permanentDeletionTitle: String {
         let count = pendingPermanentDeletionIDs.count
-        return count == 1 ? "Permanently delete this Thought?" : "Permanently delete \(count) Thoughts?"
+        return count == 1
+            ? String(localized: "Permanently delete this Thought?")
+            : String(localized: "Permanently delete \(count) Thoughts?")
     }
 
     private var projectDeletionTitle: String {
-        guard let confirmation = projectDeletionConfirmation else { return "Delete this Project?" }
-        return "Delete “\(confirmation.projectName)”?"
+        guard let confirmation = projectDeletionConfirmation else {
+            return String(localized: "Delete this Project?")
+        }
+        return String(localized: "Delete “\(confirmation.projectName)”?")
     }
 
     private var projectDeletionMessage: String {
-        guard let confirmation = projectDeletionConfirmation else { return "This cannot be undone." }
+        guard let confirmation = projectDeletionConfirmation else {
+            return String(localized: "This cannot be undone.")
+        }
         guard confirmation.trashedThoughtCount > 0 else {
-            return "The empty Project will be permanently deleted. This cannot be undone."
+            return String(localized: "The empty Project will be permanently deleted. This cannot be undone.")
         }
         let count = confirmation.trashedThoughtCount
-        return "\(count) Thought\(count == 1 ? "" : "s") in Trash formerly belonged to this Project. If restored later, \(count == 1 ? "it" : "they") will go to Inbox. The Project deletion cannot be undone."
+        return String(localized: "\(count) Thought\(count == 1 ? "" : "s") in Trash formerly belonged to this Project. If restored later, \(count == 1 ? "it" : "they") will go to Inbox. The Project deletion cannot be undone.")
     }
 
     private var collectionTitle: String {
         if let selectedProject { return selectedProject.name }
-        return collection?.title ?? "Thoughts"
+        return collection?.title ?? String(localized: "Thoughts")
     }
 
     private var emptyTitle: String {
-        if searchText.containsNonWhitespace { return "No Search Results" }
+        if searchText.containsNonWhitespace { return String(localized: "No Search Results") }
         return switch collection ?? .allThoughts {
-        case .allThoughts: "No Thoughts Yet"
-        case .inbox: "Inbox Is Empty"
-        case .project: "Project Is Empty"
-        case .trash: "Trash Is Empty"
+        case .allThoughts: String(localized: "No Thoughts Yet")
+        case .inbox: String(localized: "Inbox Is Empty")
+        case .project: String(localized: "Project Is Empty")
+        case .trash: String(localized: "Trash Is Empty")
         }
     }
 
     private var emptyDescription: String {
         if searchText.containsNonWhitespace {
-            let kind = collection == .trash ? "trashed" : "active"
-            return "No \(kind) Thoughts in \(collectionTitle) match “\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))”."
+            let kind = collection == .trash ? String(localized: "trashed") : String(localized: "active")
+            return String(localized: "No \(kind) Thoughts in \(collectionTitle) match “\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))”.")
         }
         return switch collection ?? .allThoughts {
-        case .allThoughts: "Capture a Thought from the menu bar or press Command N."
-        case .inbox: "Capture to Inbox or move an existing Thought here."
-        case .project: "Capture to this Project or move an existing Thought here."
-        case .trash: "Thoughts remain here until you restore or permanently delete them."
+        case .allThoughts: String(localized: "Capture a Thought from the menu bar or press Command N.")
+        case .inbox: String(localized: "Capture to Inbox or move an existing Thought here.")
+        case .project: String(localized: "Capture to this Project or move an existing Thought here.")
+        case .trash: String(localized: "Thoughts remain here until you restore or permanently delete them.")
         }
     }
 
@@ -482,11 +488,11 @@ struct MainView: View {
             } else {
                 changedCount = try repository.move(selectedThoughts, to: project)
             }
-            let destinationName = project?.name ?? "Inbox"
+            let destinationName = project?.name ?? String(localized: "Inbox")
             operationMessage = if changedCount == 0 {
-                "Every selected Thought is already in \(destinationName)."
+                String(localized: "Every selected Thought is already in \(destinationName).")
             } else {
-                "Moved \(changedCount) Thought\(changedCount == 1 ? "" : "s") to \(destinationName)."
+                String(localized: "Moved \(changedCount) Thought\(changedCount == 1 ? "" : "s") to \(destinationName).")
             }
             operationIsError = false
             focusOperationStatus()
@@ -510,7 +516,7 @@ struct MainView: View {
             } else {
                 count = try repository.trash(selected)
             }
-            operationMessage = "Moved \(count) Thought\(count == 1 ? "" : "s") to Trash."
+            operationMessage = String(localized: "Moved \(count) Thought\(count == 1 ? "" : "s") to Trash.")
             operationIsError = false
             focusOperationStatus()
         } catch {
@@ -534,9 +540,9 @@ struct MainView: View {
                 result = try repository.restore(selected)
             }
             if result.inboxFallbackCount == 0 {
-                operationMessage = "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s") to \(result.restoredCount == 1 ? "its" : "their") former destination."
+                operationMessage = String(localized: "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s") to \(result.restoredCount == 1 ? "its" : "their") former destination.")
             } else {
-                operationMessage = "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s"). \(result.inboxFallbackCount) went to Inbox because \(result.inboxFallbackCount == 1 ? "its former Project no longer exists" : "their former Projects no longer exist")."
+                operationMessage = String(localized: "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s"). \(result.inboxFallbackCount) went to Inbox because \(result.inboxFallbackCount == 1 ? "its former Project no longer exists" : "their former Projects no longer exist").")
             }
             operationIsError = false
             focusOperationStatus()
@@ -568,7 +574,7 @@ struct MainView: View {
             }
             selectedThoughtIDs.subtract(pendingPermanentDeletionIDs)
             pendingPermanentDeletionIDs = []
-            operationMessage = "Permanently deleted \(count) Thought\(count == 1 ? "" : "s")."
+            operationMessage = String(localized: "Permanently deleted \(count) Thought\(count == 1 ? "" : "s").")
             operationIsError = false
             focusOperationStatus()
         } catch {
@@ -611,9 +617,9 @@ struct MainView: View {
             selectedThoughtIDs = []
             projectDeletionConfirmation = nil
             operationMessage = if result.draftDestinationReset {
-                "Deleted \(confirmation.projectName). Your Draft is intact and its destination is now Inbox."
+                String(localized: "Deleted \(confirmation.projectName). Your Draft is intact and its destination is now Inbox.")
             } else {
-                "Deleted \(confirmation.projectName)."
+                String(localized: "Deleted \(confirmation.projectName).")
             }
             operationIsError = false
             focusOperationStatus()
@@ -639,8 +645,8 @@ struct MainView: View {
         }
         guard !source.isEmpty else {
             operationMessage = scope == .allActive
-                ? "There are no active Thoughts to export. Trash is excluded from Export All."
-                : "Select one or more Thoughts in Trash before exporting."
+                ? String(localized: "There are no active Thoughts to export. Trash is excluded from Export All.")
+                : String(localized: "Select one or more Thoughts in Trash before exporting.")
             operationIsError = true
             focusOperationStatus()
             return
@@ -648,7 +654,7 @@ struct MainView: View {
 
         let items = source.map(ThoughtExportItem.init(thought:))
         exportIsRunning = true
-        operationMessage = "Choose a destination for \(items.count) Thought\(items.count == 1 ? "" : "s")…"
+        operationMessage = String(localized: "Choose a destination for \(items.count) Thought\(items.count == 1 ? "" : "s")…")
         operationIsError = false
         focusOperationStatus()
         exportTask = Task { @MainActor in
@@ -657,7 +663,7 @@ struct MainView: View {
                 exportIsRunning = false
                 exportCanBeCancelled = false
                 exportTask = nil
-                operationMessage = "Export canceled. No files were written."
+                operationMessage = String(localized: "Export canceled. No files were written.")
                 operationIsError = false
                 focusOperationStatus()
                 return
@@ -666,14 +672,14 @@ struct MainView: View {
                 exportIsRunning = false
                 exportCanBeCancelled = false
                 exportTask = nil
-                operationMessage = "Export canceled. No files were written."
+                operationMessage = String(localized: "Export canceled. No files were written.")
                 operationIsError = false
                 focusOperationStatus()
                 return
             }
 
             exportCanBeCancelled = true
-            operationMessage = "Exporting \(items.count) Thought\(items.count == 1 ? "" : "s")…"
+            operationMessage = String(localized: "Exporting \(items.count) Thought\(items.count == 1 ? "" : "s")…")
             operationIsError = false
             focusOperationStatus()
             let simulateFailure = ProcessInfo.processInfo.arguments.contains("--simulate-export-write-failure")
@@ -708,7 +714,7 @@ struct MainView: View {
         guard exportCanBeCancelled else { return }
         exportCanBeCancelled = false
         exportTask?.cancel()
-        operationMessage = "Canceling export safely…"
+        operationMessage = String(localized: "Canceling export safely…")
         operationIsError = false
         focusOperationStatus()
     }
@@ -720,22 +726,22 @@ struct MainView: View {
     ) {
         switch outcome {
         case .cancelled:
-            operationMessage = "Export canceled. No files were written."
+            operationMessage = String(localized: "Export canceled. No files were written.")
             operationIsError = false
         case let .completed(result) where result.wasCancelled:
             let failureCopy = result.failures.isEmpty
                 ? ""
-                : " \(result.failures.count) output\(result.failures.count == 1 ? " failed" : "s failed") before cancellation."
-            operationMessage = "Export canceled after writing \(result.writtenRelativePaths.count) of \(requestedCount) Thought\(requestedCount == 1 ? "" : "s"). Files already exported remain in \(destination.lastPathComponent).\(failureCopy)"
+                : String(localized: " \(result.failures.count) output\(result.failures.count == 1 ? " failed" : "s failed") before cancellation.")
+            operationMessage = String(localized: "Export canceled after writing \(result.writtenRelativePaths.count) of \(requestedCount) Thought\(requestedCount == 1 ? "" : "s"). Files already exported remain in \(destination.lastPathComponent).\(failureCopy)")
             operationIsError = !result.failures.isEmpty
         case let .completed(result) where result.isFullSuccess:
-            operationMessage = "Exported \(result.writtenRelativePaths.count) Thought\(result.writtenRelativePaths.count == 1 ? "" : "s") to \(destination.lastPathComponent)."
+            operationMessage = String(localized: "Exported \(result.writtenRelativePaths.count) Thought\(result.writtenRelativePaths.count == 1 ? "" : "s") to \(destination.lastPathComponent).")
             operationIsError = false
         case let .completed(result):
             let shownPaths = result.failures.prefix(3).map(\.relativePath).joined(separator: ", ")
             let remainingCount = max(0, result.failures.count - 3)
-            let remaining = remainingCount == 0 ? "" : ", and \(remainingCount) more"
-            operationMessage = "Exported \(result.writtenRelativePaths.count) of \(requestedCount) Thought\(requestedCount == 1 ? "" : "s"). Could not write: \(shownPaths)\(remaining). No existing files were overwritten."
+            let remaining = remainingCount == 0 ? "" : String(localized: ", and \(remainingCount) more")
+            operationMessage = String(localized: "Exported \(result.writtenRelativePaths.count) of \(requestedCount) Thought\(requestedCount == 1 ? "" : "s"). Could not write: \(shownPaths)\(remaining). No existing files were overwritten.")
             operationIsError = true
         }
         focusOperationStatus()
@@ -743,7 +749,7 @@ struct MainView: View {
 
     private func announceSearchResults() {
         guard searchText.containsNonWhitespace else { return }
-        announce("\(visibleThoughts.count) search result\(visibleThoughts.count == 1 ? "" : "s") in \(collectionTitle)")
+        announce(String(localized: "\(visibleThoughts.count) search result\(visibleThoughts.count == 1 ? "" : "s") in \(collectionTitle)"))
     }
 
     private func announce(_ message: String) {

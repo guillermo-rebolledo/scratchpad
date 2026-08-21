@@ -1,33 +1,963 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "settings.login.approval" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Approval is required in System Settings → General → Login Items." } } } },
-    "settings.login.failure" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Thoughtbox could not update Launch at Login. The system setting was not changed." } } } },
-    "settings.login.help" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask macOS to open Thoughtbox when you log in." } } } },
-    "settings.login.label" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Launch at Login" } } } },
-    "settings.login.unavailable" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Launch at Login is unavailable for this copy of Thoughtbox." } } } },
-    "settings.shortcut.conflictError" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "That shortcut is unavailable or used by another app. The previous shortcut is still active." } } } },
-    "settings.shortcut.help" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Activate the recorder, then type a shortcut. The change takes effect immediately." } } } },
-    "settings.shortcut.label" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Capture Shortcut" } } } },
-    "settings.shortcut.modifierError" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Include Control, Option, or Command with the shortcut key." } } } },
-    "settings.shortcut.recorderHelp" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Activate, then type the new shortcut. Press Escape to cancel." } } } },
-    "settings.shortcut.recorderLabel" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Capture shortcut recorder" } } } },
-    "settings.shortcut.recording" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Type a new shortcut…" } } } },
-    "settings.shortcut.restore" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore Default" } } } },
-    "settings.shortcut.restoreHelp" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Reinstates Control–Option–Space." } } } },
-    "settings.shortcut.section" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Quick Capture" } } } },
-    "settings.shortcut.startupError" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "The saved shortcut is unavailable. Choose another shortcut." } } } },
-    "shortcut.key.delete" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } } } },
-    "shortcut.key.escape" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Escape" } } } },
-    "shortcut.key.forwardDelete" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Forward Delete" } } } },
-    "shortcut.key.return" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Return" } } } },
-    "shortcut.key.space" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Space" } } } },
-    "shortcut.key.tab" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Tab" } } } },
-    "shortcut.key.unknown" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Key %lld" } } } },
-    "shortcut.modifier.command" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Command" } } } },
-    "shortcut.modifier.control" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Control" } } } },
-    "shortcut.modifier.option" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Option" } } } },
-    "shortcut.modifier.shift" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Shift" } } } }
+    " %lld output%@ before cancellation." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : " %1$lld output%2$@ before cancellation."
+          }
+        }
+      }
+    },
+    "%@ code" : {
+
+    },
+    "%@ list" : {
+
+    },
+    "%@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "%lld Thought%@ in Trash formerly belonged to this Project. If restored later, %@ will go to Inbox. The Project deletion cannot be undone." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld Thought%2$@ in Trash formerly belonged to this Project. If restored later, %3$@ will go to Inbox. The Project deletion cannot be undone."
+          }
+        }
+      }
+    },
+    "%lld Thought%@ selected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld Thought%2$@ selected"
+          }
+        }
+      }
+    },
+    "%lld Thought%@ selected in Trash" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld Thought%2$@ selected in Trash"
+          }
+        }
+      }
+    },
+    "%lld Thoughts Selected" : {
+
+    },
+    "%lld search result%@ in %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld search result%2$@ in %3$@"
+          }
+        }
+      }
+    },
+    "%lld selected" : {
+
+    },
+    ", and %lld more" : {
+
+    },
+    "A Project named “%@” already exists. Project names are compared without regard to capitalization." : {
+
+    },
+    "All Thoughts" : {
+
+    },
+    "Always asks for confirmation before permanently deleting the selected Thoughts." : {
+
+    },
+    "An export with this stable ID already exists. No file was overwritten." : {
+
+    },
+    "Available in Trash when one or more Thoughts are selected." : {
+
+    },
+    "Block quote" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Cancel Export" : {
+
+    },
+    "Canceling export safely…" : {
+
+    },
+    "Capture Thought" : {
+
+    },
+    "Capture a Thought" : {
+
+    },
+    "Capture a Thought from the menu bar or press Command N." : {
+
+    },
+    "Capture to Inbox or move an existing Thought here." : {
+
+    },
+    "Capture to this Project or move an existing Thought here." : {
+
+    },
+    "Changes auto-save after a short pause and when focus or selection changes." : {
+
+    },
+    "Changes saved" : {
+
+    },
+    "Check for Updates…" : {
+
+    },
+    "Checks the signed Thoughtbox update channel for a newer version." : {
+
+    },
+    "Choose Export All or export the selected trashed Thoughts." : {
+
+    },
+    "Choose Inbox or an existing Project. Project management stays in the main window." : {
+
+    },
+    "Choose Inbox or an existing Project. The selection persists with this Draft and resets to Inbox after saving." : {
+
+    },
+    "Choose Inbox or one Project. All selected Thoughts move atomically." : {
+
+    },
+    "Choose a destination for %lld Thought%@…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Choose a destination for %1$lld Thought%2$@…"
+          }
+        }
+      }
+    },
+    "Choose a folder. Thoughtbox will create Inbox and Project folders inside it." : {
+
+    },
+    "Clear Draft" : {
+
+    },
+    "Clear this Draft?" : {
+
+    },
+    "Code" : {
+
+    },
+    "Column %lld" : {
+
+    },
+    "Completed task" : {
+
+    },
+    "Could not write this output." : {
+
+    },
+    "Create Project" : {
+
+    },
+    "Create a Project in the main window." : {
+
+    },
+    "Created %@" : {
+
+    },
+    "Creates a Project in the main window." : {
+
+    },
+    "Delete Permanently" : {
+
+    },
+    "Delete Project" : {
+
+    },
+    "Delete this Project?" : {
+
+    },
+    "Delete “%@”?" : {
+
+    },
+    "Deleted %@." : {
+
+    },
+    "Deleted %@. Your Draft is intact and its destination is now Inbox." : {
+
+    },
+    "Deletes the selected Project only when it contains no active Thoughts." : {
+
+    },
+    "Destination" : {
+
+    },
+    "Destination error: %@" : {
+
+    },
+    "Draft Markdown" : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit error: %@" : {
+
+    },
+    "Edited %@" : {
+
+    },
+    "Enter a Project name." : {
+
+    },
+    "Enter a Thought before saving." : {
+
+    },
+    "Enter raw Markdown. Press Command Return to save; Return inserts a new line." : {
+
+    },
+    "Every selected Thought is already in %@." : {
+
+    },
+    "Explains any active-Thought constraint, then asks for confirmation before deleting an empty Project." : {
+
+    },
+    "Export" : {
+
+    },
+    "Export All…" : {
+
+    },
+    "Export Selected Trash…" : {
+
+    },
+    "Export Selected…" : {
+
+    },
+    "Export Thoughtbox Markdown" : {
+
+    },
+    "Export canceled after writing %lld of %lld Thought%@. Files already exported remain in %@.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Export canceled after writing %1$lld of %2$lld Thought%3$@. Files already exported remain in %4$@.%5$@"
+          }
+        }
+      }
+    },
+    "Export canceled. No files were written." : {
+
+    },
+    "Export portable canonical Markdown through the system folder picker." : {
+
+    },
+    "Exported %lld Thought%@ to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Exported %1$lld Thought%2$@ to %3$@."
+          }
+        }
+      }
+    },
+    "Exported %lld of %lld Thought%@. Could not write: %@%@. No existing files were overwritten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Exported %1$lld of %2$lld Thought%3$@. Could not write: %4$@%5$@. No existing files were overwritten."
+          }
+        }
+      }
+    },
+    "Exporting %lld Thought%@…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Exporting %1$lld Thought%2$@…"
+          }
+        }
+      }
+    },
+    "Exports only the selected trashed Thoughts without restoring them." : {
+
+    },
+    "Focus Thought List" : {
+
+    },
+    "In Trash" : {
+
+    },
+    "Inbox" : {
+
+    },
+    "Inbox Is Empty" : {
+
+    },
+    "Incomplete task" : {
+
+    },
+    "Keep Draft" : {
+
+    },
+    "Keep Project" : {
+
+    },
+    "Keep in Trash" : {
+
+    },
+    "List item" : {
+
+    },
+    "Move Selected" : {
+
+    },
+    "Move keyboard focus to the Thought list." : {
+
+    },
+    "Move to Trash" : {
+
+    },
+    "Moved %lld Thought%@ to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Moved %1$lld Thought%2$@ to %3$@."
+          }
+        }
+      }
+    },
+    "Moved %lld Thought%@ to Trash." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Moved %1$lld Thought%2$@ to Trash."
+          }
+        }
+      }
+    },
+    "Moves all selected Thoughts to Trash without confirmation. You can restore them later." : {
+
+    },
+    "Moves every selected Thought to Trash immediately in one save." : {
+
+    },
+    "Moves every selected active Thought together in one save." : {
+
+    },
+    "Moves keyboard focus to the Thought list. Command A selects all visible results." : {
+
+    },
+    "Moves this Thought between Inbox and one Project." : {
+
+    },
+    "Moves this Thought between Inbox and one Project. Changes save immediately." : {
+
+    },
+    "Names are trimmed and compared without regard to capitalization." : {
+
+    },
+    "New Project" : {
+
+    },
+    "New Thought" : {
+
+    },
+    "No %@ Thoughts in %@ match “%@”." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No %1$@ Thoughts in %2$@ match “%3$@”."
+          }
+        }
+      }
+    },
+    "No Search Results" : {
+
+    },
+    "No Thoughts Yet" : {
+
+    },
+    "Opens a confirmation that states how many Thoughts will be permanently deleted." : {
+
+    },
+    "Opens the persistent Draft editor." : {
+
+    },
+    "Opens the system folder picker and exports every active Thought. Trash is excluded." : {
+
+    },
+    "Opens the system folder picker, then exports the selected trashed Thoughts as portable Markdown." : {
+
+    },
+    "Ordered list with %lld items" : {
+
+    },
+    "Permanent deletion is only available in Trash. %lld selected Thought%@ still active." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Permanent deletion is only available in Trash. %1$lld selected Thought%2$@ still active."
+          }
+        }
+      }
+    },
+    "Permanently delete %lld Thoughts?" : {
+
+    },
+    "Permanently delete this Thought?" : {
+
+    },
+    "Permanently deleted %lld Thought%@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Permanently deleted %1$lld Thought%2$@."
+          }
+        }
+      }
+    },
+    "Permanently removes the current Draft after confirmation." : {
+
+    },
+    "Project" : {
+
+    },
+    "Project Is Empty" : {
+
+    },
+    "Project error: %@" : {
+
+    },
+    "Project name" : {
+
+    },
+    "Projects" : {
+
+    },
+    "Read" : {
+
+    },
+    "Read renders Markdown. Edit shows the canonical source and auto-saves changes." : {
+
+    },
+    "Rename Project" : {
+
+    },
+    "Rename the selected Project without changing its order." : {
+
+    },
+    "Renames the selected Project without changing its order." : {
+
+    },
+    "Rendered Thought" : {
+
+    },
+    "Restore Selected" : {
+
+    },
+    "Restored %lld Thought%@ to %@ former destination." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restored %1$lld Thought%2$@ to %3$@ former destination."
+          }
+        }
+      }
+    },
+    "Restored %lld Thought%@. %lld went to Inbox because %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restored %1$lld Thought%2$@. %3$lld went to Inbox because %4$@."
+          }
+        }
+      }
+    },
+    "Restores all selected Thoughts atomically. Missing Projects fall back to Inbox." : {
+
+    },
+    "Restores each selected Thought to its former Project when available, otherwise Inbox." : {
+
+    },
+    "Save Name" : {
+
+    },
+    "Save Thought" : {
+
+    },
+    "Save error: %@" : {
+
+    },
+    "Save to" : {
+
+    },
+    "Saved" : {
+
+    },
+    "Saves the trimmed Project name if it is unique." : {
+
+    },
+    "Saves this Draft to the selected destination, then resets the next Draft to Inbox." : {
+
+    },
+    "Saves this Draft to the selected destination." : {
+
+    },
+    "Saving changes" : {
+
+    },
+    "Saving…" : {
+
+    },
+    "Search %@" : {
+
+    },
+    "Section break" : {
+
+    },
+    "Select a Thought" : {
+
+    },
+    "Select one or more Thoughts in Trash before exporting." : {
+
+    },
+    "Shows active Thoughts in %@, newest first." : {
+
+    },
+    "Shows active Thoughts in this Project, newest first." : {
+
+    },
+    "Shows active Thoughts that are not assigned to a Project." : {
+
+    },
+    "Shows every active Thought, newest first." : {
+
+    },
+    "Shows trashed Thoughts newest first. Search is scoped to Trash." : {
+
+    },
+    "Shows trashed Thoughts newest first. Trash is retained until you permanently delete it." : {
+
+    },
+    "Stops before the next Markdown file. Files already exported remain in the chosen folder." : {
+
+    },
+    "Stops the export before its next file and reports how many files were already written." : {
+
+    },
+    "Switch to Edit to change the raw Markdown source." : {
+
+    },
+    "Table with %lld columns and %lld rows" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Table with %1$lld columns and %2$lld rows"
+          }
+        }
+      }
+    },
+    "Task checkboxes are visual. Switch to Edit to change the task." : {
+
+    },
+    "The empty Project will be permanently deleted. This cannot be undone." : {
+
+    },
+    "The selected Project no longer exists. Your Draft is intact and will save to Inbox." : {
+
+    },
+    "There are no active Thoughts to export. Trash is excluded from Export All." : {
+
+    },
+    "This Project contains %lld active Thought%@. Move or delete %@ before deleting the Project." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This Project contains %1$lld active Thought%2$@. Move or delete %3$@ before deleting the Project."
+          }
+        }
+      }
+    },
+    "This cannot be undone." : {
+
+    },
+    "This cannot be undone. Saved Thoughts are not affected." : {
+
+    },
+    "This cannot be undone. The selected Thought%@ will be removed from this Mac." : {
+
+    },
+    "Thought Markdown source" : {
+
+    },
+    "Thought created %@, in %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Thought created %1$@, in %2$@"
+          }
+        }
+      }
+    },
+    "Thought presentation" : {
+
+    },
+    "Thoughtbox" : {
+
+    },
+    "Thoughtbox could not delete this Project. It was not removed; try again." : {
+
+    },
+    "Thoughtbox could not move the selected Thoughts to Trash. Nothing was moved; try again." : {
+
+    },
+    "Thoughtbox could not move the selected Thoughts. Nothing was moved; try again." : {
+
+    },
+    "Thoughtbox could not permanently delete the selected Thoughts. They remain in Trash; try again." : {
+
+    },
+    "Thoughtbox could not restore the selected Thoughts. Nothing was restored; try again." : {
+
+    },
+    "Thoughtbox could not save these changes. Restore non-empty content or retry before leaving Edit." : {
+
+    },
+    "Thoughtbox could not save this Project change. Try again." : {
+
+    },
+    "Thoughtbox could not save this Thought. Your Draft is still here. Try again." : {
+
+    },
+    "Thoughts" : {
+
+    },
+    "Thoughts remain here until you restore or permanently delete them." : {
+
+    },
+    "Trash" : {
+
+    },
+    "Trash Is Empty" : {
+
+    },
+    "Unordered list with %lld items" : {
+
+    },
+    "Use Restore Selected or Delete Permanently below the Trash list." : {
+
+    },
+    "active" : {
+
+    },
+    "settings.login.approval" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approval is required in System Settings → General → Login Items."
+          }
+        }
+      }
+    },
+    "settings.login.failure" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thoughtbox could not update Launch at Login. The system setting was not changed."
+          }
+        }
+      }
+    },
+    "settings.login.help" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask macOS to open Thoughtbox when you log in."
+          }
+        }
+      }
+    },
+    "settings.login.label" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Launch at Login"
+          }
+        }
+      }
+    },
+    "settings.login.unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Launch at Login is unavailable for this copy of Thoughtbox."
+          }
+        }
+      }
+    },
+    "settings.shortcut.conflictError" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That shortcut is unavailable or used by another app. The previous shortcut is still active."
+          }
+        }
+      }
+    },
+    "settings.shortcut.help" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate the recorder, then type a shortcut. The change takes effect immediately."
+          }
+        }
+      }
+    },
+    "settings.shortcut.label" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture Shortcut"
+          }
+        }
+      }
+    },
+    "settings.shortcut.modifierError" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include Control, Option, or Command with the shortcut key."
+          }
+        }
+      }
+    },
+    "settings.shortcut.recorderHelp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate, then type the new shortcut. Press Escape to cancel."
+          }
+        }
+      }
+    },
+    "settings.shortcut.recorderLabel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture shortcut recorder"
+          }
+        }
+      }
+    },
+    "settings.shortcut.recording" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type a new shortcut…"
+          }
+        }
+      }
+    },
+    "settings.shortcut.restore" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Default"
+          }
+        }
+      }
+    },
+    "settings.shortcut.restoreHelp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reinstates Control–Option–Space."
+          }
+        }
+      }
+    },
+    "settings.shortcut.section" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Capture"
+          }
+        }
+      }
+    },
+    "settings.shortcut.startupError" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The saved shortcut is unavailable. Choose another shortcut."
+          }
+        }
+      }
+    },
+    "shortcut.key.delete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "shortcut.key.escape" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escape"
+          }
+        }
+      }
+    },
+    "shortcut.key.forwardDelete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forward Delete"
+          }
+        }
+      }
+    },
+    "shortcut.key.return" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return"
+          }
+        }
+      }
+    },
+    "shortcut.key.space" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Space"
+          }
+        }
+      }
+    },
+    "shortcut.key.tab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab"
+          }
+        }
+      }
+    },
+    "shortcut.key.unknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key %lld"
+          }
+        }
+      }
+    },
+    "shortcut.modifier.command" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command"
+          }
+        }
+      }
+    },
+    "shortcut.modifier.control" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Control"
+          }
+        }
+      }
+    },
+    "shortcut.modifier.option" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Option"
+          }
+        }
+      }
+    },
+    "shortcut.modifier.shift" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift"
+          }
+        }
+      }
+    },
+    "trashed" : {
+
+    },
+    "·" : {
+
+    }
   },
   "version" : "1.0"
 }
