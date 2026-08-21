@@ -538,6 +538,67 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Second recoverable Thought"].exists)
     }
 
+    func testPortableExportCreatesExternalArtifactAndExcludesTrashUntilSelected() throws {
+        let destination = appSandboxExportDirectory(prefix: "ThoughtboxRealExport")
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let app = try launch(reset: true, exportDirectory: destination)
+        createProject("Work/Personal", in: app)
+        capture("# Project Export\n\nCanonical **project** source", destination: "Work/Personal", in: app)
+        capture("Inbox export source", in: app)
+        capture("Selected Trash export source", in: app)
+        app.staticTexts["Selected Trash export source"].click()
+        app.buttons["trash.move"].click()
+
+        export("Export All…", in: app)
+        let status = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(waitForLabel(status, containing: "Exported 2 Thoughts"))
+
+        let inboxFiles = try markdownFiles(in: destination.appending(path: "Inbox", directoryHint: .isDirectory))
+        let projectFiles = try markdownFiles(in: destination.appending(path: "Work-Personal", directoryHint: .isDirectory))
+        XCTAssertEqual(inboxFiles.count, 1)
+        XCTAssertEqual(projectFiles.count, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.appending(path: "Trash").path))
+        let projectArtifact = try String(contentsOf: projectFiles[0], encoding: .utf8)
+        XCTAssertTrue(projectArtifact.contains("id: \""))
+        XCTAssertTrue(projectArtifact.contains("created_at: \""))
+        XCTAssertTrue(projectArtifact.contains("edited_at: \""))
+        XCTAssertTrue(projectArtifact.hasSuffix("# Project Export\n\nCanonical **project** source"))
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        app.staticTexts["Selected Trash export source"].click()
+        app.buttons["export.selected.trash.button"].click()
+        XCTAssertTrue(waitForLabel(status, containing: "Exported 1 Thought"))
+        let trashFiles = try markdownFiles(in: destination.appending(path: "Trash", directoryHint: .isDirectory))
+        XCTAssertEqual(trashFiles.count, 1)
+        XCTAssertTrue(try String(contentsOf: trashFiles[0], encoding: .utf8).hasSuffix("Selected Trash export source"))
+    }
+
+    func testNativeExportPickerCancellationAndWriteFailureAreAccessible() throws {
+        var app = try launch(reset: true)
+        capture("Cancel export", in: app)
+        export("Export All…", in: app)
+        let cancel = app.buttons["Cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        cancel.click()
+        var status = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(waitForLabel(status, containing: "No files were written"))
+
+        app.terminate()
+        let destination = appSandboxExportDirectory(prefix: "ThoughtboxRealExportFailure")
+        defer { try? FileManager.default.removeItem(at: destination) }
+        app = try launch(
+            reset: true,
+            additionalArguments: ["--simulate-export-write-failure"],
+            exportDirectory: destination
+        )
+        capture("Failed export", in: app)
+        export("Export All…", in: app)
+        status = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(waitForLabel(status, containing: "Could not write"))
+        XCTAssertTrue(status.label.contains("Exported 0 of 1 Thought"))
+        XCTAssertTrue(try markdownFilesRecursively(in: destination).isEmpty)
+    }
+
     private func application() throws -> XCUIApplication {
         if let path = ProcessInfo.processInfo.environment["THOUGHTBOX_APP_PATH"] {
             return XCUIApplication(url: URL(fileURLWithPath: path, isDirectory: true))
@@ -549,7 +610,8 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         reset: Bool,
         simulateSaveFailure: Bool = false,
         simulateBulkMoveFailure: Bool = false,
-        additionalArguments: [String] = []
+        additionalArguments: [String] = [],
+        exportDirectory: URL? = nil
     ) throws -> XCUIApplication {
         guard ProcessInfo.processInfo.environment["THOUGHTBOX_RUN_UI_TESTS"] == "1" else {
             throw XCTSkip("Run this file from the Xcode Thoughtbox UI-test scheme.")
@@ -557,6 +619,9 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         let app = try application()
         app.launchEnvironment["THOUGHTBOX_UI_TEST_SESSION"] = UUID().uuidString
+        if let exportDirectory {
+            app.launchEnvironment["THOUGHTBOX_UI_TEST_EXPORT_DIRECTORY"] = exportDirectory.path
+        }
         app.launchArguments = ["--ui-testing"]
         if reset { app.launchArguments.append("--reset-ui-test-store") }
         if simulateSaveFailure { app.launchArguments.append("--simulate-save-failure") }
@@ -603,5 +668,41 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let item = app.menuItems[option]
         XCTAssertTrue(item.waitForExistence(timeout: 3))
         item.click()
+    }
+
+    private func export(_ option: String, in app: XCUIApplication) {
+        let menu = app.descendants(matching: .any)["export.menu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 3))
+        menu.click()
+        let item = app.menuItems[option]
+        XCTAssertTrue(item.waitForExistence(timeout: 3))
+        item.click()
+    }
+
+    private func waitForLabel(_ element: XCUIElement, containing text: String) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS %@", text),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func markdownFiles(in directory: URL) throws -> [URL] {
+        try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "md" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private func markdownFilesRecursively(in directory: URL) throws -> [URL] {
+        guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
+        let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)
+        return (enumerator?.allObjects as? [URL] ?? []).filter { $0.pathExtension == "md" }
+    }
+
+    private func appSandboxExportDirectory(prefix: String) -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: "Library/Containers/com.memoji.Thoughtbox/Data/tmp", directoryHint: .isDirectory)
+            .appending(path: "\(prefix)-\(UUID().uuidString)", directoryHint: .isDirectory)
     }
 }

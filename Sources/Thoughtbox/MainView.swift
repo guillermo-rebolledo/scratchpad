@@ -29,6 +29,8 @@ private struct ProjectDeletionConfirmation {
     let trashedThoughtCount: Int
 }
 
+private struct SimulatedExportFailure: Error {}
+
 struct MainView: View {
     @Environment(DraftStore.self) private var draft
     @Environment(\.modelContext) private var modelContext
@@ -52,6 +54,7 @@ struct MainView: View {
     @State private var pendingPermanentDeletionIDs: Set<UUID> = []
     @State private var projectDeletionConfirmation: ProjectDeletionConfirmation?
     @State private var confirmsProjectDeletion = false
+    @State private var exportIsRunning = false
     @FocusState private var thoughtListFocused: Bool
     @AccessibilityFocusState private var operationFocused: Bool
 
@@ -155,13 +158,34 @@ struct MainView: View {
                 .help("Move keyboard focus to the Thought list.")
                 .accessibilityLabel("Focus Thought List")
                 .accessibilityHint("Moves keyboard focus to the Thought list. Command A selects all visible results.")
+
+                Menu("Export", systemImage: "square.and.arrow.up") {
+                    Button("Export All…") { beginExport(scope: .allActive) }
+                        .keyboardShortcut("e", modifiers: [.command, .shift])
+                        .accessibilityHint("Opens the system folder picker and exports every active Thought. Trash is excluded.")
+                        .accessibilityIdentifier("export.all")
+                    Button("Export Selected Trash…") { beginExport(scope: .selectedTrash) }
+                        .keyboardShortcut("e", modifiers: [.command, .option, .shift])
+                        .disabled(collection != .trash || selectedThoughtIDs.isEmpty)
+                        .accessibilityHint("Available in Trash when one or more Thoughts are selected.")
+                        .accessibilityIdentifier("export.selected.trash")
+                }
+                .disabled(exportIsRunning)
+                .help("Export portable canonical Markdown through the system folder picker.")
+                .accessibilityHint("Choose Export All or export the selected trashed Thoughts.")
+                .accessibilityIdentifier("export.menu")
             }
             .safeAreaInset(edge: .top) {
                 if let operationMessage {
-                    Label(
-                        operationMessage,
-                        systemImage: operationIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
-                    )
+                    HStack(spacing: 8) {
+                        if exportIsRunning {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: operationIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        }
+                        Text(operationMessage)
+                    }
                     .foregroundStyle(operationIsError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .padding(.horizontal)
                     .padding(.vertical, 6)
@@ -388,6 +412,11 @@ struct MainView: View {
                 .help("Always asks for confirmation before permanently deleting the selected Thoughts.")
                 .accessibilityHint("Opens a confirmation that states how many Thoughts will be permanently deleted.")
                 .accessibilityIdentifier("trash.delete")
+            Button("Export Selected…") { beginExport(scope: .selectedTrash) }
+                .disabled(exportIsRunning)
+                .help("Exports only the selected trashed Thoughts without restoring them.")
+                .accessibilityHint("Opens the system folder picker, then exports the selected trashed Thoughts as portable Markdown.")
+                .accessibilityIdentifier("export.selected.trash.button")
         }
         .padding(8)
         .background(.bar)
@@ -586,6 +615,78 @@ struct MainView: View {
             operationIsError = true
             focusOperationStatus()
         }
+    }
+
+    private func beginExport(scope: ThoughtExportScope) {
+        guard !exportIsRunning, editNavigationGuard.canLeaveEditor() else { return }
+        let source: [Thought]
+        switch scope {
+        case .allActive:
+            source = activeThoughts
+        case .selectedTrash:
+            source = trashedThoughts.filter { selectedThoughtIDs.contains($0.id) }
+        }
+        guard !source.isEmpty else {
+            operationMessage = scope == .allActive
+                ? "There are no active Thoughts to export. Trash is excluded from Export All."
+                : "Select one or more Thoughts in Trash before exporting."
+            operationIsError = true
+            focusOperationStatus()
+            return
+        }
+
+        let items = source.map(ThoughtExportItem.init(thought:))
+        exportIsRunning = true
+        operationMessage = "Choose a destination for \(items.count) Thought\(items.count == 1 ? "" : "s")…"
+        operationIsError = false
+        focusOperationStatus()
+        Task { @MainActor in
+            let destination = await SystemExportDestinationPicker().chooseDestination()
+            guard let destination else {
+                exportIsRunning = false
+                operationMessage = "Export canceled. No files were written."
+                operationIsError = false
+                focusOperationStatus()
+                return
+            }
+
+            operationMessage = "Exporting \(items.count) Thought\(items.count == 1 ? "" : "s")…"
+            operationIsError = false
+            focusOperationStatus()
+            let plan = MarkdownExportPlanner().makePlan(for: items, scope: scope)
+            let simulateFailure = ProcessInfo.processInfo.arguments.contains("--simulate-export-write-failure")
+            let outcome = await Task.detached(priority: .userInitiated) {
+                if simulateFailure {
+                    let writer = MarkdownExportWriter { _, _ in throw SimulatedExportFailure() }
+                    return MarkdownExportService(writer: writer).export(plan, to: destination)
+                }
+                return MarkdownExportService().export(plan, to: destination)
+            }.value
+            exportIsRunning = false
+            presentExportOutcome(outcome, destination: destination, requestedCount: items.count)
+        }
+    }
+
+    private func presentExportOutcome(
+        _ outcome: MarkdownExportOutcome,
+        destination: URL,
+        requestedCount: Int
+    ) {
+        switch outcome {
+        case .cancelled:
+            operationMessage = "Export canceled. No files were written."
+            operationIsError = false
+        case let .completed(result) where result.isFullSuccess:
+            operationMessage = "Exported \(result.writtenRelativePaths.count) Thought\(result.writtenRelativePaths.count == 1 ? "" : "s") to \(destination.lastPathComponent)."
+            operationIsError = false
+        case let .completed(result):
+            let shownPaths = result.failures.prefix(3).map(\.relativePath).joined(separator: ", ")
+            let remainingCount = max(0, result.failures.count - 3)
+            let remaining = remainingCount == 0 ? "" : ", and \(remainingCount) more"
+            operationMessage = "Exported \(result.writtenRelativePaths.count) of \(requestedCount) Thought\(requestedCount == 1 ? "" : "s"). Could not write: \(shownPaths)\(remaining). No existing files were overwritten."
+            operationIsError = true
+        }
+        focusOperationStatus()
     }
 
     private func announceSearchResults() {
