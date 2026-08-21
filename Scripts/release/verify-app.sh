@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 
+script_path="$0"
+case "$script_path" in
+    */*) ;;
+    *) script_path="$(command -v "$script_path")" ;;
+esac
+script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
+
 if [ "$#" -ne 1 ]; then
     printf '%s\n' "Usage: $0 PATH_TO_THOUGHTBOX_APP" >&2
     exit 64
@@ -24,45 +31,8 @@ printf '%s\n' "$signature_details" | grep -E 'flags=.*runtime' >/dev/null
 expected_authority="$(printf '%s\n' "$signature_details" | sed -n 's/^Authority=//p' | head -1)"
 
 codesign -d --entitlements :- "$app_path" >"$entitlements_path" 2>/dev/null
-for entitlement in \
-    com.apple.security.app-sandbox \
-    com.apple.security.files.user-selected.read-write \
-    com.apple.security.network.client
-do
-    value="$(plutil -extract "$entitlement" raw -expect bool "$entitlements_path")"
-    [ "$value" = "true" ] || {
-        printf '%s\n' "Required entitlement is missing: $entitlement" >&2
-        exit 1
-    }
-done
-
-if plutil -extract com.apple.security.get-task-allow raw "$entitlements_path" >/dev/null 2>&1; then
-    printf '%s\n' "Release app must not include get-task-allow." >&2
-    exit 1
-fi
-
-mach_names="$(plutil -extract com.apple.security.temporary-exception.mach-lookup.global-name json -o - "$entitlements_path")"
-printf '%s' "$mach_names" | ruby -r json -e '
-  actual = JSON.parse(STDIN.read).sort
-  expected = %w[com.memoji.Thoughtbox-spki com.memoji.Thoughtbox-spks]
-  abort "Unexpected Sparkle Mach service entitlement: #{actual.inspect}" unless actual == expected
-'
-
-entitlement_keys="$(plutil -convert json -o - "$entitlements_path" | ruby -r json -e 'puts JSON.parse(STDIN.read).keys.sort')"
-printf '%s\n' "$entitlement_keys" | while IFS= read -r entitlement; do
-    case "$entitlement" in
-        com.apple.application-identifier|\
-        com.apple.developer.team-identifier|\
-        com.apple.security.app-sandbox|\
-        com.apple.security.files.user-selected.read-write|\
-        com.apple.security.network.client|\
-        com.apple.security.temporary-exception.mach-lookup.global-name) ;;
-        *)
-            printf '%s\n' "Unexpected release entitlement: $entitlement" >&2
-            exit 1
-            ;;
-    esac
-done
+plutil -convert json -o - "$entitlements_path" |
+    ruby "$script_directory/verify-entitlements.rb" app
 
 feed_url="$(plutil -extract SUFeedURL raw "$info_path")"
 case "$feed_url" in
@@ -89,9 +59,9 @@ verify_nested_code() {
     printf '%s\n' "$nested_signature" | grep -F "Authority=$expected_authority" >/dev/null
     printf '%s\n' "$nested_signature" | grep -E 'flags=.*runtime' >/dev/null
     codesign -d --entitlements :- "$nested_code" >"$nested_entitlements_path" 2>/dev/null
-    if plutil -extract com.apple.security.get-task-allow raw "$nested_entitlements_path" >/dev/null 2>&1; then
-        printf '%s\n' "Nested release code must not include get-task-allow: $nested_code" >&2
-        exit 1
+    if [ -s "$nested_entitlements_path" ]; then
+        plutil -convert json -o - "$nested_entitlements_path" |
+            ruby "$script_directory/verify-entitlements.rb" nested "$nested_code"
     fi
 }
 

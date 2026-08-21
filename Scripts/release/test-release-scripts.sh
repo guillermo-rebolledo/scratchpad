@@ -22,6 +22,42 @@ for invalid_prefix in "https:///" "http://updates.example.test/" "https://user@u
     fi
 done
 
+valid_entitlements='{
+  "com.apple.security.app-sandbox": true,
+  "com.apple.security.files.user-selected.read-write": true,
+  "com.apple.security.network.client": true,
+  "com.apple.security.temporary-exception.mach-lookup.global-name": [
+    "com.memoji.Thoughtbox-spks",
+    "com.memoji.Thoughtbox-spki"
+  ]
+}'
+printf '%s' "$valid_entitlements" |
+    ruby "$script_directory/verify-entitlements.rb" app
+
+unsafe_entitlements='{
+  "com.apple.security.app-sandbox": true,
+  "com.apple.security.files.user-selected.read-write": true,
+  "com.apple.security.network.client": true,
+  "com.apple.security.temporary-exception.mach-lookup.global-name": [
+    "com.memoji.Thoughtbox-spki",
+    "com.memoji.Thoughtbox-spks"
+  ],
+  "com.apple.security.get-task-allow": false
+}'
+if printf '%s' "$unsafe_entitlements" |
+    ruby "$script_directory/verify-entitlements.rb" app >/dev/null 2>&1
+then
+    printf '%s\n' "A release app containing get-task-allow unexpectedly passed." >&2
+    exit 1
+fi
+
+if printf '%s' '{"com.apple.security.get-task-allow":false}' |
+    ruby "$script_directory/verify-entitlements.rb" nested fixture >/dev/null 2>&1
+then
+    printf '%s\n' "Nested code containing get-task-allow unexpectedly passed." >&2
+    exit 1
+fi
+
 fixture_archive="$test_directory/Thoughtbox.zip"
 printf x >"$fixture_archive"
 
