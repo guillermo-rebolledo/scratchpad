@@ -82,6 +82,69 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
     }
 
+    func testShortcutSettingsRejectConflictActivatePersistAndRestore() throws {
+        let app = try launch(reset: true, additionalArguments: ["--simulate-shortcut-conflict"])
+        var recorder = openSettings(in: app)
+        XCTAssertEqual(recorder.value as? String, "Control–Option–Space")
+
+        recorder.click()
+        recorder.typeKey("k", modifierFlags: [.control, .option])
+        let conflict = app.descendants(matching: .any)["settings.shortcut.error"]
+        XCTAssertTrue(conflict.waitForExistence(timeout: 3))
+        XCTAssertTrue(conflict.label.contains("previous shortcut is still active"))
+        XCTAssertEqual(recorder.value as? String, "Control–Option–Space")
+
+        recorder.click()
+        recorder.typeKey("j", modifierFlags: [.control, .option])
+        XCTAssertEqual(recorder.value as? String, "Control–Option–J")
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        finder.typeKey("j", modifierFlags: [.control, .option])
+        XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
+        app.textViews["capture.editor"].typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        recorder = openSettings(in: app)
+        XCTAssertEqual(recorder.value as? String, "Control–Option–J")
+
+        app.buttons["settings.shortcut.restore"].click()
+        XCTAssertEqual(recorder.value as? String, "Control–Option–Space")
+        finder.activate()
+        finder.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option])
+        XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
+    }
+
+    func testLaunchAtLoginOptInOutPersistenceAndFailure() throws {
+        var app = try launch(reset: true)
+        _ = openSettings(in: app)
+        var toggle = app.checkBoxes["settings.login.toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        XCTAssertEqual(toggle.value as? Int, 0)
+        toggle.click()
+        XCTAssertEqual(toggle.value as? Int, 1)
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        _ = openSettings(in: app)
+        toggle = app.checkBoxes["settings.login.toggle"]
+        XCTAssertEqual(toggle.value as? Int, 1)
+        toggle.click()
+        XCTAssertEqual(toggle.value as? Int, 0)
+
+        app.terminate()
+        app = try launch(reset: true, additionalArguments: ["--simulate-login-item-failure"])
+        _ = openSettings(in: app)
+        toggle = app.checkBoxes["settings.login.toggle"]
+        toggle.click()
+        XCTAssertEqual(toggle.value as? Int, 0)
+        let error = app.descendants(matching: .any)["settings.login.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("system setting was not changed"))
+    }
+
     func testMainWindowClosesWithoutTerminatingCaptureService() throws {
         let app = try launch(reset: true)
         XCTAssertEqual(app.windows.count, 1)
@@ -636,6 +699,13 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let editor = app.textViews["capture.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         return editor
+    }
+
+    private func openSettings(in app: XCUIApplication) -> XCUIElement {
+        app.typeKey(",", modifierFlags: .command)
+        let recorder = app.buttons["settings.shortcut.recorder"]
+        XCTAssertTrue(recorder.waitForExistence(timeout: 3))
+        return recorder
     }
 
     private func capture(_ markdown: String, in app: XCUIApplication) {

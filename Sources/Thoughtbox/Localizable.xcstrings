@@ -1,0 +1,32 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "settings.login.approval" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Approval is required in System Settings → General → Login Items." } } } },
+    "settings.login.failure" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Thoughtbox could not update Launch at Login. The system setting was not changed." } } } },
+    "settings.login.help" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask macOS to open Thoughtbox when you log in." } } } },
+    "settings.login.label" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Launch at Login" } } } },
+    "settings.login.unavailable" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Launch at Login is unavailable for this copy of Thoughtbox." } } } },
+    "settings.shortcut.conflictError" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "That shortcut is unavailable or used by another app. The previous shortcut is still active." } } } },
+    "settings.shortcut.help" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Activate the recorder, then type a shortcut. The change takes effect immediately." } } } },
+    "settings.shortcut.label" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Capture Shortcut" } } } },
+    "settings.shortcut.modifierError" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Include Control, Option, or Command with the shortcut key." } } } },
+    "settings.shortcut.recorderHelp" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Activate, then type the new shortcut. Press Escape to cancel." } } } },
+    "settings.shortcut.recorderLabel" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Capture shortcut recorder" } } } },
+    "settings.shortcut.recording" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Type a new shortcut…" } } } },
+    "settings.shortcut.restore" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore Default" } } } },
+    "settings.shortcut.restoreHelp" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Reinstates Control–Option–Space." } } } },
+    "settings.shortcut.section" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Quick Capture" } } } },
+    "settings.shortcut.startupError" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "The saved shortcut is unavailable. Choose another shortcut." } } } },
+    "shortcut.key.delete" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } } } },
+    "shortcut.key.forwardDelete" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Forward Delete" } } } },
+    "shortcut.key.return" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Return" } } } },
+    "shortcut.key.space" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Space" } } } },
+    "shortcut.key.tab" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Tab" } } } },
+    "shortcut.key.unknown" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Key %lld" } } } },
+    "shortcut.modifier.command" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Command" } } } },
+    "shortcut.modifier.control" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Control" } } } },
+    "shortcut.modifier.option" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Option" } } } },
+    "shortcut.modifier.shift" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Shift" } } } }
+  },
+  "version" : "1.0"
+}

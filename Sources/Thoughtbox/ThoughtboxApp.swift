@@ -19,6 +19,10 @@ struct ThoughtboxApp: App {
                     .keyboardShortcut("n", modifiers: .command)
             }
         }
+
+        Settings {
+            ThoughtboxSettingsView(model: appState.settings)
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import SwiftData
 
 @MainActor
@@ -8,6 +9,7 @@ final class AppState {
 
     let container: ModelContainer
     let draft: DraftStore
+    let settings: SettingsModel
     private(set) var captureController: CaptureController?
     private(set) var shortcutManager: GlobalShortcutManager?
 
@@ -17,15 +19,33 @@ final class AppState {
         } catch {
             fatalError("Thoughtbox could not open its local store: \(error.localizedDescription)")
         }
-        draft = DraftStore(defaults: PersistenceFactory.makeDraftDefaults())
+        let defaults = PersistenceFactory.makeDraftDefaults()
+        draft = DraftStore(defaults: defaults)
+        let processInfo = ProcessInfo.processInfo
+        let loginItemService: LoginItemServicing = processInfo.arguments.contains("--ui-testing")
+            ? UITestLoginItemService(
+                defaults: defaults,
+                shouldFail: processInfo.arguments.contains("--simulate-login-item-failure")
+            )
+            : SystemLoginItemService()
+        settings = SettingsModel(defaults: defaults, loginItemService: loginItemService)
     }
 
     func startCaptureServices() {
         guard captureController == nil else { return }
         let controller = CaptureController(container: container, draft: draft)
         captureController = controller
-        shortcutManager = GlobalShortcutManager { [weak controller] in
+        let manager = GlobalShortcutManager { [weak controller] in
             controller?.showCapture()
+        }
+        shortcutManager = manager
+        settings.connectShortcutRegistration { shortcut in
+            if ProcessInfo.processInfo.arguments.contains("--simulate-shortcut-conflict"),
+               shortcut.keyCode == UInt32(kVK_ANSI_K),
+               shortcut.modifiers == [.control, .option] {
+                throw GlobalShortcutError.unavailable
+            }
+            try manager.register(shortcut)
         }
     }
 
@@ -33,4 +53,3 @@ final class AppState {
         captureController?.showCapture()
     }
 }
-

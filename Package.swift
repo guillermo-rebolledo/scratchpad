@@ -17,7 +17,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Markdown", package: "swift-markdown")
             ],
-            path: "Sources/Thoughtbox"
+            path: "Sources/Thoughtbox",
+            resources: [.process("Localizable.xcstrings")]
         ),
         .testTarget(
             name: "ThoughtboxTests",
