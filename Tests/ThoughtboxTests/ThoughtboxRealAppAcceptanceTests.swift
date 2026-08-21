@@ -405,6 +405,24 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         search.typeKey("a", modifierFlags: .command)
         search.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
 
+        capture("First Bulk Permanent Thought", in: app)
+        capture("Second Bulk Permanent Thought", in: app)
+        app.staticTexts["Inbox"].firstMatch.click()
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        app.buttons["trash.move"].click()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        let trashSearch = app.searchFields.firstMatch
+        trashSearch.typeText("Bulk Permanent")
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        app.buttons["trash.delete"].click()
+        XCTAssertTrue(app.staticTexts["Permanently delete 2 Thoughts?"].waitForExistence(timeout: 3))
+        app.buttons["trash.delete.confirm"].click()
+        XCTAssertTrue(app.staticTexts["No Search Results"].waitForExistence(timeout: 3))
+        trashSearch.typeKey("a", modifierFlags: .command)
+        trashSearch.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
@@ -472,6 +490,54 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Trash Is Empty"].waitForExistence(timeout: 3))
     }
 
+    func testTrashOperationFailuresAreAccessibleAndRecoverableAcrossRelaunch() throws {
+        let app = try launch(reset: true, additionalArguments: ["--simulate-trash-failure"])
+        capture("First recoverable Thought", in: app)
+        capture("Second recoverable Thought", in: app)
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        app.buttons["trash.move"].click()
+        var status = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 3))
+        XCTAssertTrue(status.label.contains("Nothing was moved"))
+        XCTAssertTrue(app.staticTexts["First recoverable Thought"].exists)
+        XCTAssertTrue(app.staticTexts["Second recoverable Thought"].exists)
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        app.buttons["trash.move"].click()
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--simulate-restore-failure"]
+        app.launch()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        app.buttons["trash.restore"].click()
+        status = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 3))
+        XCTAssertTrue(status.label.contains("Nothing was restored"))
+        XCTAssertTrue(app.staticTexts["First recoverable Thought"].exists)
+        XCTAssertTrue(app.staticTexts["Second recoverable Thought"].exists)
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing", "--simulate-permanent-delete-failure"]
+        app.launch()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        app.buttons["trash.delete"].click()
+        app.buttons["trash.delete.confirm"].click()
+        status = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 3))
+        XCTAssertTrue(status.label.contains("They remain in Trash"))
+        XCTAssertTrue(app.staticTexts["First recoverable Thought"].exists)
+        XCTAssertTrue(app.staticTexts["Second recoverable Thought"].exists)
+    }
+
     private func application() throws -> XCUIApplication {
         if let path = ProcessInfo.processInfo.environment["THOUGHTBOX_APP_PATH"] {
             return XCUIApplication(url: URL(fileURLWithPath: path, isDirectory: true))
@@ -482,7 +548,8 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
     private func launch(
         reset: Bool,
         simulateSaveFailure: Bool = false,
-        simulateBulkMoveFailure: Bool = false
+        simulateBulkMoveFailure: Bool = false,
+        additionalArguments: [String] = []
     ) throws -> XCUIApplication {
         guard ProcessInfo.processInfo.environment["THOUGHTBOX_RUN_UI_TESTS"] == "1" else {
             throw XCTSkip("Run this file from the Xcode Thoughtbox UI-test scheme.")
@@ -494,6 +561,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         if reset { app.launchArguments.append("--reset-ui-test-store") }
         if simulateSaveFailure { app.launchArguments.append("--simulate-save-failure") }
         if simulateBulkMoveFailure { app.launchArguments.append("--simulate-bulk-move-failure") }
+        app.launchArguments.append(contentsOf: additionalArguments)
         app.launch()
         return app
     }

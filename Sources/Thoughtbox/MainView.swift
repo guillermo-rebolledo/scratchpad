@@ -496,7 +496,7 @@ struct MainView: View {
             if result.inboxFallbackCount == 0 {
                 operationMessage = "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s") to \(result.restoredCount == 1 ? "its" : "their") former destination."
             } else {
-                operationMessage = "Restored \(result.restoredCount) Thoughts. \(result.inboxFallbackCount) went to Inbox because \(result.inboxFallbackCount == 1 ? "its former Project no longer exists" : "their former Projects no longer exist")."
+                operationMessage = "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s"). \(result.inboxFallbackCount) went to Inbox because \(result.inboxFallbackCount == 1 ? "its former Project no longer exists" : "their former Projects no longer exist")."
             }
             operationIsError = false
             focusOperationStatus()

@@ -94,19 +94,20 @@ struct TrashLifecycleTests {
         let repository = try ThoughtRepository.inMemory()
         let active = try repository.capture(markdown: "Active")
         let trashed = try repository.capture(markdown: "Trashed")
-        try repository.trash(trashed)
+        let secondTrashed = try repository.capture(markdown: "Second trashed")
+        try repository.trash([trashed, secondTrashed])
 
         #expect(throws: TrashError.onlyTrashCanBePermanentlyDeleted(count: 1)) {
             try repository.permanentlyDelete([active, trashed])
         }
-        #expect(try repository.trashedThoughts().map(\.id) == [trashed.id])
+        #expect(try repository.trashedThoughts().map(\.id) == [secondTrashed.id, trashed.id])
 
         #expect(throws: SimulatedFailure.self) {
-            try repository.permanentlyDelete([trashed]) { throw SimulatedFailure() }
+            try repository.permanentlyDelete([trashed, secondTrashed]) { throw SimulatedFailure() }
         }
-        #expect(try repository.trashedThoughts().map(\.id) == [trashed.id])
+        #expect(try repository.trashedThoughts().map(\.id) == [secondTrashed.id, trashed.id])
 
-        #expect(try repository.permanentlyDelete([trashed]) == 1)
+        #expect(try repository.permanentlyDelete([trashed, secondTrashed]) == 2)
         #expect(try repository.trashedThoughts().isEmpty)
         #expect(try repository.allThoughts().map(\.id) == [active.id])
     }
