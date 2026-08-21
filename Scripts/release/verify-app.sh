@@ -20,11 +20,34 @@ if [ ! -d "$app_path" ]; then
 fi
 
 info_path="$app_path/Contents/Info.plist"
+executable_name="$(plutil -extract CFBundleExecutable raw "$info_path")"
+executable_path="$app_path/Contents/MacOS/$executable_name"
 entitlements_path="$(mktemp /tmp/thoughtbox-entitlements.XXXXXX.plist)"
 nested_entitlements_path="$entitlements_path.nested"
 trap 'rm -f "$entitlements_path" "$nested_entitlements_path"' EXIT HUP INT TERM
 
 codesign --verify --deep --strict --verbose=4 "$app_path"
+[ -x "$executable_path" ] || {
+    printf '%s\n' "App executable not found: $executable_path" >&2
+    exit 1
+}
+otool -L "$executable_path" |
+    awk 'NR > 1 { print $1 }' |
+    grep -Fx '@rpath/Sparkle.framework/Versions/B/Sparkle' >/dev/null || {
+        printf '%s\n' "Thoughtbox is not linked to the expected Sparkle framework." >&2
+        exit 1
+    }
+otool -l "$executable_path" |
+    sed -n '/cmd LC_RPATH/{n;n;s/^[[:space:]]*path \([^ ]*\).*/\1/p;}' |
+    grep -Fx '@executable_path/../Frameworks' >/dev/null || {
+        printf '%s\n' "Thoughtbox cannot resolve bundled frameworks at runtime." >&2
+        exit 1
+    }
+sparkle_executable="$app_path/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"
+[ -f "$sparkle_executable" ] && [ -x "$sparkle_executable" ] || {
+    printf '%s\n' "The bundled Sparkle framework executable is missing." >&2
+    exit 1
+}
 signature_details="$(codesign -d --verbose=4 "$app_path" 2>&1)"
 printf '%s\n' "$signature_details" | grep -F "Authority=Developer ID Application:" >/dev/null
 printf '%s\n' "$signature_details" | grep -E 'flags=.*runtime' >/dev/null

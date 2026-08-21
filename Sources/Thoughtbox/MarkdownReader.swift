@@ -18,7 +18,6 @@ struct MarkdownReader: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Rendered Thought")
         .accessibilityHint("Switch to Edit to change the raw Markdown source.")
-        .accessibilityIdentifier("thought.rendered")
     }
 }
 
@@ -37,6 +36,7 @@ private struct MarkdownBlockView: View {
         case let .paragraph(text):
             Text(InlineMarkdown.attributed(text))
                 .textSelection(.enabled)
+                .accessibilityIdentifier("markdown.paragraph")
 
         case let .blockQuote(blocks):
             HStack(alignment: .top, spacing: 10) {
@@ -118,6 +118,7 @@ private struct MarkdownBlockView: View {
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Table with \(headers.count) columns and \(rows.count) rows")
+            .accessibilityIdentifier("markdown.table")
 
         case .thematicBreak:
             Divider()

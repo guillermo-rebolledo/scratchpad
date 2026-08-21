@@ -14,6 +14,50 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+release_build_settings="$(
+    xcodebuild \
+        -project "$repository_directory/Thoughtbox.xcodeproj" \
+        -scheme Thoughtbox \
+        -configuration Release \
+        -showBuildSettings
+)"
+printf '%s\n' "$release_build_settings" |
+    awk '
+        $1 == "LD_RUNPATH_SEARCH_PATHS" && $2 == "=" {
+            for (field = 3; field <= NF; field += 1) {
+                if ($field == "@executable_path/../Frameworks") found = 1
+            }
+        }
+        END { exit !found }
+    ' >/dev/null || {
+        printf '%s\n' "Release builds must search the app Frameworks directory at runtime." >&2
+        exit 1
+    }
+
+ruby - "$repository_directory/Thoughtbox.xcodeproj/xcshareddata/xcschemes/Thoughtbox.xcscheme" <<'RUBY'
+require "rexml/document"
+
+scheme = REXML::Document.new(File.read(ARGV.fetch(0)))
+test_action = scheme.elements["Scheme/TestAction"] or abort "Thoughtbox scheme has no Test action."
+unless test_action.attributes["shouldUseLaunchSchemeArgsEnv"] == "NO"
+  abort "Thoughtbox tests must use the Test action environment."
+end
+variables = {}
+test_action.each_element("EnvironmentVariables/EnvironmentVariable") do |variable|
+  variables[variable.attributes["key"]] = variable.attributes["value"] if variable.attributes["isEnabled"] == "YES"
+end
+required = {
+  "THOUGHTBOX_RUN_UI_TESTS" => "1",
+  "THOUGHTBOX_RUN_UPDATE_TEST" => "$(THOUGHTBOX_RUN_UPDATE_TEST)",
+  "THOUGHTBOX_APP_PATH" => "$(THOUGHTBOX_APP_PATH)",
+  "THOUGHTBOX_STAGED_APPCAST_URL" => "$(THOUGHTBOX_STAGED_APPCAST_URL)",
+  "THOUGHTBOX_EXPECTED_UPDATE_VERSION" => "$(THOUGHTBOX_EXPECTED_UPDATE_VERSION)"
+}
+required.each do |key, value|
+  abort "Thoughtbox Test environment is missing #{key}." unless variables[key] == value
+end
+RUBY
+
 "$script_directory/validate-https-prefix.rb" "https://updates.example.test/releases/"
 for invalid_prefix in "https:///" "http://updates.example.test/" "https://user@updates.example.test/"; do
     if "$script_directory/validate-https-prefix.rb" "$invalid_prefix" >/dev/null 2>&1; then
