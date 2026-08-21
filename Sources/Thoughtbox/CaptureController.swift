@@ -24,7 +24,7 @@ final class CaptureController: NSObject, NSPopoverDelegate {
 
         popover.behavior = .transient
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        popover.contentSize = NSSize(width: 420, height: 330)
+        popover.contentSize = NSSize(width: 420, height: 380)
         popover.delegate = self
         popover.contentViewController = NSHostingController(
             rootView: CaptureView { [weak popover] in

@@ -4,6 +4,7 @@ import SwiftUI
 struct CaptureView: View {
     @Environment(DraftStore.self) private var draft
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @FocusState private var editorFocused: Bool
     @State private var errorMessage: String?
     @State private var confirmsClear = false
@@ -49,23 +50,30 @@ struct CaptureView: View {
             }
 
             HStack {
-                Text("Saves to Inbox")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .help("Inbox contains Thoughts that are not assigned to a Project.")
-                    .accessibilityHint("Inbox contains Thoughts that are not assigned to a Project.")
+                Picker("Save to", selection: $draft.projectID) {
+                    Text("Inbox").tag(UUID?.none)
+                    ForEach(projects) { project in
+                        Text(project.name).tag(Optional(project.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .help("Choose Inbox or an existing Project. Project management stays in the main window.")
+                .accessibilityHint("Choose Inbox or an existing Project. The selection persists with this Draft and resets to Inbox after saving.")
+                .accessibilityIdentifier("capture.destination")
                 Spacer()
                 Button("Save Thought", action: save)
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(!draft.canSave)
-                    .help("Saves this Draft as a Thought in Inbox.")
-                    .accessibilityHint("Saves this Draft as a Thought in Inbox.")
+                    .help("Saves this Draft to the selected destination.")
+                    .accessibilityHint("Saves this Draft to the selected destination, then resets the next Draft to Inbox.")
                     .accessibilityIdentifier("capture.save")
             }
         }
         .padding(16)
         .frame(width: 420)
         .onAppear { focusEditor() }
+        .onAppear(perform: validateDestination)
+        .onChange(of: projects.map(\.id)) { _, _ in validateDestination() }
         .onReceive(NotificationCenter.default.publisher(for: .focusCaptureEditor)) { _ in
             focusEditor()
         }
@@ -101,17 +109,25 @@ struct CaptureView: View {
 
         do {
             let repository = ThoughtRepository(context: modelContext)
-            let service = CaptureService(draft: draft) { markdown in
+            let service = CaptureService(draft: draft) { markdown, projectID in
                 if ProcessInfo.processInfo.arguments.contains("--simulate-save-failure") {
                     throw CaptureError.couldNotSave
                 }
-                try repository.capture(markdown: markdown)
+                let project = projectID.flatMap { id in projects.first { $0.id == id } }
+                try repository.capture(markdown: markdown, project: project)
             }
             try service.save()
             onSaved()
         } catch {
             errorMessage = CaptureError.couldNotSave.localizedDescription
             editorFocused = true
+        }
+    }
+
+    private func validateDestination() {
+        guard let projectID = draft.projectID else { return }
+        if !projects.contains(where: { $0.id == projectID }) {
+            draft.projectID = nil
         }
     }
 }

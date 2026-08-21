@@ -7,17 +7,35 @@ final class Thought {
     var markdown: String
     var createdAt: Date
     var editedAt: Date
+    var project: Project?
 
     init(
         id: UUID = UUID(),
         markdown: String,
         createdAt: Date = .now,
-        editedAt: Date? = nil
+        editedAt: Date? = nil,
+        project: Project? = nil
     ) {
         self.id = id
         self.markdown = markdown
         self.createdAt = createdAt
         self.editedAt = editedAt ?? createdAt
+        self.project = project
+    }
+}
+
+@Model
+final class Project {
+    @Attribute(.unique) var id: UUID
+    var name: String
+    var createdAt: Date
+    @Relationship(deleteRule: .nullify, inverse: \Thought.project) var thoughts: [Thought]
+
+    init(id: UUID = UUID(), name: String, createdAt: Date = .now) {
+        self.id = id
+        self.name = name
+        self.createdAt = createdAt
+        thoughts = []
     }
 }
 
@@ -35,8 +53,33 @@ enum CaptureError: LocalizedError, Equatable {
     }
 }
 
+enum ProjectError: LocalizedError, Equatable {
+    case emptyName
+    case duplicateName(String)
+    case couldNotSave
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyName:
+            "Enter a Project name."
+        case let .duplicateName(name):
+            "A Project named “\(name)” already exists. Project names are compared without regard to capitalization."
+        case .couldNotSave:
+            "Thoughtbox could not save this Project change. Try again."
+        }
+    }
+}
+
 extension String {
     var containsNonWhitespace: Bool {
         !trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var trimmedProjectName: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var normalizedProjectName: String {
+        trimmedProjectName.lowercased(with: Locale(identifier: "en_US_POSIX"))
     }
 }

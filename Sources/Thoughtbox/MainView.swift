@@ -1,59 +1,104 @@
 import SwiftData
 import SwiftUI
 
-private enum LibraryCollection: String, CaseIterable, Identifiable {
-    case allThoughts = "All Thoughts"
-    case inbox = "Inbox"
+private enum LibrarySelection: Hashable {
+    case allThoughts
+    case inbox
+    case project(UUID)
 
-    var id: Self { self }
-    var presentation: (systemImage: String, help: String) {
+    var title: String {
         switch self {
-        case .allThoughts:
-            ("rectangle.stack", "Shows every active Thought, newest first.")
-        case .inbox:
-            ("tray", "Shows Thoughts that are not assigned to a Project.")
+        case .allThoughts: "All Thoughts"
+        case .inbox: "Inbox"
+        case .project: "Project"
         }
     }
 }
 
+private struct ProjectEditorContext: Identifiable {
+    let id = UUID()
+    let project: Project?
+}
+
 struct MainView: View {
     @Query(sort: \Thought.createdAt, order: .reverse) private var thoughts: [Thought]
-    @State private var collection: LibraryCollection? = .allThoughts
+    @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
+    @State private var collection: LibrarySelection? = .allThoughts
     @State private var selectedThoughtID: UUID?
     @State private var editNavigationGuard = ThoughtEditNavigationGuard()
+    @State private var projectEditor: ProjectEditorContext?
 
     var body: some View {
         NavigationSplitView {
-            List(LibraryCollection.allCases, selection: $collection) { item in
-                Label(item.rawValue, systemImage: item.presentation.systemImage)
-                    .tag(item)
-                    .help(item.presentation.help)
-                    .accessibilityHint(item.presentation.help)
+            List(selection: $collection) {
+                Label("All Thoughts", systemImage: "rectangle.stack")
+                    .tag(LibrarySelection.allThoughts)
+                    .help("Shows every active Thought, newest first.")
+                    .accessibilityHint("Shows every active Thought, newest first.")
+
+                Label("Inbox", systemImage: "tray")
+                    .tag(LibrarySelection.inbox)
+                    .help("Shows active Thoughts that are not assigned to a Project.")
+                    .accessibilityHint("Shows active Thoughts that are not assigned to a Project.")
+
+                Section("Projects") {
+                    ForEach(projects) { project in
+                        Label(project.name, systemImage: "folder")
+                            .tag(LibrarySelection.project(project.id))
+                            .help("Shows active Thoughts in \(project.name), newest first.")
+                            .accessibilityHint("Shows active Thoughts in this Project, newest first.")
+                            .accessibilityIdentifier("project.sidebar.\(project.id.uuidString)")
+                            .contextMenu {
+                                Button("Rename Project") { beginRename(project) }
+                            }
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 8) {
+                    Button("New Project", systemImage: "plus", action: beginCreate)
+                        .labelStyle(.iconOnly)
+                        .help("Create a Project in the main window.")
+                        .accessibilityLabel("New Project")
+                        .accessibilityHint("Creates a Project in the main window.")
+                        .accessibilityIdentifier("project.create")
+
+                    Button("Rename Project", systemImage: "pencil", action: renameSelectedProject)
+                        .labelStyle(.iconOnly)
+                        .disabled(selectedProject == nil)
+                        .help("Rename the selected Project without changing its order.")
+                        .accessibilityLabel("Rename Project")
+                        .accessibilityHint("Renames the selected Project without changing its order.")
+                        .accessibilityIdentifier("project.rename")
+                    Spacer()
+                }
+                .padding(8)
+                .background(.bar)
             }
             .navigationTitle("Thoughtbox")
             .accessibilityIdentifier("library.sidebar")
         } content: {
             Group {
-                if thoughts.isEmpty {
+                if filteredThoughts.isEmpty {
                     ContentUnavailableView {
-                        Label("No Thoughts Yet", systemImage: "text.badge.plus")
+                        Label(emptyTitle, systemImage: "text.badge.plus")
                     } description: {
-                        Text("Capture a Thought from the menu bar or press Command N.")
+                        Text(emptyDescription)
                     } actions: {
                         Button("Capture Thought") { AppState.shared.showCapture() }
                             .help("Opens the persistent Draft editor.")
                             .accessibilityHint("Opens the persistent Draft editor.")
                     }
                 } else {
-                    List(thoughts, selection: guardedSelection) { thought in
-                        ThoughtRow(thought: thought)
+                    List(filteredThoughts, selection: guardedSelection) { thought in
+                        ThoughtRow(thought: thought, showsDestination: collection == .allThoughts)
                             .tag(thought.id)
                     }
-                    .accessibilityLabel("\(collection?.rawValue ?? "Thoughts") list")
+                    .accessibilityLabel("\(collectionTitle) list")
                     .accessibilityIdentifier("library.thoughts")
                 }
             }
-            .navigationTitle(collection?.rawValue ?? "Thoughts")
+            .navigationTitle(collectionTitle)
         } detail: {
             if let selectedThought {
                 ThoughtDetailView(thought: selectedThought, editNavigationGuard: editNavigationGuard)
@@ -62,12 +107,55 @@ struct MainView: View {
                 ContentUnavailableView("Select a Thought", systemImage: "doc.text")
             }
         }
-        .onAppear(perform: selectNewestThought)
-        .onChange(of: thoughts.map(\.id)) { _, _ in selectNewestThought() }
+        .onAppear { selectNewestThought() }
+        .onChange(of: filteredThoughts.map(\.id)) { _, _ in selectNewestThought() }
+        .onChange(of: collection) { _, _ in selectNewestThought(force: true) }
+        .sheet(item: $projectEditor) { editor in
+            ProjectEditorSheet(project: editor.project) { savedProject in
+                collection = .project(savedProject.id)
+            }
+        }
+    }
+
+    private var filteredThoughts: [Thought] {
+        switch collection ?? .allThoughts {
+        case .allThoughts:
+            thoughts
+        case .inbox:
+            thoughts.filter { $0.project == nil }
+        case let .project(projectID):
+            thoughts.filter { $0.project?.id == projectID }
+        }
     }
 
     private var selectedThought: Thought? {
-        thoughts.first { $0.id == selectedThoughtID }
+        filteredThoughts.first { $0.id == selectedThoughtID }
+    }
+
+    private var selectedProject: Project? {
+        guard case let .project(projectID) = collection else { return nil }
+        return projects.first { $0.id == projectID }
+    }
+
+    private var collectionTitle: String {
+        if let selectedProject { return selectedProject.name }
+        return collection?.title ?? "Thoughts"
+    }
+
+    private var emptyTitle: String {
+        switch collection ?? .allThoughts {
+        case .allThoughts: "No Thoughts Yet"
+        case .inbox: "Inbox Is Empty"
+        case .project: "Project Is Empty"
+        }
+    }
+
+    private var emptyDescription: String {
+        switch collection ?? .allThoughts {
+        case .allThoughts: "Capture a Thought from the menu bar or press Command N."
+        case .inbox: "Capture to Inbox or move an existing Thought here."
+        case .project: "Capture to this Project or move an existing Thought here."
+        }
     }
 
     private var guardedSelection: Binding<UUID?> {
@@ -80,15 +168,28 @@ struct MainView: View {
         )
     }
 
-    private func selectNewestThought() {
-        guard selectedThought == nil else { return }
-        selectedThoughtID = thoughts.first?.id
+    private func selectNewestThought(force: Bool = false) {
+        guard force || selectedThought == nil else { return }
+        selectedThoughtID = filteredThoughts.first?.id
     }
 
+    private func beginCreate() {
+        projectEditor = ProjectEditorContext(project: nil)
+    }
+
+    private func beginRename(_ project: Project) {
+        projectEditor = ProjectEditorContext(project: project)
+    }
+
+    private func renameSelectedProject() {
+        guard let selectedProject else { return }
+        beginRename(selectedProject)
+    }
 }
 
 private struct ThoughtRow: View {
     let thought: Thought
+    let showsDestination: Bool
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -101,12 +202,90 @@ private struct ThoughtRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(MarkdownDocument(source: thought.markdown).excerpt)
                 .lineLimit(2)
-            Text(Self.dateFormatter.string(from: thought.createdAt))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack {
+                Text(Self.dateFormatter.string(from: thought.createdAt))
+                if showsDestination {
+                    Text("·")
+                    Text(thought.project?.name ?? "Inbox")
+                        .accessibilityIdentifier("thought.destination.\(thought.id.uuidString)")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Thought created \(Self.dateFormatter.string(from: thought.createdAt))")
+        .accessibilityLabel("Thought created \(Self.dateFormatter.string(from: thought.createdAt)), in \(thought.project?.name ?? "Inbox")")
         .accessibilityValue(thought.markdown)
+    }
+}
+
+private struct ProjectEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @FocusState private var nameFocused: Bool
+    @State private var name: String
+    @State private var errorMessage: String?
+
+    let project: Project?
+    let onSaved: (Project) -> Void
+
+    init(project: Project?, onSaved: @escaping (Project) -> Void) {
+        self.project = project
+        self.onSaved = onSaved
+        _name = State(initialValue: project?.name ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(project == nil ? "New Project" : "Rename Project")
+                .font(.title2.weight(.semibold))
+
+            TextField("Project name", text: $name)
+                .focused($nameFocused)
+                .accessibilityLabel("Project name")
+                .accessibilityHint("Names are trimmed and compared without regard to capitalization.")
+                .accessibilityIdentifier("project.name")
+                .onSubmit(save)
+
+            if let errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("Project error: \(errorMessage)")
+                    .accessibilityIdentifier("project.error")
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button(project == nil ? "Create Project" : "Save Name", action: save)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!name.containsNonWhitespace)
+                    .accessibilityHint("Saves the trimmed Project name if it is unique.")
+                    .accessibilityIdentifier("project.save")
+            }
+        }
+        .padding(20)
+        .frame(width: 380)
+        .onAppear { nameFocused = true }
+    }
+
+    private func save() {
+        errorMessage = nil
+        do {
+            let repository = ThoughtRepository(context: modelContext)
+            let savedProject: Project
+            if let project {
+                try repository.renameProject(project, to: name)
+                savedProject = project
+            } else {
+                savedProject = try repository.createProject(name: name)
+            }
+            onSaved(savedProject)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            nameFocused = true
+        }
     }
 }

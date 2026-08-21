@@ -22,7 +22,7 @@ final class ThoughtRepository {
 
     static func inMemory() throws -> ThoughtRepository {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: Thought.self, configurations: configuration)
+        let container = try ModelContainer(for: Thought.self, Project.self, configurations: configuration)
         return ThoughtRepository(container: container)
     }
 
@@ -30,13 +30,14 @@ final class ThoughtRepository {
     func capture(
         markdown: String,
         at date: Date = .now,
+        project: Project? = nil,
         saveChanges: (() throws -> Void)? = nil
     ) throws -> Thought {
         guard markdown.containsNonWhitespace else {
             throw CaptureError.emptyThought
         }
 
-        let thought = Thought(markdown: markdown, createdAt: date)
+        let thought = Thought(markdown: markdown, createdAt: date, project: project)
         context.insert(thought)
         do {
             if let saveChanges {
@@ -56,6 +57,72 @@ final class ThoughtRepository {
             sortBy: [SortDescriptor(\Thought.createdAt, order: .reverse)]
         )
         return try context.fetch(descriptor)
+    }
+
+    func inboxThoughts() throws -> [Thought] {
+        try allThoughts().filter { $0.project == nil }
+    }
+
+    func thoughts(in project: Project) throws -> [Thought] {
+        try allThoughts().filter { $0.project?.id == project.id }
+    }
+
+    func allProjects() throws -> [Project] {
+        let descriptor = FetchDescriptor<Project>(
+            sortBy: [SortDescriptor(\Project.createdAt, order: .reverse)]
+        )
+        return try context.fetch(descriptor)
+    }
+
+    @discardableResult
+    func createProject(
+        name: String,
+        at date: Date = .now,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws -> Project {
+        let trimmedName = try validatedProjectName(name)
+        let project = Project(name: trimmedName, createdAt: date)
+        context.insert(project)
+        do {
+            try save(saveChanges)
+            return project
+        } catch {
+            context.delete(project)
+            throw error
+        }
+    }
+
+    func renameProject(
+        _ project: Project,
+        to name: String,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws {
+        let trimmedName = try validatedProjectName(name, excluding: project.id)
+        guard project.name != trimmedName else { return }
+        let previousName = project.name
+        project.name = trimmedName
+        do {
+            try save(saveChanges)
+        } catch {
+            project.name = previousName
+            throw error
+        }
+    }
+
+    func move(
+        _ thought: Thought,
+        to project: Project?,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws {
+        guard thought.project?.id != project?.id else { return }
+        let previousProject = thought.project
+        thought.project = project
+        do {
+            try save(saveChanges)
+        } catch {
+            thought.project = previousProject
+            throw error
+        }
     }
 
     func update(
@@ -84,6 +151,25 @@ final class ThoughtRepository {
             throw error
         }
     }
+
+    private func validatedProjectName(_ name: String, excluding projectID: UUID? = nil) throws -> String {
+        let trimmedName = name.trimmedProjectName
+        guard trimmedName.containsNonWhitespace else { throw ProjectError.emptyName }
+        let normalizedName = trimmedName.normalizedProjectName
+        let duplicate = try allProjects().contains {
+            $0.id != projectID && $0.name.normalizedProjectName == normalizedName
+        }
+        guard !duplicate else { throw ProjectError.duplicateName(trimmedName) }
+        return trimmedName
+    }
+
+    private func save(_ saveChanges: (() throws -> Void)?) throws {
+        if let saveChanges {
+            try saveChanges()
+        } else {
+            try context.save()
+        }
+    }
 }
 
 enum PersistenceFactory {
@@ -100,10 +186,10 @@ enum PersistenceFactory {
             }
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let configuration = ModelConfiguration(url: directory.appending(path: "Thoughtbox.store"))
-            return try ModelContainer(for: Thought.self, configurations: configuration)
+            return try ModelContainer(for: Thought.self, Project.self, configurations: configuration)
         }
 
-        return try ModelContainer(for: Thought.self)
+        return try ModelContainer(for: Thought.self, Project.self)
     }
 
     static func makeDraftDefaults(processInfo: ProcessInfo = .processInfo) -> UserDefaults {

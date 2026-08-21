@@ -19,6 +19,10 @@ private enum ThoughtPresentationMode: String, CaseIterable, Identifiable {
 }
 
 struct ThoughtDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
+    @State private var destinationError: String?
+
     let thought: Thought
     let editNavigationGuard: ThoughtEditNavigationGuard
     @State private var mode = ThoughtPresentationMode.read
@@ -37,18 +41,39 @@ struct ThoughtDetailView: View {
 
                 Spacer()
 
-                Picker("Thought presentation", selection: guardedMode) {
-                    ForEach(ThoughtPresentationMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
+                VStack(alignment: .trailing, spacing: 8) {
+                    Picker("Destination", selection: destinationBinding) {
+                        Text("Inbox").tag(UUID?.none)
+                        ForEach(projects) { project in
+                            Text(project.name).tag(Optional(project.id))
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .help("Moves this Thought between Inbox and one Project.")
+                    .accessibilityHint("Moves this Thought between Inbox and one Project. Changes save immediately.")
+                    .accessibilityIdentifier("thought.destination")
+
+                    Picker("Thought presentation", selection: guardedMode) {
+                        ForEach(ThoughtPresentationMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 150)
+                    .help("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")
+                    .accessibilityHint("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")
+                    .accessibilityIdentifier("thought.mode")
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 150)
-                .help("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")
-                .accessibilityHint("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")
-                .accessibilityIdentifier("thought.mode")
             }
             .padding()
+
+            if let destinationError {
+                Label(destinationError, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
+                    .accessibilityLabel("Destination error: \(destinationError)")
+                    .accessibilityIdentifier("thought.destination.error")
+            }
 
             Divider()
 
@@ -70,6 +95,21 @@ struct ThoughtDetailView: View {
             set: { requestedMode in
                 guard requestedMode == mode || editNavigationGuard.canLeaveEditor() else { return }
                 mode = requestedMode
+            }
+        )
+    }
+
+    private var destinationBinding: Binding<UUID?> {
+        Binding(
+            get: { thought.project?.id },
+            set: { requestedID in
+                do {
+                    let destination = requestedID.flatMap { id in projects.first { $0.id == id } }
+                    try ThoughtRepository(context: modelContext).move(thought, to: destination)
+                    destinationError = nil
+                } catch {
+                    destinationError = error.localizedDescription
+                }
             }
         )
     }

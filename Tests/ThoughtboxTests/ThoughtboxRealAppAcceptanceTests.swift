@@ -193,6 +193,82 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Saved by focus"].waitForExistence(timeout: 3))
     }
 
+    func testProjectCreationNormalizedUniquenessOrderingAndRename() throws {
+        let app = try launch(reset: true)
+        createProject("  Older Project  ", in: app)
+        createProject("Newer Project", in: app)
+
+        let newer = app.staticTexts["Newer Project"].firstMatch
+        let older = app.staticTexts["Older Project"].firstMatch
+        XCTAssertTrue(newer.exists)
+        XCTAssertTrue(older.exists)
+        XCTAssertLessThan(newer.frame.minY, older.frame.minY)
+
+        app.buttons["project.create"].click()
+        let name = app.textFields["project.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeText("older project")
+        app.buttons["project.save"].click()
+        let duplicateError = app.descendants(matching: .any)["project.error"]
+        XCTAssertTrue(duplicateError.waitForExistence(timeout: 3))
+        XCTAssertTrue(duplicateError.label.contains("without regard to capitalization"))
+        app.buttons["Cancel"].click()
+
+        older.click()
+        app.buttons["project.rename"].click()
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeKey("a", modifierFlags: .command)
+        name.typeText("Renamed Project")
+        app.buttons["project.save"].click()
+
+        let renamed = app.staticTexts["Renamed Project"].firstMatch
+        XCTAssertTrue(renamed.waitForExistence(timeout: 3))
+        XCTAssertLessThan(newer.frame.minY, renamed.frame.minY)
+    }
+
+    func testProjectNavigationReassignmentAndInboxFiltering() throws {
+        let app = try launch(reset: true)
+        createProject("Work", in: app)
+
+        let editor = openCapture(in: app)
+        choose("Work", from: "capture.destination", in: app)
+        editor.typeText("Project Thought")
+        app.buttons["capture.save"].click()
+        XCTAssertFalse(editor.exists)
+
+        app.staticTexts["Inbox"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Inbox Is Empty"].waitForExistence(timeout: 3))
+        app.staticTexts["Work"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Project Thought"].waitForExistence(timeout: 3))
+
+        choose("Inbox", from: "thought.destination", in: app)
+        app.staticTexts["Inbox"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Project Thought"].waitForExistence(timeout: 3))
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        XCTAssertGreaterThan(app.staticTexts.matching(NSPredicate(format: "label == 'Inbox'")).count, 1)
+    }
+
+    func testDraftProjectDestinationPersistsAndResetsAfterCapture() throws {
+        let app = try launch(reset: true)
+        createProject("Persistent Destination", in: app)
+
+        var editor = openCapture(in: app)
+        choose("Persistent Destination", from: "capture.destination", in: app)
+        editor.typeText("Destination Draft")
+        editor.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        editor = openCapture(in: app)
+        XCTAssertEqual(app.descendants(matching: .any)["capture.destination"].value as? String, "Persistent Destination")
+        app.buttons["capture.save"].click()
+
+        _ = openCapture(in: app)
+        XCTAssertEqual(app.descendants(matching: .any)["capture.destination"].value as? String, "Inbox")
+    }
+
     private func application() throws -> XCUIApplication {
         if let path = ProcessInfo.processInfo.environment["THOUGHTBOX_APP_PATH"] {
             return XCUIApplication(url: URL(fileURLWithPath: path, isDirectory: true))
@@ -226,5 +302,23 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         editor.typeText(markdown)
         app.buttons["capture.save"].click()
         XCTAssertFalse(editor.exists)
+    }
+
+    private func createProject(_ name: String, in app: XCUIApplication) {
+        app.buttons["project.create"].click()
+        let field = app.textFields["project.name"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.typeText(name)
+        app.buttons["project.save"].click()
+        XCTAssertTrue(app.staticTexts[name.trimmingCharacters(in: .whitespacesAndNewlines)].firstMatch.waitForExistence(timeout: 3))
+    }
+
+    private func choose(_ option: String, from pickerIdentifier: String, in app: XCUIApplication) {
+        let picker = app.descendants(matching: .any)[pickerIdentifier]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        picker.click()
+        let item = app.menuItems[option]
+        XCTAssertTrue(item.waitForExistence(timeout: 3))
+        item.click()
     }
 }
