@@ -54,7 +54,9 @@ cleanup() {
         kill "$server_pid" 2>/dev/null || true
     fi
     if [ -n "$certificate_hash" ]; then
-        security delete-certificate -Z "$certificate_hash" "$THOUGHTBOX_RELEASE_KEYCHAIN" >/dev/null 2>&1 || true
+        sudo -n security delete-certificate \
+            -Z "$certificate_hash" \
+            /Library/Keychains/System.keychain >/dev/null 2>&1 || true
     fi
     rm -rf "$test_directory"
 }
@@ -120,10 +122,13 @@ certificate_hash="$(
         cut -d= -f2 |
         tr -d :
 )"
-security add-trusted-cert \
+printf '%s\n' "Installing the temporary localhost CA into this ephemeral runner's system trust store."
+sudo -n security add-trusted-cert \
+    -d \
     -r trustRoot \
-    -k "$THOUGHTBOX_RELEASE_KEYCHAIN" \
+    -k /Library/Keychains/System.keychain \
     "$tls_certificate"
+printf '%s\n' "Temporary localhost CA installed."
 
 (
     cd "$stage_directory"
