@@ -140,6 +140,16 @@ printf '%s\n' '<!-- sparkle-signatures:' "edSignature: $appcast_signature" \
 "$script_directory/verify-appcast-signature.sh" \
     "$signed_appcast" \
     "O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=" >/dev/null
+appended_appcast="$test_directory/appended-signed-appcast.xml"
+cp "$signed_appcast" "$appended_appcast"
+printf '%s\n' '<!-- unauthenticated append -->' >>"$appended_appcast"
+if "$script_directory/verify-appcast-signature.sh" \
+    "$appended_appcast" \
+    "O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=" >/dev/null 2>&1
+then
+    printf '%s\n' "Appended bytes after the signing block unexpectedly passed verification." >&2
+    exit 1
+fi
 ruby -pi -e 'gsub(/Signed fixture/, "Tampered fixture")' "$signed_appcast"
 if "$script_directory/verify-appcast-signature.sh" \
     "$signed_appcast" \

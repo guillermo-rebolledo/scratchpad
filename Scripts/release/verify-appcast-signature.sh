@@ -44,6 +44,9 @@ guard
 else {
     fail("The appcast does not contain a valid Sparkle signing block.")
 }
+guard Data(appcast[suffixRange.upperBound...]) == Data("\n".utf8) else {
+    fail("The appcast contains unauthenticated bytes after its Sparkle signing block.")
+}
 
 var encodedSignature: String?
 var expectedLength: Int?
