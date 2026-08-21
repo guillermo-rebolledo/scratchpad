@@ -794,6 +794,28 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(try String(contentsOf: trashFiles[0], encoding: .utf8).hasSuffix("Selected Trash export source"))
     }
 
+    func testExportMenuUsesItsCommandNameAndRemainsKeyboardReachable() throws {
+        let app = try launch(reset: true)
+        capture("Keyboard export source", in: app)
+
+        let menu = app.descendants(matching: .any)["export.menu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 3))
+        XCTAssertEqual(menu.label, "Export")
+        XCTAssertFalse(accessibilityText(of: menu).contains("Share"))
+        XCTAssertTrue(menu.isHittable)
+
+        menu.click()
+        let exportAll = app.menuItems["Export All…"]
+        XCTAssertTrue(exportAll.waitForExistence(timeout: 3))
+        XCTAssertTrue(exportAll.isEnabled)
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.typeKey("e", modifierFlags: [.command, .shift])
+        let cancel = app.buttons["CancelButton"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        cancel.click()
+    }
+
     func testNativeExportPickerCancellationAndWriteFailureAreAccessible() throws {
         var app = try launch(reset: true)
         capture("Cancel export", in: app)

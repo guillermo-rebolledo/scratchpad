@@ -31,6 +31,11 @@ private struct ProjectDeletionConfirmation {
 
 private struct SimulatedExportFailure: Error {}
 
+enum ExportAccessibility {
+    static let label = String(localized: "Export")
+    static let hint = String(localized: "Choose Export All or export the selected trashed Thoughts.")
+}
+
 struct MainView: View {
     @Environment(DraftStore.self) private var draft
     @Environment(\.modelContext) private var modelContext
@@ -174,7 +179,8 @@ struct MainView: View {
                 }
                 .disabled(exportIsRunning)
                 .help("Export portable canonical Markdown through the system folder picker.")
-                .accessibilityHint("Choose Export All or export the selected trashed Thoughts.")
+                .accessibilityLabel(ExportAccessibility.label)
+                .accessibilityHint(ExportAccessibility.hint)
                 .accessibilityIdentifier("export.menu")
             }
             .safeAreaInset(edge: .top) {

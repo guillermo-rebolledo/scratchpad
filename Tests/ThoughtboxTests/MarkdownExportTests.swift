@@ -5,6 +5,14 @@ import Testing
 struct MarkdownExportTests {
     private let utc = TimeZone(secondsFromGMT: 0)!
 
+    @Test("Export accessibility copy names the command and describes its choices")
+    func exportAccessibilityCopy() {
+        #expect(ExportAccessibility.label == "Export")
+        #expect(ExportAccessibility.hint.contains("Export All"))
+        #expect(ExportAccessibility.hint.contains("selected trashed Thoughts"))
+        #expect(!ExportAccessibility.hint.localizedCaseInsensitiveContains("share"))
+    }
+
     @Test("Export All groups active canonical Markdown and excludes Trash")
     func activeGroupingAndTrashExclusion() throws {
         let createdAt = Date(timeIntervalSince1970: 1_704_164_645)
