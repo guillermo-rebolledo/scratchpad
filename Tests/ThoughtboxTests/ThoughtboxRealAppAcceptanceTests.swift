@@ -539,9 +539,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
     }
 
     func testPortableExportCreatesExternalArtifactAndExcludesTrashUntilSelected() throws {
-        let destination = appSandboxExportDirectory(prefix: "ThoughtboxRealExport")
+        let destination = FileManager.default.temporaryDirectory
+            .appending(path: "ThoughtboxRealExport-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: destination) }
-        let app = try launch(reset: true, exportDirectory: destination)
+        let app = try launch(reset: true)
         createProject("Work/Personal", in: app)
         capture("# Project Export\n\nCanonical **project** source", destination: "Work/Personal", in: app)
         capture("Inbox export source", in: app)
@@ -550,6 +551,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.buttons["trash.move"].click()
 
         export("Export All…", in: app)
+        try chooseExportDestination(destination, in: app)
         let status = app.descendants(matching: .any)["bulk.status"]
         XCTAssertTrue(waitForLabel(status, containing: "Exported 2 Thoughts"))
 
@@ -567,6 +569,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.descendants(matching: .any)["trash.sidebar"].click()
         app.staticTexts["Selected Trash export source"].click()
         app.buttons["export.selected.trash.button"].click()
+        try chooseExportDestination(destination, in: app)
         XCTAssertTrue(waitForLabel(status, containing: "Exported 1 Thought"))
         let trashFiles = try markdownFiles(in: destination.appending(path: "Trash", directoryHint: .isDirectory))
         XCTAssertEqual(trashFiles.count, 1)
@@ -584,15 +587,16 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(waitForLabel(status, containing: "No files were written"))
 
         app.terminate()
-        let destination = appSandboxExportDirectory(prefix: "ThoughtboxRealExportFailure")
+        let destination = FileManager.default.temporaryDirectory
+            .appending(path: "ThoughtboxRealExportFailure-\(UUID().uuidString)", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: destination) }
         app = try launch(
             reset: true,
-            additionalArguments: ["--simulate-export-write-failure"],
-            exportDirectory: destination
+            additionalArguments: ["--simulate-export-write-failure"]
         )
         capture("Failed export", in: app)
         export("Export All…", in: app)
+        try chooseExportDestination(destination, in: app)
         status = app.descendants(matching: .any)["bulk.status"]
         XCTAssertTrue(waitForLabel(status, containing: "Could not write"))
         XCTAssertTrue(status.label.contains("Exported 0 of 1 Thought"))
@@ -610,8 +614,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         reset: Bool,
         simulateSaveFailure: Bool = false,
         simulateBulkMoveFailure: Bool = false,
-        additionalArguments: [String] = [],
-        exportDirectory: URL? = nil
+        additionalArguments: [String] = []
     ) throws -> XCUIApplication {
         guard ProcessInfo.processInfo.environment["THOUGHTBOX_RUN_UI_TESTS"] == "1" else {
             throw XCTSkip("Run this file from the Xcode Thoughtbox UI-test scheme.")
@@ -619,9 +622,6 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         let app = try application()
         app.launchEnvironment["THOUGHTBOX_UI_TEST_SESSION"] = UUID().uuidString
-        if let exportDirectory {
-            app.launchEnvironment["THOUGHTBOX_UI_TEST_EXPORT_DIRECTORY"] = exportDirectory.path
-        }
         app.launchArguments = ["--ui-testing"]
         if reset { app.launchArguments.append("--reset-ui-test-store") }
         if simulateSaveFailure { app.launchArguments.append("--simulate-save-failure") }
@@ -679,6 +679,18 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         item.click()
     }
 
+    private func chooseExportDestination(_ destination: URL, in app: XCUIApplication) throws {
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        app.typeKey("g", modifierFlags: [.command, .shift])
+        let pathField = app.textFields.firstMatch
+        XCTAssertTrue(pathField.waitForExistence(timeout: 3))
+        pathField.typeText(destination.path)
+        pathField.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        let exportButton = app.buttons["Export"]
+        XCTAssertTrue(exportButton.waitForExistence(timeout: 3))
+        exportButton.click()
+    }
+
     private func waitForLabel(_ element: XCUIElement, containing text: String) -> Bool {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label CONTAINS %@", text),
@@ -700,9 +712,4 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         return (enumerator?.allObjects as? [URL] ?? []).filter { $0.pathExtension == "md" }
     }
 
-    private func appSandboxExportDirectory(prefix: String) -> URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "Library/Containers/com.memoji.Thoughtbox/Data/tmp", directoryHint: .isDirectory)
-            .appending(path: "\(prefix)-\(UUID().uuidString)", directoryHint: .isDirectory)
-    }
 }

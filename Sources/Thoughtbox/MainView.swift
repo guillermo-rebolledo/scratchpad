@@ -55,6 +55,8 @@ struct MainView: View {
     @State private var projectDeletionConfirmation: ProjectDeletionConfirmation?
     @State private var confirmsProjectDeletion = false
     @State private var exportIsRunning = false
+    @State private var exportCanBeCancelled = false
+    @State private var exportTask: Task<Void, Never>?
     @FocusState private var thoughtListFocused: Bool
     @AccessibilityFocusState private var operationFocused: Bool
 
@@ -185,12 +187,21 @@ struct MainView: View {
                             Image(systemName: operationIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                         }
                         Text(operationMessage)
+                        Spacer()
+                        if exportCanBeCancelled {
+                            Button("Cancel Export", role: .cancel, action: cancelExport)
+                                .keyboardShortcut(.cancelAction)
+                                .help("Stops before the next Markdown file. Files already exported remain in the chosen folder.")
+                                .accessibilityHint("Stops the export before its next file and reports how many files were already written.")
+                                .accessibilityIdentifier("export.cancel")
+                        }
                     }
                     .foregroundStyle(operationIsError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .padding(.horizontal)
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.bar)
+                    .accessibilityElement(children: .contain)
                     .accessibilityLabel(operationMessage)
                     .accessibilityFocused($operationFocused)
                     .accessibilityIdentifier("bulk.status")
@@ -640,31 +651,66 @@ struct MainView: View {
         operationMessage = "Choose a destination for \(items.count) Thought\(items.count == 1 ? "" : "s")…"
         operationIsError = false
         focusOperationStatus()
-        Task { @MainActor in
+        exportTask = Task { @MainActor in
             let destination = await SystemExportDestinationPicker().chooseDestination()
             guard let destination else {
                 exportIsRunning = false
+                exportCanBeCancelled = false
+                exportTask = nil
+                operationMessage = "Export canceled. No files were written."
+                operationIsError = false
+                focusOperationStatus()
+                return
+            }
+            guard !Task.isCancelled else {
+                exportIsRunning = false
+                exportCanBeCancelled = false
+                exportTask = nil
                 operationMessage = "Export canceled. No files were written."
                 operationIsError = false
                 focusOperationStatus()
                 return
             }
 
+            exportCanBeCancelled = true
             operationMessage = "Exporting \(items.count) Thought\(items.count == 1 ? "" : "s")…"
             operationIsError = false
             focusOperationStatus()
-            let plan = MarkdownExportPlanner().makePlan(for: items, scope: scope)
             let simulateFailure = ProcessInfo.processInfo.arguments.contains("--simulate-export-write-failure")
-            let outcome = await Task.detached(priority: .userInitiated) {
+            let worker = Task.detached(priority: .userInitiated) {
+                let plan = MarkdownExportPlanner().makePlan(for: items, scope: scope)
+                guard !Task.isCancelled else {
+                    return MarkdownExportOutcome.completed(.init(
+                        writtenRelativePaths: [],
+                        failures: [],
+                        wasCancelled: true
+                    ))
+                }
                 if simulateFailure {
                     let writer = MarkdownExportWriter { _, _ in throw SimulatedExportFailure() }
                     return MarkdownExportService(writer: writer).export(plan, to: destination)
                 }
                 return MarkdownExportService().export(plan, to: destination)
-            }.value
+            }
+            let outcome = await withTaskCancellationHandler {
+                await worker.value
+            } onCancel: {
+                worker.cancel()
+            }
             exportIsRunning = false
+            exportCanBeCancelled = false
+            exportTask = nil
             presentExportOutcome(outcome, destination: destination, requestedCount: items.count)
         }
+    }
+
+    private func cancelExport() {
+        guard exportCanBeCancelled else { return }
+        exportCanBeCancelled = false
+        exportTask?.cancel()
+        operationMessage = "Canceling export safely…"
+        operationIsError = false
+        focusOperationStatus()
     }
 
     private func presentExportOutcome(
@@ -676,6 +722,12 @@ struct MainView: View {
         case .cancelled:
             operationMessage = "Export canceled. No files were written."
             operationIsError = false
+        case let .completed(result) where result.wasCancelled:
+            let failureCopy = result.failures.isEmpty
+                ? ""
+                : " \(result.failures.count) output\(result.failures.count == 1 ? " failed" : "s failed") before cancellation."
+            operationMessage = "Export canceled after writing \(result.writtenRelativePaths.count) of \(requestedCount) Thought\(requestedCount == 1 ? "" : "s"). Files already exported remain in \(destination.lastPathComponent).\(failureCopy)"
+            operationIsError = !result.failures.isEmpty
         case let .completed(result) where result.isFullSuccess:
             operationMessage = "Exported \(result.writtenRelativePaths.count) Thought\(result.writtenRelativePaths.count == 1 ? "" : "s") to \(destination.lastPathComponent)."
             operationIsError = false

@@ -75,24 +75,27 @@ struct MarkdownExportPlanner: Sendable {
             if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
             return $0.id.uuidString < $1.id.uuidString
         }
-        let candidates = sorted.map { item -> Candidate in
+        var candidates: [Candidate] = []
+        for item in sorted {
+            if Task.isCancelled { return MarkdownExportPlan(files: []) }
             let folderKey = folderKey(for: item, scope: scope)
             let timestamp = filenameTimestamp(item.createdAt)
             let slug = Self.slug(from: item.markdown)
-            return Candidate(
+            candidates.append(Candidate(
                 item: item,
                 folder: folderNames[folderKey] ?? "Inbox",
                 baseFilename: "\(timestamp)-\(slug)"
-            )
+            ))
         }
-        let collisionCounts = Dictionary(grouping: candidates) {
+        let collisionGroups = Dictionary(grouping: candidates) {
             "\($0.folder)/\($0.baseFilename)".normalizedExportCollisionKey
-        }.mapValues(\.count)
+        }
 
         let files = candidates.map { candidate -> PlannedMarkdownFile in
             let collisionKey = "\(candidate.folder)/\(candidate.baseFilename)".normalizedExportCollisionKey
-            let suffix = collisionCounts[collisionKey, default: 0] > 1
-                ? "-\(Self.stableSuffix(candidate.item.id))"
+            let peers = collisionGroups[collisionKey, default: []]
+            let suffix = peers.count > 1
+                ? "-\(Self.uniqueStableSuffix(candidate.item.id, among: peers.map { $0.item.id }))"
                 : ""
             return PlannedMarkdownFile(
                 thoughtID: candidate.item.id,
@@ -116,15 +119,19 @@ struct MarkdownExportPlanner: Sendable {
         let candidates = projects.map { project in
             (project: project, sanitized: Self.portableComponent(project.name, fallback: "Project"))
         }
-        let counts = Dictionary(grouping: candidates) { $0.sanitized.normalizedExportCollisionKey }
-            .mapValues(\.count)
+        let groups = Dictionary(grouping: candidates) { $0.sanitized.normalizedExportCollisionKey }
         var result = ["inbox": "Inbox"]
         for candidate in candidates {
             let key = candidate.sanitized.normalizedExportCollisionKey
             let conflictsWithReserved = key == "inbox" || key == "trash"
-            let needsSuffix = conflictsWithReserved || counts[key, default: 0] > 1
+            let peers = groups[key, default: []]
+            let needsSuffix = conflictsWithReserved || peers.count > 1
+            let suffix = Self.uniqueStableSuffix(
+                candidate.project.id,
+                among: peers.map { $0.project.id }
+            )
             result["project:\(candidate.project.id.uuidString)"] = needsSuffix
-                ? "\(candidate.sanitized)-\(Self.stableSuffix(candidate.project.id))"
+                ? "\(candidate.sanitized)-\(suffix)"
                 : candidate.sanitized
         }
         return result
@@ -157,13 +164,14 @@ struct MarkdownExportPlanner: Sendable {
             .filter(\.containsNonWhitespace)
             .prefix(6)
         let joined = words.joined(separator: "-").lowercased()
-        return portableComponent(joined, fallback: "thought", maximumLength: 60)
+        return portableComponent(joined, fallback: "thought")
     }
 
     private static func portableComponent(
         _ value: String,
         fallback: String,
-        maximumLength: Int = 80
+        maximumUTF8Bytes: Int = 160,
+        maximumUTF16Units: Int = 160
     ) -> String {
         let invalid = CharacterSet(charactersIn: "<>:\"/\\|?*")
             .union(.controlCharacters)
@@ -179,17 +187,31 @@ struct MarkdownExportPlanner: Sendable {
             }
         }
         output = output.trimmingCharacters(in: CharacterSet(charactersIn: " .-"))
-        if output.count > maximumLength {
-            output = String(output.prefix(maximumLength)).trimmingCharacters(in: CharacterSet(charactersIn: " .-"))
+        var portable = ""
+        for character in output {
+            let candidate = portable + String(character)
+            guard candidate.utf8.count <= maximumUTF8Bytes,
+                  candidate.utf16.count <= maximumUTF16Units else { break }
+            portable = candidate
         }
-        if output.isEmpty || Self.reservedFilenames.contains(output.lowercased()) {
+        output = portable.trimmingCharacters(in: CharacterSet(charactersIn: " .-"))
+        let deviceBasename = output.split(separator: ".", maxSplits: 1).first.map(String.init)?.lowercased()
+        if output.isEmpty || deviceBasename.map(Self.reservedFilenames.contains) == true {
             return fallback
         }
         return output
     }
 
-    private static func stableSuffix(_ id: UUID) -> String {
-        String(id.uuidString.lowercased().prefix(8))
+    private static func uniqueStableSuffix(_ id: UUID, among ids: [UUID]) -> String {
+        let values = ids.map { $0.uuidString.lowercased().replacingOccurrences(of: "-", with: "") }
+        let value = id.uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        for length in stride(from: 8, through: 32, by: 4) {
+            let prefix = String(value.prefix(length))
+            if values.filter({ $0.hasPrefix(prefix) }).count == 1 {
+                return prefix
+            }
+        }
+        return value
     }
 
     private static let reservedFilenames: Set<String> = [
@@ -213,8 +235,19 @@ struct MarkdownExportFailure: Error, Equatable, Sendable {
 struct MarkdownExportResult: Equatable, Sendable {
     let writtenRelativePaths: [String]
     let failures: [MarkdownExportFailure]
+    let wasCancelled: Bool
 
-    var isFullSuccess: Bool { failures.isEmpty }
+    init(
+        writtenRelativePaths: [String],
+        failures: [MarkdownExportFailure],
+        wasCancelled: Bool = false
+    ) {
+        self.writtenRelativePaths = writtenRelativePaths
+        self.failures = failures
+        self.wasCancelled = wasCancelled
+    }
+
+    var isFullSuccess: Bool { failures.isEmpty && !wasCancelled }
 }
 
 struct MarkdownExportWriter {
@@ -242,6 +275,13 @@ struct MarkdownExportWriter {
         var failures: [MarkdownExportFailure] = []
 
         for file in plan.files {
+            if Task.isCancelled {
+                return MarkdownExportResult(
+                    writtenRelativePaths: written,
+                    failures: failures,
+                    wasCancelled: true
+                )
+            }
             guard Self.isSafeRelativePath(file.relativePath) else {
                 failures.append(.init(relativePath: file.relativePath, message: "Unsafe output path."))
                 continue
@@ -280,24 +320,27 @@ struct MarkdownExportWriter {
 
         let relativePath = file.relativePath as NSString
         let stem = (relativePath.lastPathComponent as NSString).deletingPathExtension
-        let suffix = String(file.thoughtID.uuidString.lowercased().prefix(8))
-        if stem.hasSuffix("-\(suffix)") {
+        let stableID = file.thoughtID.uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let suffixLengths = Array(stride(from: 8, through: 32, by: 4))
+        if suffixLengths.contains(where: { stem.hasSuffix("-\(stableID.prefix($0))") }) {
             return .failure(.init(
                 relativePath: file.relativePath,
                 message: "An export with this stable ID already exists. No file was overwritten."
             ))
         }
-        let collisionName = "\(stem)-\(suffix).md"
         let parent = relativePath.deletingLastPathComponent
-        let collisionPath = parent == "." ? collisionName : "\(parent)/\(collisionName)"
-        let collisionURL = destination.appending(path: collisionPath)
-        guard !fileManager.fileExists(atPath: collisionURL.path) else {
-            return .failure(.init(
-                relativePath: collisionPath,
-                message: "An export with this stable ID already exists. No file was overwritten."
-            ))
+        for length in suffixLengths {
+            let collisionName = "\(stem)-\(stableID.prefix(length)).md"
+            let collisionPath = parent == "." ? collisionName : "\(parent)/\(collisionName)"
+            let collisionURL = destination.appending(path: collisionPath)
+            if !fileManager.fileExists(atPath: collisionURL.path) {
+                return .success((collisionPath, collisionURL))
+            }
         }
-        return .success((collisionPath, collisionURL))
+        return .failure(.init(
+            relativePath: file.relativePath,
+            message: "An export with this stable ID already exists. No file was overwritten."
+        ))
     }
 
     private static func isSafeRelativePath(_ path: String) -> Bool {
@@ -333,12 +376,7 @@ struct MarkdownExportService {
 
 @MainActor
 struct SystemExportDestinationPicker {
-    func chooseDestination(processInfo: ProcessInfo = .processInfo) async -> URL? {
-        if processInfo.arguments.contains("--ui-testing"),
-           let path = processInfo.environment["THOUGHTBOX_UI_TEST_EXPORT_DIRECTORY"] {
-            return URL(fileURLWithPath: path, isDirectory: true)
-        }
-
+    func chooseDestination() async -> URL? {
         let panel = NSOpenPanel()
         panel.title = "Export Thoughtbox Markdown"
         panel.message = "Choose a folder. Thoughtbox will create Inbox and Project folders inside it."

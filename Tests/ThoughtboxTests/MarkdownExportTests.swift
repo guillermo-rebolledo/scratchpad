@@ -133,6 +133,50 @@ struct MarkdownExportTests {
         #expect(try String(contentsOf: exportedURL, encoding: .utf8) == "portable artifact")
     }
 
+    @Test("Path components honor byte limits, Windows device names, and secondary stable-ID collisions")
+    func deepPortabilityEdges() throws {
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let longProject = ExportProject(id: UUID(), name: String(repeating: "😀", count: 80))
+        let reservedProject = ExportProject(id: UUID(), name: "CON.txt")
+        let sharedPrefixOne = UUID(uuidString: "11111111-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
+        let sharedPrefixTwo = UUID(uuidString: "11111111-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
+        let items = [
+            ThoughtExportItem(
+                id: UUID(), markdown: "Long Project", createdAt: date, editedAt: date,
+                project: longProject, isTrashed: false
+            ),
+            ThoughtExportItem(
+                id: UUID(), markdown: "Reserved Project", createdAt: date, editedAt: date,
+                project: reservedProject, isTrashed: false
+            ),
+            ThoughtExportItem(
+                id: sharedPrefixOne, markdown: "Same collision", createdAt: date, editedAt: date,
+                project: nil, isTrashed: false
+            ),
+            ThoughtExportItem(
+                id: sharedPrefixTwo, markdown: "Same collision", createdAt: date, editedAt: date,
+                project: nil, isTrashed: false
+            )
+        ]
+        let plan = MarkdownExportPlanner(timeZone: utc).makePlan(for: items, scope: .allActive)
+        let components = plan.files.flatMap { $0.relativePath.split(separator: "/").map(String.init) }
+        #expect(components.allSatisfy { $0.utf8.count <= 255 && $0.utf16.count <= 255 })
+        #expect(plan.files.contains { $0.relativePath.hasPrefix("Project/") })
+        let collisionPaths = plan.files
+            .filter { $0.thoughtID == sharedPrefixOne || $0.thoughtID == sharedPrefixTwo }
+            .map(\.relativePath)
+        #expect(Set(collisionPaths).count == 2)
+        #expect(collisionPaths.contains { $0.contains("-11111111aaaa.md") })
+        #expect(collisionPaths.contains { $0.contains("-11111111bbbb.md") })
+
+        let destination = FileManager.default.temporaryDirectory
+            .appending(path: "ThoughtboxDeepPortability-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let result = MarkdownExportWriter().write(plan, to: destination)
+        #expect(result.isFullSuccess)
+        #expect(result.writtenRelativePaths.count == 4)
+    }
+
     @Test("Write failures identify the affected output and cannot report full success")
     func writeFailureReporting() {
         struct SimulatedFailure: Error {}
@@ -165,5 +209,29 @@ struct MarkdownExportTests {
 
         #expect(outcome == .cancelled)
         #expect(writeAttempted == false)
+    }
+
+    @Test("An in-progress export stops between files when its task is canceled")
+    func inProgressCancellation() async {
+        let plan = MarkdownExportPlan(files: (0..<5_000).map { index in
+            PlannedMarkdownFile(
+                thoughtID: UUID(),
+                relativePath: "Inbox/\(index).md",
+                content: "cancel me"
+            )
+        })
+        let destination = FileManager.default.temporaryDirectory
+            .appending(path: "ThoughtboxExportCancellation-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let task = Task.detached {
+            MarkdownExportWriter().write(plan, to: destination)
+        }
+        task.cancel()
+
+        let result = await task.value
+
+        #expect(result.wasCancelled)
+        #expect(result.isFullSuccess == false)
+        #expect(result.writtenRelativePaths.count < plan.files.count)
     }
 }
