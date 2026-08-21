@@ -38,6 +38,11 @@ final class DraftStore {
         markdown.containsNonWhitespace
     }
 
+    func prepareForCapture(in projectID: UUID?) {
+        self.projectID = projectID
+        destinationNotice = nil
+    }
+
     func clear() {
         markdown = ""
         projectID = nil

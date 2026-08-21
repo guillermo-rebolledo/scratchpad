@@ -132,13 +132,11 @@ struct MainView: View {
             Group {
                 if visibleThoughts.isEmpty {
                     ContentUnavailableView {
-                        Label(emptyTitle, systemImage: "text.badge.plus")
+                        Label(emptyTitle, systemImage: emptySystemImage)
                     } description: {
                         Text(emptyDescription)
                     } actions: {
-                        Button("Capture Thought") { AppState.shared.showCapture() }
-                            .help("Opens the persistent Draft editor.")
-                            .accessibilityHint("Opens the persistent Draft editor.")
+                        emptyActions
                     }
                 } else {
                     List(visibleThoughts, selection: guardedSelection) { thought in
@@ -351,6 +349,57 @@ struct MainView: View {
         case .project: String(localized: "Capture to this Project or move an existing Thought here.")
         case .trash: String(localized: "Thoughts remain here until you restore or permanently delete them.")
         }
+    }
+
+    private var emptySystemImage: String {
+        if searchText.containsNonWhitespace { return "magnifyingglass" }
+        return collection == .trash ? "trash" : "text.badge.plus"
+    }
+
+    @ViewBuilder
+    private var emptyActions: some View {
+        if searchText.containsNonWhitespace {
+            Button("Clear Search", action: clearSearch)
+                .help("Clears the current query and returns to every Thought in this collection.")
+                .accessibilityHint("Clears the current query and returns to every Thought in this collection.")
+                .accessibilityIdentifier("library.empty.clearSearch")
+        } else {
+            switch collection ?? .allThoughts {
+            case .allThoughts:
+                Button("Capture Thought", action: showCapture)
+                    .help("Opens the persistent Draft editor.")
+                    .accessibilityHint("Opens the persistent Draft editor. Any saved Thought appears in All Thoughts.")
+                    .accessibilityIdentifier("library.empty.capture")
+            case .inbox:
+                Button("Capture to Inbox") { showCapture(in: nil) }
+                    .help("Opens the persistent Draft editor preselected to Inbox.")
+                    .accessibilityHint("Opens the persistent Draft editor and preserves Inbox as its destination.")
+                    .accessibilityIdentifier("library.empty.capture")
+            case .project:
+                if let selectedProject {
+                    Button("Capture to \(selectedProject.name)") { showCapture(in: selectedProject.id) }
+                        .help("Opens the persistent Draft editor preselected to this Project.")
+                        .accessibilityHint("Opens the persistent Draft editor and preserves this Project as its destination.")
+                        .accessibilityIdentifier("library.empty.capture")
+                }
+            case .trash:
+                EmptyView()
+            }
+        }
+    }
+
+    private func showCapture() {
+        AppState.shared.showCapture()
+    }
+
+    private func showCapture(in projectID: UUID?) {
+        draft.prepareForCapture(in: projectID)
+        AppState.shared.showCapture()
+    }
+
+    private func clearSearch() {
+        guard editNavigationGuard.canLeaveEditor() else { return }
+        searchText = ""
     }
 
     private var guardedSelection: Binding<Set<UUID>> {

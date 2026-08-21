@@ -20,6 +20,21 @@ struct CapturePersistenceTests {
         #expect(DraftStore(defaults: defaults).markdown.isEmpty)
     }
 
+    @Test("Preparing capture for a collection preserves Draft Markdown and persists its destination")
+    func preparingCollectionCapturePreservesDraft() throws {
+        let suiteName = "ThoughtboxTests.EmptyCollectionDraft.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let projectID = UUID()
+        let draft = DraftStore(defaults: defaults)
+        draft.markdown = "Keep this Draft"
+
+        draft.prepareForCapture(in: projectID)
+
+        #expect(draft.markdown == "Keep this Draft")
+        #expect(DraftStore(defaults: defaults).projectID == projectID)
+    }
+
     @Test("Capture rejects blank input and returns newest Thoughts first")
     func captureValidationAndOrdering() throws {
         let repository = try ThoughtRepository.inMemory()

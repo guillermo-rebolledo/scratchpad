@@ -508,6 +508,60 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No Search Results"].waitForExistence(timeout: 3))
     }
 
+    func testEmptyCollectionsOfferActionsThatResolveTheirCurrentScope() throws {
+        let app = try launch(reset: true)
+
+        XCTAssertTrue(app.staticTexts["No Thoughts Yet"].waitForExistence(timeout: 3))
+        var captureAction = app.descendants(matching: .any)["library.empty.capture"]
+        XCTAssertTrue(captureAction.isHittable)
+        XCTAssertEqual(captureAction.label, "Capture Thought")
+        captureAction.click()
+        var editor = app.textViews["capture.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.typeText("Captured from empty All Thoughts")
+        app.buttons["capture.save"].click()
+        XCTAssertTrue(thoughtRow("Captured from empty All Thoughts", in: app).waitForExistence(timeout: 3))
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        XCTAssertTrue(app.staticTexts["Trash Is Empty"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.descendants(matching: .any)["library.empty.capture"].exists)
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        createProject("Empty Action Project", in: app)
+        XCTAssertTrue(app.staticTexts["Project Is Empty"].waitForExistence(timeout: 3))
+        captureAction = app.descendants(matching: .any)["library.empty.capture"]
+        XCTAssertEqual(captureAction.label, "Capture to Empty Action Project")
+        captureAction.click()
+        editor = app.textViews["capture.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(
+            app.descendants(matching: .any)["capture.destination"].value as? String,
+            "Empty Action Project"
+        )
+        editor.typeText("Project Draft from empty state")
+        editor.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        editor = openCapture(in: app)
+        XCTAssertEqual(editor.value as? String, "Project Draft from empty state")
+        XCTAssertEqual(
+            app.descendants(matching: .any)["capture.destination"].value as? String,
+            "Empty Action Project"
+        )
+        app.buttons["capture.save"].click()
+        XCTAssertTrue(thoughtRow("Project Draft from empty state", in: app).waitForExistence(timeout: 3))
+
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        search.click()
+        search.typeText("No matching Thought")
+        XCTAssertTrue(app.staticTexts["No Search Results"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.descendants(matching: .any)["library.empty.capture"].exists)
+        let clearSearch = app.descendants(matching: .any)["library.empty.clearSearch"]
+        XCTAssertTrue(clearSearch.isHittable)
+        clearSearch.click()
+        XCTAssertTrue(thoughtRow("Project Draft from empty state", in: app).waitForExistence(timeout: 3))
+    }
+
     func testKeyboardMultiSelectionBulkMoveAndRelaunchPersistence() throws {
         let app = try launch(reset: true)
         createProject("Bulk Source", in: app)
