@@ -9,6 +9,14 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         <description>Signed Thoughtbox beta releases.</description>
         <language>en</language>
         <item>
+            <title>1.0.0-beta.3</title>
+            <pubDate>Fri, 21 Aug 2026 23:15:36 +0000</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.0.0-beta.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/guillermo-rebolledo/scratchpad/releases/download/thoughtbox-v1.0.0-beta.3/Thoughtbox-1.0.0-beta.3.zip" length="2565721" type="application/octet-stream" sparkle:edSignature="ujbJM8sBrEWx6YeQcQVr2KFCO4ObCLGB01WM5LikJSUmvjW84ckTpJK5v88w7fwdJVzCOwkFoh+Jh+BEv09RBA=="/>
+        </item>
+        <item>
             <title>1.0.0-beta.2</title>
             <pubDate>Fri, 21 Aug 2026 16:17:53 +0000</pubDate>
             <sparkle:version>3</sparkle:version>
@@ -27,6 +35,6 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: qc2ZGPjHCV/X+/dIYaLcxu4PEEtfb/15P6HSBxgGoB427xwKl+x4j8gxK6943ctxYSp5nwN/pt6rBghrdks2Aw==
-length: 1977
+edSignature: P6D/0T7nl5bfVR1etcLVgJDSPhOjPHxvjpghGcvSXOxDD8RmMbiSqMjfq3uKKeG3gdag2+FlnUTJ+ugXzwhoCQ==
+length: 2632
 -->
