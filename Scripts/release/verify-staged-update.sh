@@ -45,11 +45,6 @@ source_app="$(find "$test_directory" -maxdepth 2 -type d -name 'Thoughtbox.app' 
 ditto "$source_app" "$installed_app"
 xattr -dr com.apple.quarantine "$installed_app" 2>/dev/null || true
 
-THOUGHTBOX_RUN_UI_TESTS=1 \
-THOUGHTBOX_RUN_UPDATE_TEST=1 \
-THOUGHTBOX_APP_PATH="$installed_app" \
-THOUGHTBOX_STAGED_APPCAST_URL="$staged_appcast" \
-THOUGHTBOX_EXPECTED_UPDATE_VERSION="$expected_version" \
 xcodebuild \
     -project "$repository_directory/Thoughtbox.xcodeproj" \
     -scheme Thoughtbox \
@@ -57,4 +52,8 @@ xcodebuild \
     -clonedSourcePackagesDirPath "${XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY:-$repository_directory/.build/xcode-release-packages}" \
     -disableAutomaticPackageResolution \
     -only-testing:ThoughtboxUITests/ThoughtboxRealAppAcceptanceTests/testStagedSparkleUpdatePreservesAllLocalData \
+    THOUGHTBOX_RUN_UPDATE_TEST=1 \
+    THOUGHTBOX_APP_PATH="$installed_app" \
+    THOUGHTBOX_STAGED_APPCAST_URL="$staged_appcast" \
+    THOUGHTBOX_EXPECTED_UPDATE_VERSION="$expected_version" \
     test

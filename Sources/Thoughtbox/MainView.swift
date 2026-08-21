@@ -122,7 +122,6 @@ struct MainView: View {
                 .background(.bar)
             }
             .navigationTitle("Thoughtbox")
-            .accessibilityIdentifier("library.sidebar")
         } content: {
             Group {
                 if visibleThoughts.isEmpty {

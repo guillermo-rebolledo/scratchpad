@@ -42,6 +42,7 @@ struct ThoughtDetailView: View {
                     Text("Created \(thought.createdAt.formatted(date: .abbreviated, time: .shortened))")
                     if thought.editedAt != thought.createdAt {
                         Text("Edited \(thought.editedAt.formatted(date: .abbreviated, time: .shortened))")
+                            .accessibilityIdentifier("thought.edited.at")
                     }
                 }
                 .font(.caption)
@@ -179,11 +180,13 @@ private struct ThoughtSourceEditor: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityLabel("Saving changes")
+                    .accessibilityIdentifier("thought.save.status")
             } else {
                 Text("Saved")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityLabel("Changes saved")
+                    .accessibilityIdentifier("thought.save.status")
             }
         }
         .padding()
