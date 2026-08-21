@@ -88,7 +88,7 @@ verify_nested_code() {
     nested_signature="$(codesign -d --verbose=4 "$nested_code" 2>&1)"
     printf '%s\n' "$nested_signature" | grep -F "Authority=$expected_authority" >/dev/null
     printf '%s\n' "$nested_signature" | grep -E 'flags=.*runtime' >/dev/null
-    codesign -d --entitlements :- "$nested_code" >"$nested_entitlements_path" 2>/dev/null || true
+    codesign -d --entitlements :- "$nested_code" >"$nested_entitlements_path" 2>/dev/null
     if plutil -extract com.apple.security.get-task-allow raw "$nested_entitlements_path" >/dev/null 2>&1; then
         printf '%s\n' "Nested release code must not include get-task-allow: $nested_code" >&2
         exit 1

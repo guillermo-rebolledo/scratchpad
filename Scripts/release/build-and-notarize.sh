@@ -32,6 +32,10 @@ case "$THOUGHTBOX_DOWNLOAD_URL_PREFIX" in
         exit 64
         ;;
 esac
+if [ -n "$(git -C "$repository_directory" status --porcelain --untracked-files=all)" ]; then
+    printf '%s\n' "Release builds require a clean worktree so source provenance is exact." >&2
+    exit 1
+fi
 
 for secret_path in "$NOTARY_KEY_PATH" "$SPARKLE_PRIVATE_KEY_PATH"; do
     [ -f "$secret_path" ] || {
@@ -103,13 +107,16 @@ spctl --assess --type execute --verbose=4 "$app_path"
 ditto -c -k --sequesterRsrc --keepParent "$app_path" "$update_zip"
 cp "$repository_directory/appcast.xml" "$channel_directory/appcast.xml"
 
-sparkle_tool="$(find "$repository_directory/.build" -type d -path '*/Sparkle.framework/Versions/*' -prune -o -type f -name generate_appcast -perm -111 -print 2>/dev/null | head -1 || true)"
-sparkle_tools_directory=""
-if [ -n "$sparkle_tool" ]; then
-    sparkle_tools_directory="$(dirname "$sparkle_tool")"
-fi
+sparkle_tools_directory="${SPARKLE_TOOLS_DIRECTORY:-}"
 if [ -z "$sparkle_tools_directory" ]; then
-    sparkle_tools_directory="${SPARKLE_TOOLS_DIRECTORY:-}"
+    for search_directory in "$package_directory" "$repository_directory/.build"; do
+        [ -d "$search_directory" ] || continue
+        sparkle_tool="$(find "$search_directory" -type f -name generate_appcast -perm -111 -print 2>/dev/null | head -1 || true)"
+        if [ -n "$sparkle_tool" ]; then
+            sparkle_tools_directory="$(dirname "$sparkle_tool")"
+            break
+        fi
+    done
 fi
 [ -x "$sparkle_tools_directory/generate_appcast" ] || {
     printf '%s\n' "Sparkle generate_appcast tool was not found. Set SPARKLE_TOOLS_DIRECTORY." >&2

@@ -9,7 +9,10 @@ esac
 script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
 repository_directory="$(dirname "$(dirname "$script_directory")")"
 test_directory="$(mktemp -d /tmp/thoughtbox-release-script-tests.XXXXXX)"
-trap 'rm -rf "$test_directory"' EXIT HUP INT TERM
+trap 'rm -rf "$test_directory"' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 for fixture in \
     "$repository_directory/Tests/ReleaseFixtures/appcast-attribute-version.xml" \
@@ -28,6 +31,12 @@ do
         "$fixture" \
         42 \
         "https://updates.example.test/" >/dev/null
+    "$script_directory/verify-appcast.sh" \
+        "$fixture" \
+        42 \
+        "https://updates.example.test/" \
+        "Thoughtbox.zip" \
+        "1.0.0" >/dev/null
 done
 
 if "$script_directory/verify-appcast.sh" \
@@ -36,6 +45,19 @@ if "$script_directory/verify-appcast.sh" \
     "" >/dev/null 2>&1
 then
     printf '%s\n' "An empty download prefix unexpectedly passed." >&2
+    exit 1
+fi
+
+invalid_signature_appcast="$test_directory/invalid-signature.xml"
+cp "$repository_directory/Tests/ReleaseFixtures/appcast-element-version.xml" "$invalid_signature_appcast"
+ruby -pi -e 'gsub(/sparkle:edSignature="[^"]+"/, %q[sparkle:edSignature="invalid"])' \
+    "$invalid_signature_appcast"
+if "$script_directory/verify-appcast.sh" \
+    "$invalid_signature_appcast" \
+    42 \
+    "https://updates.example.test/" >/dev/null 2>&1
+then
+    printf '%s\n' "An invalid enclosure signature unexpectedly passed." >&2
     exit 1
 fi
 

@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:other="https://example.test/unrelated">
   <channel>
     <item>
+      <other:version>999</other:version>
+      <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
       <enclosure
         url="https://updates.example.test/Thoughtbox.zip"
         length="1"
         type="application/octet-stream"
+        other:version="1000"
         sparkle:version="42"
-        sparkle:edSignature="AA=="/>
+        sparkle:edSignature="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="/>
     </item>
   </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: AA==
+edSignature: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
 length: 1
 -->
