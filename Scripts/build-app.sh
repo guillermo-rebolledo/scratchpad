@@ -29,9 +29,11 @@ marketing_version="${MARKETING_VERSION:-1.0-dev}"
 build_number="${CURRENT_PROJECT_VERSION:-1}"
 
 swift build -c "$configuration"
+rm -rf "$app_path"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources" "$app_path/Contents/Frameworks"
 cp "$binary_directory/Thoughtbox" "$app_path/Contents/MacOS/Thoughtbox"
 ditto "$binary_directory/Sparkle.framework" "$app_path/Contents/Frameworks/Sparkle.framework"
+install_name_tool -add_rpath @executable_path/../Frameworks "$app_path/Contents/MacOS/Thoughtbox"
 xcrun xcstringstool compile Sources/Thoughtbox/Localizable.xcstrings \
     --output-directory "$app_path/Contents/Resources"
 cp Resources/Info.plist "$app_path/Contents/Info.plist"

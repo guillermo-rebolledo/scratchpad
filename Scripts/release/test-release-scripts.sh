@@ -14,6 +14,14 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+"$script_directory/validate-https-prefix.rb" "https://updates.example.test/releases/"
+for invalid_prefix in "https:///" "http://updates.example.test/" "https://user@updates.example.test/"; do
+    if "$script_directory/validate-https-prefix.rb" "$invalid_prefix" >/dev/null 2>&1; then
+        printf '%s\n' "Invalid download prefix unexpectedly passed: $invalid_prefix" >&2
+        exit 1
+    fi
+done
+
 for fixture in \
     "$repository_directory/Tests/ReleaseFixtures/appcast-attribute-version.xml" \
     "$repository_directory/Tests/ReleaseFixtures/appcast-element-version.xml"
@@ -25,6 +33,10 @@ do
     fi
     if "$script_directory/verify-version-order.sh" "$fixture" 41 >/dev/null 2>&1; then
         printf '%s\n' "Decreasing build unexpectedly passed: $fixture" >&2
+        exit 1
+    fi
+    if "$script_directory/verify-version-order.sh" "$fixture" 043 >/dev/null 2>&1; then
+        printf '%s\n' "A leading-zero build unexpectedly passed: $fixture" >&2
         exit 1
     fi
     "$script_directory/verify-appcast.sh" \
@@ -58,6 +70,18 @@ if "$script_directory/verify-appcast.sh" \
     "https://updates.example.test/" >/dev/null 2>&1
 then
     printf '%s\n' "An invalid enclosure signature unexpectedly passed." >&2
+    exit 1
+fi
+
+wrong_namespace_appcast="$test_directory/wrong-signature-namespace.xml"
+cp "$repository_directory/Tests/ReleaseFixtures/appcast-element-version.xml" "$wrong_namespace_appcast"
+ruby -pi -e 'gsub(/sparkle:edSignature=/, %q[other:edSignature=])' "$wrong_namespace_appcast"
+if "$script_directory/verify-appcast.sh" \
+    "$wrong_namespace_appcast" \
+    42 \
+    "https://updates.example.test/" >/dev/null 2>&1
+then
+    printf '%s\n' "A non-Sparkle signature attribute unexpectedly passed." >&2
     exit 1
 fi
 

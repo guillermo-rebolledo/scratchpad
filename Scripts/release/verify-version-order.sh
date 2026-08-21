@@ -9,15 +9,11 @@ fi
 appcast_path="$1"
 candidate_build="$2"
 case "$candidate_build" in
-    ''|*[!0-9]*)
-        printf '%s\n' "Release build number must be a positive integer." >&2
+    ''|*[!0-9]*|0*)
+        printf '%s\n' "Release build number must be a canonical positive integer without leading zeroes." >&2
         exit 64
         ;;
 esac
-if [ "$candidate_build" -le 0 ]; then
-    printf '%s\n' "Release build number must be greater than zero." >&2
-    exit 64
-fi
 
 xmllint --noout "$appcast_path"
 script_path="$0"

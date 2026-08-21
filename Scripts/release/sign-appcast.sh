@@ -10,14 +10,9 @@ archives_directory="$1"
 download_prefix="$2"
 private_key_path="$3"
 sparkle_tools_directory="$4"
+script_directory="$(CDPATH= cd "$(dirname "$0")" && pwd)"
 
-case "$download_prefix" in
-    https://*/) ;;
-    *)
-        printf '%s\n' "The Sparkle download prefix must use HTTPS and end in a slash." >&2
-        exit 64
-        ;;
-esac
+ruby "$script_directory/validate-https-prefix.rb" "$download_prefix"
 [ -d "$archives_directory" ]
 [ -f "$private_key_path" ]
 [ -x "$sparkle_tools_directory/generate_appcast" ]

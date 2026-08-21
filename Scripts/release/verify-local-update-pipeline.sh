@@ -12,7 +12,10 @@ set -eu
 [ "$THOUGHTBOX_ALLOW_LOCAL_UPDATE_TEST" = "1" ]
 
 case "$RELEASE_BUILD" in
-    ''|*[!0-9]*) exit 64 ;;
+    ''|*[!0-9]*|0*)
+        printf '%s\n' "RELEASE_BUILD must not contain leading zeroes." >&2
+        exit 64
+        ;;
 esac
 if [ "$RELEASE_BUILD" -le 1 ]; then
     printf '%s\n' "RELEASE_BUILD must be at least 2 so the update fixture can use a lower build." >&2

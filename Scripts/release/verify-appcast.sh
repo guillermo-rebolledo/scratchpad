@@ -11,19 +11,13 @@ expected_build="$2"
 download_prefix="$3"
 archive_basename="${4:-}"
 expected_version="${5:-}"
-case "$download_prefix" in
-    https://*/) ;;
-    *)
-        printf '%s\n' "The expected Sparkle download prefix must use HTTPS and end in a slash." >&2
-        exit 64
-        ;;
-esac
 script_path="$0"
 case "$script_path" in
     */*) ;;
     *) script_path="$(command -v "$script_path")" ;;
 esac
 script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
+ruby "$script_directory/validate-https-prefix.rb" "$download_prefix"
 
 xmllint --noout "$appcast_path"
 builds="$(ruby "$script_directory/read-appcast-builds.rb" "$appcast_path")"
@@ -65,7 +59,9 @@ ruby -r rexml/document -r base64 -r uri -e '
     abort "Appcast item does not match the expected marketing version." unless
       version_element&.text.to_s.strip == expected_version
   end
-  signature = enclosure.attributes.to_a.find { |attribute| attribute.name == "edSignature" }&.value.to_s
+  signature = enclosure.attributes.to_a.find do |attribute|
+    attribute.name == "edSignature" && attribute.namespace == sparkle_namespace
+  end&.value.to_s
   abort "Update archive has no EdDSA signature." if signature.empty?
   begin
     decoded_signature = Base64.strict_decode64(signature)

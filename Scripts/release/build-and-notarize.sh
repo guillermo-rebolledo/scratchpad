@@ -25,13 +25,7 @@ case "$RELEASE_VERSION" in
         exit 64
         ;;
 esac
-case "$THOUGHTBOX_DOWNLOAD_URL_PREFIX" in
-    https://*/) ;;
-    *)
-        printf '%s\n' "THOUGHTBOX_DOWNLOAD_URL_PREFIX must use HTTPS and end in a slash." >&2
-        exit 64
-        ;;
-esac
+ruby "$script_directory/validate-https-prefix.rb" "$THOUGHTBOX_DOWNLOAD_URL_PREFIX"
 if [ -n "$(git -C "$repository_directory" status --porcelain --untracked-files=all)" ]; then
     printf '%s\n' "Release builds require a clean worktree so source provenance is exact." >&2
     exit 1
