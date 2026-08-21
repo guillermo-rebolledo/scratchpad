@@ -31,6 +31,24 @@ private struct ProjectDeletionConfirmation {
 
 private struct SimulatedExportFailure: Error {}
 
+struct ProjectCommandActions {
+    let canModifySelectedProject: Bool
+    let create: () -> Void
+    let rename: () -> Void
+    let delete: () -> Void
+}
+
+struct ProjectCommandActionsKey: FocusedValueKey {
+    typealias Value = ProjectCommandActions
+}
+
+extension FocusedValues {
+    var projectCommandActions: ProjectCommandActions? {
+        get { self[ProjectCommandActionsKey.self] }
+        set { self[ProjectCommandActionsKey.self] = newValue }
+    }
+}
+
 enum ExportAccessibility {
     static let label = String(localized: "Export")
     static let hint = String(localized: "Choose Export All or export the selected trashed Thoughts.")
@@ -94,6 +112,11 @@ struct MainView: View {
                             .accessibilityIdentifier("project.sidebar.\(project.id.uuidString)")
                             .contextMenu {
                                 Button("Rename Project") { beginRename(project) }
+                                    .help("Renames this Project without changing its order.")
+                                Button("Delete Project", role: .destructive) {
+                                    requestDeleteProject(project)
+                                }
+                                .help("Deletes this Project only when it contains no active Thoughts.")
                             }
                     }
                 }
@@ -101,27 +124,11 @@ struct MainView: View {
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 8) {
                     Button("New Project", systemImage: "plus", action: beginCreate)
-                        .labelStyle(.iconOnly)
-                        .help("Create a Project in the main window.")
+                        .controlSize(.regular)
+                        .help("Create a Project.")
                         .accessibilityLabel("New Project")
                         .accessibilityHint("Creates a Project in the main window.")
                         .accessibilityIdentifier("project.create")
-
-                    Button("Rename Project", systemImage: "pencil", action: renameSelectedProject)
-                        .labelStyle(.iconOnly)
-                        .disabled(selectedProject == nil)
-                        .help("Rename the selected Project without changing its order.")
-                        .accessibilityLabel("Rename Project")
-                        .accessibilityHint("Renames the selected Project without changing its order.")
-                        .accessibilityIdentifier("project.rename")
-
-                    Button("Delete Project", systemImage: "trash", action: requestDeleteSelectedProject)
-                        .labelStyle(.iconOnly)
-                        .disabled(selectedProject == nil)
-                        .help("Deletes the selected Project only when it contains no active Thoughts.")
-                        .accessibilityLabel("Delete Project")
-                        .accessibilityHint("Explains any active-Thought constraint, then asks for confirmation before deleting an empty Project.")
-                        .accessibilityIdentifier("project.delete")
                     Spacer()
                 }
                 .padding(8)
@@ -242,9 +249,12 @@ struct MainView: View {
         .onChange(of: selectedThoughtIDs) { _, selection in
             announce(String(localized: "\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected"))
         }
+        .focusedSceneValue(\.projectCommandActions, focusedProjectCommandActions)
         .sheet(item: $projectEditor) { editor in
             ProjectEditorSheet(project: editor.project) { savedProject in
-                requestCollection(.project(savedProject.id))
+                if editor.project == nil || collection == .project(savedProject.id) {
+                    requestCollection(.project(savedProject.id))
+                }
             }
         }
         .confirmationDialog(
@@ -296,6 +306,15 @@ struct MainView: View {
     private var selectedProject: Project? {
         guard case let .project(projectID) = collection else { return nil }
         return projects.first { $0.id == projectID }
+    }
+
+    private var focusedProjectCommandActions: ProjectCommandActions {
+        ProjectCommandActions(
+            canModifySelectedProject: selectedProject != nil,
+            create: beginCreate,
+            rename: renameSelectedProject,
+            delete: requestDeleteSelectedProject
+        )
     }
 
     private var permanentDeletionTitle: String {
@@ -640,6 +659,11 @@ struct MainView: View {
 
     private func requestDeleteSelectedProject() {
         guard let project = selectedProject, editNavigationGuard.canLeaveEditor() else { return }
+        requestDeleteProject(project)
+    }
+
+    private func requestDeleteProject(_ project: Project) {
+        guard editNavigationGuard.canLeaveEditor() else { return }
         do {
             let impact = try ThoughtRepository(context: modelContext).projectDeletionImpact(for: project)
             guard impact.activeThoughtCount == 0 else {
@@ -667,8 +691,10 @@ struct MainView: View {
               let project = projects.first(where: { $0.id == confirmation.projectID }) else { return }
         do {
             let result = try ThoughtRepository(context: modelContext).deleteProject(project, draft: draft)
-            collection = .inbox
-            selectedThoughtIDs = []
+            if collection == .project(confirmation.projectID) {
+                collection = .inbox
+                selectedThoughtIDs = []
+            }
             projectDeletionConfirmation = nil
             operationMessage = if result.draftDestinationReset {
                 String(localized: "Deleted \(confirmation.projectName). Your Draft is intact and its destination is now Inbox.")

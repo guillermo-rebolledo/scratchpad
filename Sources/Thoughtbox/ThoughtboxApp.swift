@@ -34,12 +34,38 @@ struct ThoughtboxApp: App {
                 Button("Check for Updates…") {
                     appState.updaterController.checkForUpdates(nil)
                 }
-                .help("Checks the signed Thoughtbox update channel for a newer version.")
+                    .help("Checks the signed Thoughtbox update channel for a newer version.")
             }
+            ProjectCommands()
         }
 
         Settings {
             ThoughtboxSettingsView(model: appState.settings)
+        }
+    }
+}
+
+private struct ProjectCommands: Commands {
+    @FocusedValue(\.projectCommandActions) private var actions
+
+    var body: some Commands {
+        CommandMenu("Project") {
+            Button("New Project") { actions?.create() }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .help("Creates a Project in the main window.")
+                .disabled(actions == nil)
+
+            Divider()
+
+            Button("Rename Project") { actions?.rename() }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .help("Renames the selected Project without changing its order.")
+                .disabled(actions?.canModifySelectedProject != true)
+
+            Button("Delete Project") { actions?.delete() }
+                .keyboardShortcut(.delete, modifiers: [.command, .option])
+                .help("Deletes the selected Project only when it contains no active Thoughts.")
+                .disabled(actions?.canModifySelectedProject != true)
         }
     }
 }

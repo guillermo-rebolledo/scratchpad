@@ -406,6 +406,9 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(newer.exists)
         XCTAssertTrue(older.exists)
         XCTAssertLessThan(newer.frame.minY, older.frame.minY)
+        XCTAssertEqual(app.buttons["project.create"].label, "New Project")
+        XCTAssertFalse(app.buttons["project.rename"].exists)
+        XCTAssertFalse(app.buttons["project.delete"].exists)
 
         app.buttons["project.create"].click()
         let name = app.textFields["project.name"]
@@ -418,8 +421,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(accessibilityText(of: duplicateError).contains("without regard to capitalization"))
         app.buttons["Cancel"].click()
 
-        older.click()
-        app.buttons["project.rename"].click()
+        older.rightClick()
+        let renameProject = app.menuItems["Rename Project"]
+        XCTAssertTrue(renameProject.waitForExistence(timeout: 3))
+        renameProject.click()
         XCTAssertTrue(name.waitForExistence(timeout: 3))
         name.typeKey("a", modifierFlags: .command)
         name.typeText("Renamed Project")
@@ -710,7 +715,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         capture("Disposable Thought", destination: "Disposable Project", in: app)
 
         app.staticTexts["Disposable Project"].firstMatch.click()
-        app.buttons["project.delete"].click()
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [.command, .option])
         let status = app.descendants(matching: .any)["bulk.status"]
         XCTAssertTrue(status.waitForExistence(timeout: 3))
         XCTAssertTrue(status.label.contains("Move or delete it before deleting the Project"))
@@ -722,7 +727,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         thoughtRow("Disposable Thought", in: app).click()
         app.buttons["trash.move"].click()
-        app.buttons["project.delete"].click()
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [.command, .option])
         XCTAssertTrue(app.buttons["project.delete.confirm"].waitForExistence(timeout: 3))
         XCTAssertTrue(
             app.descendants(matching: .any)
