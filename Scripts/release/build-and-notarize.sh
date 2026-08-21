@@ -46,16 +46,19 @@ security find-identity -v -p codesigning | grep -F "$DEVELOPER_ID_APPLICATION" >
 output_directory="${RELEASE_OUTPUT_DIRECTORY:-$repository_directory/.build/release}"
 package_directory="${XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY:-$repository_directory/.build/xcode-release-packages}"
 archive_path="$output_directory/Thoughtbox.xcarchive"
+export_directory="$output_directory/export"
+export_options_path="$output_directory/ExportOptions.plist"
 channel_directory="$output_directory/channel"
 notary_json="$output_directory/notary.json"
 notary_log="$output_directory/notary-log.json"
 submission_zip="$output_directory/Thoughtbox-notarization.zip"
 update_zip="$channel_directory/Thoughtbox-$RELEASE_VERSION.zip"
-app_path="$archive_path/Products/Applications/Thoughtbox.app"
+app_path="$export_directory/Thoughtbox.app"
 source_commit_file="$output_directory/source-commit.txt"
 
 mkdir -p "$output_directory"
-rm -rf "$channel_directory"
+rm -rf "$channel_directory" "$export_directory"
+rm -f "$export_options_path"
 mkdir -p "$channel_directory"
 git -C "$repository_directory" rev-parse HEAD >"$source_commit_file"
 "$script_directory/verify-version-order.sh" "$repository_directory/appcast.xml" "$RELEASE_BUILD"
@@ -72,6 +75,16 @@ xcodebuild archive \
     DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
     CODE_SIGN_STYLE=Manual \
     CODE_SIGN_IDENTITY="$DEVELOPER_ID_APPLICATION"
+
+plutil -create xml1 "$export_options_path"
+plutil -insert method -string developer-id "$export_options_path"
+plutil -insert signingStyle -string manual "$export_options_path"
+plutil -insert signingCertificate -string "$DEVELOPER_ID_APPLICATION" "$export_options_path"
+plutil -insert teamID -string "$APPLE_TEAM_ID" "$export_options_path"
+xcodebuild -exportArchive \
+    -archivePath "$archive_path" \
+    -exportPath "$export_directory" \
+    -exportOptionsPlist "$export_options_path"
 
 "$script_directory/verify-app.sh" "$app_path"
 "$script_directory/verify-update-key.sh" "$app_path" "$SPARKLE_PRIVATE_KEY_PATH"
