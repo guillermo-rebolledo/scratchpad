@@ -96,6 +96,50 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["# Durable\n\nCaptured from the real app"].waitForExistence(timeout: 3))
     }
 
+    func testLibraryAdaptsAtMinimumWindowSizeAndRestoresItsSidebar() throws {
+        let app = try launch(reset: true)
+        capture("Minimum boundary Thought", in: app)
+
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 3))
+        let resizeHandle = window.coordinate(withNormalizedOffset: CGVector(dx: 0.995, dy: 0.995))
+        let undersizedTarget = window.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.35))
+        resizeHandle.press(forDuration: 0.1, thenDragTo: undersizedTarget, withVelocity: .slow, thenHoldForDuration: 0)
+
+        XCTAssertGreaterThanOrEqual(window.frame.width, 840)
+        XCTAssertGreaterThanOrEqual(window.frame.height, 540)
+        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["library.thoughts"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["thought.detail"].isHittable)
+
+        let destination = app.descendants(matching: .any)["thought.destination"]
+        let edit = app.buttons["thought.edit"]
+        XCTAssertTrue(destination.isHittable)
+        XCTAssertTrue(edit.isHittable)
+        XCTAssertEqual(destination.label, "Thought destination")
+        XCTAssertEqual(edit.label, "Edit Thought")
+
+        let sidebarToggle = app.buttons["Toggle Sidebar"]
+        XCTAssertTrue(sidebarToggle.isHittable)
+        sidebarToggle.click()
+        XCTAssertFalse(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["library.thoughts"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["thought.detail"].isHittable)
+
+        let viewMenu = app.menuBars.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
+        viewMenu.click()
+        let showSidebar = app.menuItems["Show Sidebar"]
+        XCTAssertTrue(showSidebar.waitForExistence(timeout: 3))
+        showSidebar.click()
+        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].waitForExistence(timeout: 3))
+
+        app.typeKey("s", modifierFlags: [.command, .control])
+        XCTAssertFalse(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
+        app.typeKey("s", modifierFlags: [.command, .control])
+        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].waitForExistence(timeout: 3))
+    }
+
     func testFailedSaveKeepsDraftAndShowsAccessibleError() throws {
         let app = try launch(reset: true, simulateSaveFailure: true)
         let editor = openCapture(in: app)
@@ -105,6 +149,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertEqual(editor.value as? String, "Do not lose this")
         let error = app.descendants(matching: .any)["capture.error"]
         XCTAssertTrue(error.exists)
+        XCTAssertTrue(error.label.contains("Save error"))
         XCTAssertTrue(accessibilityText(of: error).contains("Your Draft is still here"))
     }
 
@@ -166,6 +211,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.typeKey("k", modifierFlags: [.control, .option])
         let conflict = app.descendants(matching: .any)["settings.shortcut.error"]
         XCTAssertTrue(conflict.waitForExistence(timeout: 3))
+        XCTAssertTrue(conflict.label.contains("Settings error"))
         XCTAssertTrue(accessibilityText(of: conflict).contains("previous shortcut is still active"))
         XCTAssertEqual(recorder.value as? String, "Control–Option–Space")
 
@@ -224,6 +270,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertFalse(controlIsOn(toggle))
         let error = app.descendants(matching: .any)["settings.login.error"]
         XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("Settings error"))
         XCTAssertTrue(accessibilityText(of: error).contains("system setting was not changed"))
     }
 
@@ -295,20 +342,48 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let app = try launch(reset: true)
         capture("Before edit", in: app)
 
-        app.radioButtons["Edit"].click()
+        let thoughtMenu = app.menuBars.menuBarItems["Thought"]
+        XCTAssertTrue(thoughtMenu.waitForExistence(timeout: 3))
+        thoughtMenu.click()
+        XCTAssertTrue(app.menuItems["Edit Thought"].isEnabled)
+        XCTAssertTrue(app.menuItems["Move Thought To"].isEnabled)
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.typeKey("e", modifierFlags: [.command, .control])
         let editor = app.textViews["thought.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.buttons["thought.edit"].label, "Done Editing")
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("After edit")
         XCTAssertTrue(waitForLabel(app.descendants(matching: .any)["thought.save.status"], containing: "Changes saved"))
-        app.radioButtons["Read"].click()
+        app.buttons["thought.edit"].click()
         XCTAssertTrue(app.staticTexts["After edit"].exists)
+        XCTAssertTrue(app.buttons["thought.edit"].isHittable)
+        XCTAssertEqual(app.buttons["thought.edit"].label, "Edit Thought")
 
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()
         XCTAssertTrue(app.staticTexts["After edit"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["thought.edited.at"].exists)
+    }
+
+    func testThoughtEditErrorKeepsAccessibleRecoveryGuidance() throws {
+        let app = try launch(reset: true)
+        capture("Thought cannot become blank", in: app)
+
+        app.buttons["thought.edit"].click()
+        let editor = app.textViews["thought.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        app.buttons["thought.edit"].click()
+
+        let error = app.descendants(matching: .any)["thought.edit.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("Edit error"))
+        XCTAssertTrue(error.label.contains("Restore non-empty content or retry"))
+        XCTAssertTrue(editor.exists)
     }
 
     func testEditingOlderThoughtDoesNotChangeCreationOrder() throws {
@@ -320,7 +395,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let olderRow = thoughtRow("Older Thought", in: app)
         XCTAssertLessThan(newerRow.frame.minY, olderRow.frame.minY)
         olderRow.click()
-        app.radioButtons["Edit"].click()
+        app.buttons["thought.edit"].click()
         let editor = app.textViews["thought.editor"]
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Older Thought edited")
@@ -335,7 +410,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         capture("Second Thought", in: app)
 
         thoughtRow("First Thought", in: app).click()
-        app.radioButtons["Edit"].click()
+        app.buttons["thought.edit"].click()
         var editor = app.textViews["thought.editor"]
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Saved by selection")
@@ -343,16 +418,21 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         thoughtRow("Saved by selection", in: app).click()
         XCTAssertTrue(thoughtRow("Saved by selection", in: app).exists)
 
-        app.radioButtons["Edit"].click()
+        app.buttons["thought.edit"].click()
         editor = app.textViews["thought.editor"]
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Saved by focus")
-        app.radioButtons["Read"].click()
+        app.buttons["thought.edit"].click()
         XCTAssertTrue(thoughtRow("Saved by focus", in: app).waitForExistence(timeout: 3))
     }
 
     func testProjectCreationNormalizedUniquenessOrderingAndRename() throws {
         let app = try launch(reset: true)
+
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        XCTAssertTrue(app.textFields["project.name"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].click()
+
         createProject(" Older Project ", in: app)
         createProject("Newer Project", in: app)
 
@@ -361,6 +441,9 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(newer.exists)
         XCTAssertTrue(older.exists)
         XCTAssertLessThan(newer.frame.minY, older.frame.minY)
+        XCTAssertEqual(app.buttons["project.create"].label, "New Project")
+        XCTAssertFalse(app.buttons["project.rename"].exists)
+        XCTAssertFalse(app.buttons["project.delete"].exists)
 
         app.buttons["project.create"].click()
         let name = app.textFields["project.name"]
@@ -369,11 +452,14 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.buttons["project.save"].click()
         let duplicateError = app.descendants(matching: .any)["project.error"]
         XCTAssertTrue(duplicateError.waitForExistence(timeout: 3))
+        XCTAssertTrue(duplicateError.label.contains("Project error"))
         XCTAssertTrue(accessibilityText(of: duplicateError).contains("without regard to capitalization"))
         app.buttons["Cancel"].click()
 
-        older.click()
-        app.buttons["project.rename"].click()
+        older.rightClick()
+        let renameProject = app.menuItems["Rename Project"]
+        XCTAssertTrue(renameProject.waitForExistence(timeout: 3))
+        renameProject.click()
         XCTAssertTrue(name.waitForExistence(timeout: 3))
         name.typeKey("a", modifierFlags: .command)
         name.typeText("Renamed Project")
@@ -382,6 +468,14 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let renamed = element(labeled: "Renamed Project", in: app)
         XCTAssertTrue(renamed.waitForExistence(timeout: 3))
         XCTAssertLessThan(newer.frame.minY, renamed.frame.minY)
+
+        renamed.click()
+        app.typeKey("r", modifierFlags: [.command, .option])
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeKey("a", modifierFlags: .command)
+        name.typeText("Keyboard Renamed Project")
+        app.buttons["project.save"].click()
+        XCTAssertTrue(element(labeled: "Keyboard Renamed Project", in: app).waitForExistence(timeout: 3))
     }
 
     func testProjectNavigationReassignmentAndInboxFiltering() throws {
@@ -405,6 +499,44 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         app.staticTexts["All Thoughts"].firstMatch.click()
         XCTAssertTrue(accessibilityText(of: thoughtRow("Project Thought", in: app)).contains("in Inbox"))
+    }
+
+    func testThoughtRowsExposeCanonicalExcerptAndCompactCollectionContext() throws {
+        let app = try launch(reset: true)
+        let longProjectName = "A Project Name Long Enough to Require Predictable Truncation"
+        let longMarkdown = String(repeating: "Long canonical Markdown content ", count: 12)
+        createProject(longProjectName, in: app)
+        capture("Inbox Thought", in: app)
+        capture("Project Thought", destination: longProjectName, in: app)
+        capture("Duplicate Thought", in: app)
+        capture("Duplicate Thought", in: app)
+        capture(longMarkdown, destination: longProjectName, in: app)
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        let list = app.descendants(matching: .any)["library.thoughts"]
+        XCTAssertTrue(list.waitForExistence(timeout: 3))
+        let inboxRow = thoughtRow("Inbox Thought", in: app)
+        let projectRow = thoughtRow("Project Thought", in: app)
+        XCTAssertTrue(accessibilityText(of: inboxRow).contains("created"))
+        XCTAssertTrue(accessibilityText(of: inboxRow).contains("Inbox"))
+        XCTAssertTrue(accessibilityText(of: projectRow).contains(longProjectName))
+        XCTAssertEqual(
+            list.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", "Duplicate Thought", "Duplicate Thought")).count,
+            2
+        )
+        let longRow = thoughtRow(longMarkdown, in: app)
+        XCTAssertLessThanOrEqual(longRow.frame.maxX, list.frame.maxX + 1)
+
+        app.staticTexts[longProjectName].firstMatch.click()
+        XCTAssertTrue(accessibilityText(of: thoughtRow("Project Thought", in: app)).contains(longProjectName))
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        inboxRow.click()
+        app.buttons["trash.move"].click()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        let trashedInboxRow = thoughtRow("Inbox Thought", in: app)
+        XCTAssertTrue(accessibilityText(of: trashedInboxRow).contains("Inbox"))
+        XCTAssertTrue(accessibilityText(of: trashedInboxRow).contains("Trash"))
     }
 
     func testDraftProjectDestinationPersistsAndResetsAfterCapture() throws {
@@ -460,6 +592,60 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         search.click()
         search.typeText("No matching Thought")
         XCTAssertTrue(app.staticTexts["No Search Results"].waitForExistence(timeout: 3))
+    }
+
+    func testEmptyCollectionsOfferActionsThatResolveTheirCurrentScope() throws {
+        let app = try launch(reset: true)
+
+        XCTAssertTrue(app.staticTexts["No Thoughts Yet"].waitForExistence(timeout: 3))
+        var captureAction = app.descendants(matching: .any)["library.empty.capture"]
+        XCTAssertTrue(captureAction.isHittable)
+        XCTAssertEqual(captureAction.label, "Capture Thought")
+        captureAction.click()
+        var editor = app.textViews["capture.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        editor.typeText("Captured from empty All Thoughts")
+        app.buttons["capture.save"].click()
+        XCTAssertTrue(thoughtRow("Captured from empty All Thoughts", in: app).waitForExistence(timeout: 3))
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        XCTAssertTrue(app.staticTexts["Trash Is Empty"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.descendants(matching: .any)["library.empty.capture"].exists)
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        createProject("Empty Action Project", in: app)
+        XCTAssertTrue(app.staticTexts["Project Is Empty"].waitForExistence(timeout: 3))
+        captureAction = app.descendants(matching: .any)["library.empty.capture"]
+        XCTAssertEqual(captureAction.label, "Capture to Empty Action Project")
+        captureAction.click()
+        editor = app.textViews["capture.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(
+            app.descendants(matching: .any)["capture.destination"].value as? String,
+            "Empty Action Project"
+        )
+        editor.typeText("Project Draft from empty state")
+        editor.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        editor = openCapture(in: app)
+        XCTAssertEqual(editor.value as? String, "Project Draft from empty state")
+        XCTAssertEqual(
+            app.descendants(matching: .any)["capture.destination"].value as? String,
+            "Empty Action Project"
+        )
+        app.buttons["capture.save"].click()
+        XCTAssertTrue(thoughtRow("Project Draft from empty state", in: app).waitForExistence(timeout: 3))
+
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        search.click()
+        search.typeText("No matching Thought")
+        XCTAssertTrue(app.staticTexts["No Search Results"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.descendants(matching: .any)["library.empty.capture"].exists)
+        let clearSearch = app.descendants(matching: .any)["library.empty.clearSearch"]
+        XCTAssertTrue(clearSearch.isHittable)
+        clearSearch.click()
+        XCTAssertTrue(thoughtRow("Project Draft from empty state", in: app).waitForExistence(timeout: 3))
     }
 
     func testKeyboardMultiSelectionBulkMoveAndRelaunchPersistence() throws {
@@ -529,6 +715,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         let error = app.descendants(matching: .any)["bulk.status"]
         XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("Library error"))
         XCTAssertTrue(error.label.contains("could not move"))
         XCTAssertTrue(app.staticTexts["First Failure Thought"].exists)
         XCTAssertTrue(app.staticTexts["Second Failure Thought"].exists)
@@ -544,13 +731,19 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         capture("Newest Trash SearchNeedle", destination: "Trash Source", in: app)
 
         app.staticTexts["Trash Source"].firstMatch.click()
+        XCTAssertFalse(app.descendants(matching: .any)["bulk.selection.count"].exists)
+        XCTAssertEqual(app.buttons["trash.move"].label, "Move to Trash")
         thoughtRow("Oldest Trash Thought", in: app).click()
+        XCTAssertFalse(app.descendants(matching: .any)["bulk.selection.count"].exists)
         app.buttons["trash.move"].click()
         XCTAssertTrue(app.descendants(matching: .any)["bulk.status"].label.contains("Moved 1 Thought"))
 
         app.typeKey("l", modifierFlags: .command)
         app.typeKey("a", modifierFlags: .command)
         XCTAssertTrue(accessibilityText(of: app.descendants(matching: .any)["bulk.selection.count"]).contains("2 Thoughts selected"))
+        XCTAssertEqual(app.descendants(matching: .any)["bulk.destination"].label, "Move Selected")
+        XCTAssertEqual(app.buttons["trash.move"].label, "Move to Trash")
+        XCTAssertTrue(accessibilityText(of: app.buttons["trash.move"]).contains("2 Thoughts selected"))
         app.buttons["trash.move"].click()
 
         app.descendants(matching: .any)["trash.sidebar"].click()
@@ -560,6 +753,11 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(newest.waitForExistence(timeout: 3))
         XCTAssertLessThan(newest.frame.minY, middle.frame.minY)
         XCTAssertLessThan(middle.frame.minY, oldest.frame.minY)
+        XCTAssertTrue(app.descendants(matching: .any)["bulk.selection.count"].exists)
+        XCTAssertEqual(app.buttons["trash.restore"].label, "Restore Selected")
+        XCTAssertEqual(app.buttons["trash.delete"].label, "Delete Permanently")
+        XCTAssertEqual(app.buttons["export.selected.trash.button"].label, "Export Selected Trash")
+        XCTAssertTrue(accessibilityText(of: app.buttons["export.selected.trash.button"]).contains("selected in Trash"))
 
         let search = app.searchFields.firstMatch
         search.click()
@@ -609,7 +807,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         capture("Disposable Thought", destination: "Disposable Project", in: app)
 
         app.staticTexts["Disposable Project"].firstMatch.click()
-        app.buttons["project.delete"].click()
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [.command, .option])
         let status = app.descendants(matching: .any)["bulk.status"]
         XCTAssertTrue(status.waitForExistence(timeout: 3))
         XCTAssertTrue(status.label.contains("Move or delete it before deleting the Project"))
@@ -621,7 +819,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         thoughtRow("Disposable Thought", in: app).click()
         app.buttons["trash.move"].click()
-        app.buttons["project.delete"].click()
+        app.staticTexts["Disposable Project"].firstMatch.rightClick()
+        let contextualDelete = app.menuItems["Delete Project"]
+        XCTAssertTrue(contextualDelete.waitForExistence(timeout: 3))
+        contextualDelete.click()
         XCTAssertTrue(app.buttons["project.delete.confirm"].waitForExistence(timeout: 3))
         XCTAssertTrue(
             app.descendants(matching: .any)
@@ -745,6 +946,28 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let trashFiles = try markdownFiles(in: destination.appending(path: "Trash", directoryHint: .isDirectory))
         XCTAssertEqual(trashFiles.count, 1)
         XCTAssertTrue(try String(contentsOf: trashFiles[0], encoding: .utf8).hasSuffix("Selected Trash export source"))
+    }
+
+    func testExportMenuUsesItsCommandNameAndRemainsKeyboardReachable() throws {
+        let app = try launch(reset: true)
+        capture("Keyboard export source", in: app)
+
+        let menu = app.descendants(matching: .any)["export.menu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 3))
+        XCTAssertEqual(menu.label, "Export")
+        XCTAssertFalse(accessibilityText(of: menu).contains("Share"))
+        XCTAssertTrue(menu.isHittable)
+
+        menu.click()
+        let exportAll = app.menuItems["Export All…"]
+        XCTAssertTrue(exportAll.waitForExistence(timeout: 3))
+        XCTAssertTrue(exportAll.isEnabled)
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.typeKey("e", modifierFlags: [.command, .shift])
+        let cancel = app.buttons["CancelButton"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        cancel.click()
     }
 
     func testNativeExportPickerCancellationAndWriteFailureAreAccessible() throws {

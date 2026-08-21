@@ -31,6 +31,63 @@ private struct ProjectDeletionConfirmation {
 
 private struct SimulatedExportFailure: Error {}
 
+struct ProjectCommandActions {
+    let canModifySelectedProject: Bool
+    let create: () -> Void
+    let rename: () -> Void
+    let delete: () -> Void
+}
+
+struct ProjectCommandActionsKey: FocusedValueKey {
+    typealias Value = ProjectCommandActions
+}
+
+extension FocusedValues {
+    var projectCommandActions: ProjectCommandActions? {
+        get { self[ProjectCommandActionsKey.self] }
+        set { self[ProjectCommandActionsKey.self] = newValue }
+    }
+}
+
+struct ThoughtSelectionCommandActions {
+    let selectionCount: Int
+    let isTrash: Bool
+    let destinations: [ThoughtDestinationCommand]
+    let move: (ThoughtDestination) -> Void
+    let trash: () -> Void
+    let restore: () -> Void
+    let deletePermanently: () -> Void
+    let exportTrash: () -> Void
+}
+
+struct ThoughtSelectionCommandActionsKey: FocusedValueKey {
+    typealias Value = ThoughtSelectionCommandActions
+}
+
+extension FocusedValues {
+    var thoughtSelectionCommandActions: ThoughtSelectionCommandActions? {
+        get { self[ThoughtSelectionCommandActionsKey.self] }
+        set { self[ThoughtSelectionCommandActionsKey.self] = newValue }
+    }
+}
+
+enum ExportAccessibility {
+    static let label = String(localized: "Export")
+    static let hint = String(localized: "Choose Export All or export the selected trashed Thoughts.")
+}
+
+struct LibraryColumnWidth {
+    let minimum: CGFloat
+    let ideal: CGFloat
+    let maximum: CGFloat
+}
+
+enum LibraryColumnMetrics {
+    static let sidebar = LibraryColumnWidth(minimum: 180, ideal: 220, maximum: 260)
+    static let thoughtList = LibraryColumnWidth(minimum: 220, ideal: 280, maximum: 340)
+    static let detail = LibraryColumnWidth(minimum: 440, ideal: 560, maximum: 1_200)
+}
+
 struct MainView: View {
     @Environment(DraftStore.self) private var draft
     @Environment(\.modelContext) private var modelContext
@@ -44,6 +101,7 @@ struct MainView: View {
     ) private var trashedThoughts: [Thought]
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var collection: LibrarySelection? = .allThoughts
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var selectedThoughtIDs: Set<UUID> = []
     @State private var editNavigationGuard = ThoughtEditNavigationGuard()
     @State private var projectEditor: ProjectEditorContext?
@@ -61,12 +119,13 @@ struct MainView: View {
     @AccessibilityFocusState private var operationFocused: Bool
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: guardedCollection) {
                 Label("All Thoughts", systemImage: "rectangle.stack")
                     .tag(LibrarySelection.allThoughts)
                     .help("Shows every active Thought, newest first.")
                     .accessibilityHint("Shows every active Thought, newest first.")
+                    .accessibilityIdentifier("library.sidebar.all")
 
                 Label("Inbox", systemImage: "tray")
                     .tag(LibrarySelection.inbox)
@@ -88,6 +147,11 @@ struct MainView: View {
                             .accessibilityIdentifier("project.sidebar.\(project.id.uuidString)")
                             .contextMenu {
                                 Button("Rename Project") { beginRename(project) }
+                                    .help("Renames this Project without changing its order.")
+                                Button("Delete Project", role: .destructive) {
+                                    requestDeleteProject(project)
+                                }
+                                .help("Deletes this Project only when it contains no active Thoughts.")
                             }
                     }
                 }
@@ -95,53 +159,50 @@ struct MainView: View {
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 8) {
                     Button("New Project", systemImage: "plus", action: beginCreate)
-                        .labelStyle(.iconOnly)
-                        .help("Create a Project in the main window.")
+                        .controlSize(.regular)
+                        .help("Create a Project.")
                         .accessibilityLabel("New Project")
                         .accessibilityHint("Creates a Project in the main window.")
                         .accessibilityIdentifier("project.create")
-
-                    Button("Rename Project", systemImage: "pencil", action: renameSelectedProject)
-                        .labelStyle(.iconOnly)
-                        .disabled(selectedProject == nil)
-                        .help("Rename the selected Project without changing its order.")
-                        .accessibilityLabel("Rename Project")
-                        .accessibilityHint("Renames the selected Project without changing its order.")
-                        .accessibilityIdentifier("project.rename")
-
-                    Button("Delete Project", systemImage: "trash", action: requestDeleteSelectedProject)
-                        .labelStyle(.iconOnly)
-                        .disabled(selectedProject == nil)
-                        .help("Deletes the selected Project only when it contains no active Thoughts.")
-                        .accessibilityLabel("Delete Project")
-                        .accessibilityHint("Explains any active-Thought constraint, then asks for confirmation before deleting an empty Project.")
-                        .accessibilityIdentifier("project.delete")
                     Spacer()
                 }
                 .padding(8)
                 .background(.bar)
             }
             .navigationTitle("Thoughtbox")
+            .navigationSplitViewColumnWidth(
+                min: LibraryColumnMetrics.sidebar.minimum,
+                ideal: LibraryColumnMetrics.sidebar.ideal,
+                max: LibraryColumnMetrics.sidebar.maximum
+            )
         } content: {
             Group {
                 if visibleThoughts.isEmpty {
                     ContentUnavailableView {
-                        Label(emptyTitle, systemImage: "text.badge.plus")
+                        Label(emptyTitle, systemImage: emptySystemImage)
                     } description: {
                         Text(emptyDescription)
                     } actions: {
-                        Button("Capture Thought") { AppState.shared.showCapture() }
-                            .help("Opens the persistent Draft editor.")
-                            .accessibilityHint("Opens the persistent Draft editor.")
+                        emptyActions
                     }
                 } else {
                     List(visibleThoughts, selection: guardedSelection) { thought in
                         ThoughtRow(
                             thought: thought,
-                            showsDestination: collection == .allThoughts,
-                            isInTrash: collection == .trash
+                            isInTrash: collection == .trash,
+                            restoreDestinationName: restoreDestinationName(for: thought)
                         )
                             .tag(thought.id)
+                            .contextMenu {
+                                if collection != .trash {
+                                    Button(role: .destructive) {
+                                        trashThought(thought)
+                                    } label: {
+                                        Label("Move to Trash", systemImage: "trash")
+                                    }
+                                    .help("Moves this Thought to Trash. You can restore it later.")
+                                }
+                            }
                     }
                     .focused($thoughtListFocused)
                     .accessibilityLabel("\(collectionTitle) list")
@@ -173,7 +234,8 @@ struct MainView: View {
                 }
                 .disabled(exportIsRunning)
                 .help("Export portable canonical Markdown through the system folder picker.")
-                .accessibilityHint("Choose Export All or export the selected trashed Thoughts.")
+                .accessibilityLabel(ExportAccessibility.label)
+                .accessibilityHint(ExportAccessibility.hint)
                 .accessibilityIdentifier("export.menu")
             }
             .safeAreaInset(edge: .top) {
@@ -195,35 +257,52 @@ struct MainView: View {
                                 .accessibilityIdentifier("export.cancel")
                         }
                     }
-                    .foregroundStyle(operationIsError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .padding(.horizontal)
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.bar)
+                    .statusMessageStyle(isError: operationIsError)
                     .accessibilityElement(children: .contain)
-                    .accessibilityLabel(operationMessage)
+                    .accessibilityLabel(operationIsError ? "Library error: \(operationMessage)" : operationMessage)
                     .accessibilityFocused($operationFocused)
                     .accessibilityIdentifier("bulk.status")
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if !selectedThoughtIDs.isEmpty {
+                if showsSelectionActionBar {
                     selectionActionBar
                 }
             }
+            .navigationSplitViewColumnWidth(
+                min: LibraryColumnMetrics.thoughtList.minimum,
+                ideal: LibraryColumnMetrics.thoughtList.ideal,
+                max: LibraryColumnMetrics.thoughtList.maximum
+            )
         } detail: {
-            if let selectedThought {
-                ThoughtDetailView(thought: selectedThought, editNavigationGuard: editNavigationGuard)
-                    .id(selectedThought.id)
-            } else if selectedThoughtIDs.count > 1 {
-                ContentUnavailableView(
-                    "\(selectedThoughtIDs.count) Thoughts Selected",
-                    systemImage: "checklist"
-                )
-            } else {
-                ContentUnavailableView("Select a Thought", systemImage: "doc.text")
+            Group {
+                if let selectedThought {
+                    ThoughtDetailView(
+                        thought: selectedThought,
+                        editNavigationGuard: editNavigationGuard,
+                        onMoveToTrash: collection == .trash ? nil : { trashSelection() }
+                    )
+                        .id(selectedThought.id)
+                        .accessibilityIdentifier("thought.detail")
+                } else if selectedThoughtIDs.count > 1 {
+                    ContentUnavailableView(
+                        "\(selectedThoughtIDs.count) Thoughts Selected",
+                        systemImage: "checklist"
+                    )
+                } else {
+                    ContentUnavailableView("Select a Thought", systemImage: "doc.text")
+                }
             }
+            .navigationSplitViewColumnWidth(
+                min: LibraryColumnMetrics.detail.minimum,
+                ideal: LibraryColumnMetrics.detail.ideal,
+                max: LibraryColumnMetrics.detail.maximum
+            )
         }
+        .navigationSplitViewStyle(.balanced)
         .onAppear { selectNewestThought() }
         .onChange(of: visibleThoughts.map(\.id)) { oldIDs, _ in
             reconcileSelection(selectNewestIfEmpty: oldIDs.isEmpty)
@@ -238,9 +317,13 @@ struct MainView: View {
         .onChange(of: selectedThoughtIDs) { _, selection in
             announce(String(localized: "\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected"))
         }
+        .focusedSceneValue(\.projectCommandActions, focusedProjectCommandActions)
+        .focusedSceneValue(\.thoughtSelectionCommandActions, focusedThoughtSelectionCommandActions)
         .sheet(item: $projectEditor) { editor in
             ProjectEditorSheet(project: editor.project) { savedProject in
-                requestCollection(.project(savedProject.id))
+                if editor.project == nil || collection == .project(savedProject.id) {
+                    requestCollection(.project(savedProject.id))
+                }
             }
         }
         .confirmationDialog(
@@ -292,6 +375,45 @@ struct MainView: View {
     private var selectedProject: Project? {
         guard case let .project(projectID) = collection else { return nil }
         return projects.first { $0.id == projectID }
+    }
+
+    private var showsSelectionActionBar: Bool {
+        guard !selectedThoughtIDs.isEmpty else { return false }
+        return collection == .trash || selectedThoughtIDs.count > 1
+    }
+
+    private var focusedProjectCommandActions: ProjectCommandActions {
+        ProjectCommandActions(
+            canModifySelectedProject: selectedProject != nil,
+            create: beginCreate,
+            rename: renameSelectedProject,
+            delete: requestDeleteSelectedProject
+        )
+    }
+
+    private var focusedThoughtSelectionCommandActions: ThoughtSelectionCommandActions {
+        let selected = collection == .trash
+            ? trashedThoughts.filter { selectedThoughtIDs.contains($0.id) }
+            : activeThoughts.filter { selectedThoughtIDs.contains($0.id) }
+        let commonProjectID = selected.first?.project?.id
+        let hasCommonDestination = !selected.isEmpty && selected.allSatisfy { $0.project?.id == commonProjectID }
+
+        return ThoughtSelectionCommandActions(
+            selectionCount: selected.count,
+            isTrash: collection == .trash,
+            destinations: ThoughtDestinationCommand.options(
+                projects: projects,
+                currentProjectID: commonProjectID,
+                marksCurrent: hasCommonDestination
+            ),
+            move: { destination in
+                moveSelection(to: destination.project(in: projects))
+            },
+            trash: trashSelection,
+            restore: restoreSelection,
+            deletePermanently: requestPermanentDeletion,
+            exportTrash: { beginExport(scope: .selectedTrash) }
+        )
     }
 
     private var permanentDeletionTitle: String {
@@ -347,6 +469,63 @@ struct MainView: View {
         }
     }
 
+    private var emptySystemImage: String {
+        if searchText.containsNonWhitespace { return "magnifyingglass" }
+        return collection == .trash ? "trash" : "text.badge.plus"
+    }
+
+    private func restoreDestinationName(for thought: Thought) -> String? {
+        guard thought.trashedAt != nil else { return nil }
+        guard let formerProjectID = thought.formerProjectID else { return String(localized: "Inbox") }
+        return projects.first(where: { $0.id == formerProjectID })?.name ?? String(localized: "Inbox")
+    }
+
+    @ViewBuilder
+    private var emptyActions: some View {
+        if searchText.containsNonWhitespace {
+            Button("Clear Search", action: clearSearch)
+                .help("Clears the current query and returns to every Thought in this collection.")
+                .accessibilityHint("Clears the current query and returns to every Thought in this collection.")
+                .accessibilityIdentifier("library.empty.clearSearch")
+        } else {
+            switch collection ?? .allThoughts {
+            case .allThoughts:
+                Button("Capture Thought", action: showCapture)
+                    .help("Opens the persistent Draft editor.")
+                    .accessibilityHint("Opens the persistent Draft editor. Any saved Thought appears in All Thoughts.")
+                    .accessibilityIdentifier("library.empty.capture")
+            case .inbox:
+                Button("Capture to Inbox") { showCapture(in: nil) }
+                    .help("Opens the persistent Draft editor preselected to Inbox.")
+                    .accessibilityHint("Opens the persistent Draft editor and preserves Inbox as its destination.")
+                    .accessibilityIdentifier("library.empty.capture")
+            case .project:
+                if let selectedProject {
+                    Button("Capture to \(selectedProject.name)") { showCapture(in: selectedProject.id) }
+                        .help("Opens the persistent Draft editor preselected to this Project.")
+                        .accessibilityHint("Opens the persistent Draft editor and preserves this Project as its destination.")
+                        .accessibilityIdentifier("library.empty.capture")
+                }
+            case .trash:
+                EmptyView()
+            }
+        }
+    }
+
+    private func showCapture() {
+        AppState.shared.showCapture()
+    }
+
+    private func showCapture(in projectID: UUID?) {
+        draft.prepareForCapture(in: projectID)
+        AppState.shared.showCapture()
+    }
+
+    private func clearSearch() {
+        guard editNavigationGuard.canLeaveEditor() else { return }
+        searchText = ""
+    }
+
     private var guardedSelection: Binding<Set<UUID>> {
         Binding(
             get: { selectedThoughtIDs },
@@ -387,25 +566,31 @@ struct MainView: View {
     }
 
     private var activeActionBar: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text("\(selectedThoughtIDs.count) selected")
                 .accessibilityLabel("\(selectedThoughtIDs.count) Thought\(selectedThoughtIDs.count == 1 ? "" : "s") selected")
                 .accessibilityIdentifier("bulk.selection.count")
             Spacer()
-            Menu("Move Selected") {
+            Menu("Move", systemImage: "folder") {
                 Button("Inbox") { moveSelection(to: nil) }
                 ForEach(projects) { project in
                     Button(project.name) { moveSelection(to: project) }
                 }
             }
-            .keyboardShortcut("m", modifiers: [.command, .shift])
+            .controlSize(.regular)
             .help("Moves every selected active Thought together in one save.")
+            .accessibilityLabel("Move Selected")
             .accessibilityHint("Choose Inbox or one Project. All selected Thoughts move atomically.")
             .accessibilityIdentifier("bulk.destination")
 
-            Button("Move to Trash", action: trashSelection)
-                .keyboardShortcut(.delete, modifiers: .command)
+            Button(role: .destructive, action: trashSelection) {
+                Label("Move to Trash", systemImage: "trash")
+            }
+                .labelStyle(.iconOnly)
+                .controlSize(.regular)
                 .help("Moves every selected Thought to Trash immediately in one save.")
+                .accessibilityLabel("Move to Trash")
+                .accessibilityValue("\(selectedThoughtIDs.count) Thoughts selected")
                 .accessibilityHint("Moves all selected Thoughts to Trash without confirmation. You can restore them later.")
                 .accessibilityIdentifier("trash.move")
         }
@@ -414,23 +599,30 @@ struct MainView: View {
     }
 
     private var trashActionBar: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text("\(selectedThoughtIDs.count) selected")
                 .accessibilityLabel("\(selectedThoughtIDs.count) Thought\(selectedThoughtIDs.count == 1 ? "" : "s") selected in Trash")
                 .accessibilityIdentifier("bulk.selection.count")
             Spacer()
-            Button("Restore Selected", action: restoreSelection)
-                .keyboardShortcut("r", modifiers: [.command, .shift])
+            Button("Restore", systemImage: "arrow.uturn.backward", action: restoreSelection)
+                .controlSize(.regular)
                 .help("Restores each selected Thought to its former Project when available, otherwise Inbox.")
+                .accessibilityLabel("Restore Selected")
                 .accessibilityHint("Restores all selected Thoughts atomically. Missing Projects fall back to Inbox.")
                 .accessibilityIdentifier("trash.restore")
-            Button("Delete Permanently", role: .destructive, action: requestPermanentDeletion)
+            Button("Delete", systemImage: "trash.slash", role: .destructive, action: requestPermanentDeletion)
+                .controlSize(.regular)
                 .help("Always asks for confirmation before permanently deleting the selected Thoughts.")
+                .accessibilityLabel("Delete Permanently")
                 .accessibilityHint("Opens a confirmation that states how many Thoughts will be permanently deleted.")
                 .accessibilityIdentifier("trash.delete")
-            Button("Export Selected…") { beginExport(scope: .selectedTrash) }
+            Button("Export Selected", systemImage: "square.and.arrow.up") { beginExport(scope: .selectedTrash) }
+                .labelStyle(.iconOnly)
+                .controlSize(.regular)
                 .disabled(exportIsRunning)
                 .help("Exports only the selected trashed Thoughts without restoring them.")
+                .accessibilityLabel("Export Selected Trash")
+                .accessibilityValue("\(selectedThoughtIDs.count) Thought\(selectedThoughtIDs.count == 1 ? "" : "s") selected in Trash")
                 .accessibilityHint("Opens the system folder picker, then exports the selected trashed Thoughts as portable Markdown.")
                 .accessibilityIdentifier("export.selected.trash.button")
         }
@@ -503,8 +695,16 @@ struct MainView: View {
     }
 
     private func trashSelection() {
-        guard editNavigationGuard.canLeaveEditor() else { return }
         let selected = activeThoughts.filter { selectedThoughtIDs.contains($0.id) }
+        trashThoughts(selected)
+    }
+
+    private func trashThought(_ thought: Thought) {
+        trashThoughts([thought])
+    }
+
+    private func trashThoughts(_ selected: [Thought]) {
+        guard editNavigationGuard.canLeaveEditor() else { return }
         guard !selected.isEmpty else { return }
 
         do {
@@ -585,6 +785,11 @@ struct MainView: View {
 
     private func requestDeleteSelectedProject() {
         guard let project = selectedProject, editNavigationGuard.canLeaveEditor() else { return }
+        requestDeleteProject(project)
+    }
+
+    private func requestDeleteProject(_ project: Project) {
+        guard editNavigationGuard.canLeaveEditor() else { return }
         do {
             let impact = try ThoughtRepository(context: modelContext).projectDeletionImpact(for: project)
             guard impact.activeThoughtCount == 0 else {
@@ -612,8 +817,10 @@ struct MainView: View {
               let project = projects.first(where: { $0.id == confirmation.projectID }) else { return }
         do {
             let result = try ThoughtRepository(context: modelContext).deleteProject(project, draft: draft)
-            collection = .inbox
-            selectedThoughtIDs = []
+            if collection == .project(confirmation.projectID) {
+                collection = .inbox
+                selectedThoughtIDs = []
+            }
             projectDeletionConfirmation = nil
             operationMessage = if result.draftDestinationReset {
                 String(localized: "Deleted \(confirmation.projectName). Your Draft is intact and its destination is now Inbox.")
@@ -772,40 +979,62 @@ struct MainView: View {
 
 private struct ThoughtRow: View {
     let thought: Thought
-    let showsDestination: Bool
     let isInTrash: Bool
+    let restoreDestinationName: String?
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
+        formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter
     }()
 
+    private var creationDate: String {
+        Self.dateFormatter.string(from: thought.createdAt)
+    }
+
+    private var contextTitle: String {
+        if isInTrash { return String(localized: "Trash") }
+        return thought.project?.name ?? String(localized: "Inbox")
+    }
+
+    private var contextSystemImage: String {
+        if isInTrash { return "trash" }
+        return thought.project == nil ? "tray" : "folder"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(MarkdownDocument(source: thought.markdown).excerpt)
+                .font(.body)
                 .lineLimit(2)
-            HStack {
-                Text(Self.dateFormatter.string(from: thought.createdAt))
-                if showsDestination {
-                    Text("·")
-                    Text(thought.project?.name ?? String(localized: "Inbox"))
-                        .accessibilityIdentifier("thought.destination.\(thought.id.uuidString)")
-                }
-                if isInTrash {
-                    Text("·")
-                    Text(String(localized: "Trash"))
-                }
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 8) {
+                Label(creationDate, systemImage: "clock")
+                    .lineLimit(1)
+                    .layoutPriority(1)
+
+                Label(contextTitle, systemImage: contextSystemImage)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .accessibilityIdentifier("thought.destination.\(thought.id.uuidString)")
             }
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "Thought created \(Self.dateFormatter.string(from: thought.createdAt)), in \(isInTrash ? String(localized: "Trash") : thought.project?.name ?? String(localized: "Inbox"))"
-        )
+        .accessibilityLabel(accessibilityContext)
         .accessibilityValue(thought.markdown)
+    }
+
+    private var accessibilityContext: String {
+        if isInTrash {
+            return "Thought created \(creationDate), in Trash, restores to \(restoreDestinationName ?? String(localized: "Inbox"))"
+        }
+        return "Thought created \(creationDate), in \(contextTitle)"
     }
 }
 
@@ -839,10 +1068,11 @@ private struct ProjectEditorSheet: View {
                 .onSubmit(save)
 
             if let errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Project error: \(errorMessage)")
-                    .accessibilityIdentifier("project.error")
+                AccessibleErrorMessage(
+                    message: errorMessage,
+                    accessibilityLabel: "Project error: \(errorMessage)",
+                    identifier: "project.error"
+                )
                     .accessibilityFocused($errorFocused)
             }
 
