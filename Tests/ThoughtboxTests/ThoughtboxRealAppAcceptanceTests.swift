@@ -269,6 +269,104 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any)["capture.destination"].value as? String, "Inbox")
     }
 
+    func testSearchFiltersAllInboxAndProjectScopesAndClearsInPlace() throws {
+        let app = try launch(reset: true)
+        createProject("Search Project", in: app)
+        capture("Project SearchNeedle", destination: "Search Project", in: app)
+        capture("Project other content", destination: "Search Project", in: app)
+        capture("Inbox SearchNeedle", in: app)
+
+        app.staticTexts["All Thoughts"].firstMatch.click()
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        search.typeText("SearchNeedle")
+        XCTAssertTrue(app.staticTexts["Project SearchNeedle"].exists)
+        XCTAssertTrue(app.staticTexts["Inbox SearchNeedle"].exists)
+        XCTAssertFalse(app.staticTexts["Project other content"].exists)
+
+        app.staticTexts["Inbox"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Inbox SearchNeedle"].exists)
+        XCTAssertFalse(app.staticTexts["Project SearchNeedle"].exists)
+
+        app.staticTexts["Search Project"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Project SearchNeedle"].exists)
+        XCTAssertFalse(app.staticTexts["Inbox SearchNeedle"].exists)
+
+        search.typeKey("a", modifierFlags: .command)
+        search.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        XCTAssertTrue(app.staticTexts["Project other content"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Search Project"].firstMatch.isSelected)
+
+        search.typeText("No matching Thought")
+        XCTAssertTrue(app.staticTexts["No Search Results"].waitForExistence(timeout: 3))
+    }
+
+    func testKeyboardMultiSelectionBulkMoveAndRelaunchPersistence() throws {
+        let app = try launch(reset: true)
+        createProject("Bulk Source", in: app)
+        capture("Older Bulk Thought", destination: "Bulk Source", in: app)
+        capture("Newer Bulk Thought", destination: "Bulk Source", in: app)
+
+        app.staticTexts["Bulk Source"].firstMatch.click()
+        app.staticTexts["Newer Bulk Thought"].click()
+        app.typeKey("a", modifierFlags: .command)
+        let selectionCount = app.descendants(matching: .any)["bulk.selection.count"]
+        XCTAssertTrue(selectionCount.waitForExistence(timeout: 3))
+        XCTAssertTrue(selectionCount.label.contains("2 Thoughts selected"))
+
+        app.typeKey("m", modifierFlags: [.command, .shift])
+        let inboxDestination = app.menuItems["Inbox"]
+        XCTAssertTrue(inboxDestination.waitForExistence(timeout: 3))
+        inboxDestination.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        XCTAssertTrue(app.descendants(matching: .any)["bulk.status"].waitForExistence(timeout: 3))
+
+        app.staticTexts["Inbox"].firstMatch.click()
+        let newer = app.staticTexts["Newer Bulk Thought"]
+        let older = app.staticTexts["Older Bulk Thought"]
+        XCTAssertTrue(newer.exists)
+        XCTAssertTrue(older.exists)
+        XCTAssertLessThan(newer.frame.minY, older.frame.minY)
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        app.staticTexts["Inbox"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Newer Bulk Thought"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Older Bulk Thought"].exists)
+    }
+
+    func testKeyboardSearchAndSelectionAnnouncements() throws {
+        let app = try launch(reset: true)
+        capture("Keyboard Search Result", in: app)
+
+        app.typeKey("f", modifierFlags: .command)
+        app.typeText("Keyboard Search")
+        XCTAssertTrue(app.staticTexts["Keyboard Search Result"].waitForExistence(timeout: 3))
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        app.staticTexts["Keyboard Search Result"].click()
+        XCTAssertTrue(app.descendants(matching: .any)["bulk.selection.count"].waitForExistence(timeout: 3))
+    }
+
+    func testFailedBulkMoveReportsErrorWithoutPartialMovement() throws {
+        let app = try launch(reset: true, simulateBulkMoveFailure: true)
+        createProject("Failure Source", in: app)
+        capture("First Failure Thought", destination: "Failure Source", in: app)
+        capture("Second Failure Thought", destination: "Failure Source", in: app)
+
+        app.staticTexts["Failure Source"].firstMatch.click()
+        app.staticTexts["Second Failure Thought"].click()
+        app.typeKey("a", modifierFlags: .command)
+        choose("Inbox", from: "bulk.destination", in: app)
+
+        let error = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertTrue(error.label.contains("could not save"))
+        XCTAssertTrue(app.staticTexts["First Failure Thought"].exists)
+        XCTAssertTrue(app.staticTexts["Second Failure Thought"].exists)
+        app.staticTexts["Inbox"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Inbox Is Empty"].waitForExistence(timeout: 3))
+    }
+
     private func application() throws -> XCUIApplication {
         if let path = ProcessInfo.processInfo.environment["THOUGHTBOX_APP_PATH"] {
             return XCUIApplication(url: URL(fileURLWithPath: path, isDirectory: true))
@@ -276,7 +374,11 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         return XCUIApplication()
     }
 
-    private func launch(reset: Bool, simulateSaveFailure: Bool = false) throws -> XCUIApplication {
+    private func launch(
+        reset: Bool,
+        simulateSaveFailure: Bool = false,
+        simulateBulkMoveFailure: Bool = false
+    ) throws -> XCUIApplication {
         guard ProcessInfo.processInfo.environment["THOUGHTBOX_RUN_UI_TESTS"] == "1" else {
             throw XCTSkip("Run this file from the Xcode Thoughtbox UI-test scheme.")
         }
@@ -286,6 +388,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.launchArguments = ["--ui-testing"]
         if reset { app.launchArguments.append("--reset-ui-test-store") }
         if simulateSaveFailure { app.launchArguments.append("--simulate-save-failure") }
+        if simulateBulkMoveFailure { app.launchArguments.append("--simulate-bulk-move-failure") }
         app.launch()
         return app
     }
@@ -298,7 +401,14 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
     }
 
     private func capture(_ markdown: String, in app: XCUIApplication) {
+        capture(markdown, destination: nil, in: app)
+    }
+
+    private func capture(_ markdown: String, destination: String?, in app: XCUIApplication) {
         let editor = openCapture(in: app)
+        if let destination {
+            choose(destination, from: "capture.destination", in: app)
+        }
         editor.typeText(markdown)
         app.buttons["capture.save"].click()
         XCTAssertFalse(editor.exists)

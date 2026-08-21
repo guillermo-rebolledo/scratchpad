@@ -7,6 +7,7 @@ final class Thought {
     var markdown: String
     var createdAt: Date
     var editedAt: Date
+    var trashedAt: Date?
     var project: Project?
 
     init(
@@ -14,12 +15,14 @@ final class Thought {
         markdown: String,
         createdAt: Date = .now,
         editedAt: Date? = nil,
+        trashedAt: Date? = nil,
         project: Project? = nil
     ) {
         self.id = id
         self.markdown = markdown
         self.createdAt = createdAt
         self.editedAt = editedAt ?? createdAt
+        self.trashedAt = trashedAt
         self.project = project
     }
 }

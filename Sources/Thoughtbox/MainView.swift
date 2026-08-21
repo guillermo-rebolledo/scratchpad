@@ -1,3 +1,4 @@
+import AppKit
 import SwiftData
 import SwiftUI
 
@@ -21,12 +22,17 @@ private struct ProjectEditorContext: Identifiable {
 }
 
 struct MainView: View {
-    @Query(sort: \Thought.createdAt, order: .reverse) private var thoughts: [Thought]
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Thought.createdAt, order: .reverse) private var storedThoughts: [Thought]
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var collection: LibrarySelection? = .allThoughts
-    @State private var selectedThoughtID: UUID?
+    @State private var selectedThoughtIDs: Set<UUID> = []
     @State private var editNavigationGuard = ThoughtEditNavigationGuard()
     @State private var projectEditor: ProjectEditorContext?
+    @State private var searchText = ""
+    @State private var operationMessage: String?
+    @State private var operationIsError = false
+    @AccessibilityFocusState private var operationFocused: Bool
 
     var body: some View {
         NavigationSplitView {
@@ -79,7 +85,7 @@ struct MainView: View {
             .accessibilityIdentifier("library.sidebar")
         } content: {
             Group {
-                if filteredThoughts.isEmpty {
+                if visibleThoughts.isEmpty {
                     ContentUnavailableView {
                         Label(emptyTitle, systemImage: "text.badge.plus")
                     } description: {
@@ -90,7 +96,7 @@ struct MainView: View {
                             .accessibilityHint("Opens the persistent Draft editor.")
                     }
                 } else {
-                    List(filteredThoughts, selection: guardedSelection) { thought in
+                    List(visibleThoughts, selection: guardedSelection) { thought in
                         ThoughtRow(thought: thought, showsDestination: collection == .allThoughts)
                             .tag(thought.id)
                     }
@@ -99,17 +105,52 @@ struct MainView: View {
                 }
             }
             .navigationTitle(collectionTitle)
+            .searchable(text: $searchText, placement: .toolbar, prompt: "Search \(collectionTitle)")
+            .safeAreaInset(edge: .top) {
+                if let operationMessage {
+                    Label(
+                        operationMessage,
+                        systemImage: operationIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+                    )
+                    .foregroundStyle(operationIsError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.bar)
+                    .accessibilityLabel(operationMessage)
+                    .accessibilityFocused($operationFocused)
+                    .accessibilityIdentifier("bulk.status")
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if !selectedThoughtIDs.isEmpty {
+                    bulkMoveBar
+                }
+            }
         } detail: {
             if let selectedThought {
                 ThoughtDetailView(thought: selectedThought, editNavigationGuard: editNavigationGuard)
                     .id(selectedThought.id)
+            } else if selectedThoughtIDs.count > 1 {
+                ContentUnavailableView(
+                    "\(selectedThoughtIDs.count) Thoughts Selected",
+                    systemImage: "checklist"
+                )
             } else {
                 ContentUnavailableView("Select a Thought", systemImage: "doc.text")
             }
         }
         .onAppear { selectNewestThought() }
-        .onChange(of: filteredThoughts.map(\.id)) { _, _ in selectNewestThought() }
-        .onChange(of: collection) { _, _ in selectNewestThought(force: true) }
+        .onChange(of: visibleThoughts.map(\.id)) { oldIDs, _ in
+            reconcileSelection(selectNewestIfEmpty: oldIDs.isEmpty)
+            announceSearchResults()
+        }
+        .onChange(of: collection) { _, _ in
+            reconcileSelection(forceSingleSelection: true, selectNewestIfEmpty: true)
+        }
+        .onChange(of: selectedThoughtIDs) { _, selection in
+            announce("\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected")
+        }
         .sheet(item: $projectEditor) { editor in
             ProjectEditorSheet(project: editor.project) { savedProject in
                 requestCollection(.project(savedProject.id))
@@ -117,19 +158,28 @@ struct MainView: View {
         }
     }
 
-    private var filteredThoughts: [Thought] {
-        switch collection ?? .allThoughts {
+    private var activeThoughts: [Thought] {
+        storedThoughts.filter { $0.trashedAt == nil }
+    }
+
+    private var collectionThoughts: [Thought] {
+        return switch collection ?? .allThoughts {
         case .allThoughts:
-            thoughts
+            activeThoughts
         case .inbox:
-            thoughts.filter { $0.project == nil }
+            activeThoughts.filter { $0.project == nil }
         case let .project(projectID):
-            thoughts.filter { $0.project?.id == projectID }
+            activeThoughts.filter { $0.project?.id == projectID }
         }
     }
 
+    private var visibleThoughts: [Thought] {
+        ThoughtSearch.filter(collectionThoughts, query: searchText)
+    }
+
     private var selectedThought: Thought? {
-        filteredThoughts.first { $0.id == selectedThoughtID }
+        guard selectedThoughtIDs.count == 1, let selectedID = selectedThoughtIDs.first else { return nil }
+        return visibleThoughts.first { $0.id == selectedID }
     }
 
     private var selectedProject: Project? {
@@ -143,7 +193,8 @@ struct MainView: View {
     }
 
     private var emptyTitle: String {
-        switch collection ?? .allThoughts {
+        if searchText.containsNonWhitespace { return "No Search Results" }
+        return switch collection ?? .allThoughts {
         case .allThoughts: "No Thoughts Yet"
         case .inbox: "Inbox Is Empty"
         case .project: "Project Is Empty"
@@ -151,19 +202,22 @@ struct MainView: View {
     }
 
     private var emptyDescription: String {
-        switch collection ?? .allThoughts {
+        if searchText.containsNonWhitespace {
+            return "No active Thoughts in \(collectionTitle) match “\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))”."
+        }
+        return switch collection ?? .allThoughts {
         case .allThoughts: "Capture a Thought from the menu bar or press Command N."
         case .inbox: "Capture to Inbox or move an existing Thought here."
         case .project: "Capture to this Project or move an existing Thought here."
         }
     }
 
-    private var guardedSelection: Binding<UUID?> {
+    private var guardedSelection: Binding<Set<UUID>> {
         Binding(
-            get: { selectedThoughtID },
-            set: { requestedID in
-                guard requestedID == selectedThoughtID || editNavigationGuard.canLeaveEditor() else { return }
-                selectedThoughtID = requestedID
+            get: { selectedThoughtIDs },
+            set: { requestedIDs in
+                guard requestedIDs == selectedThoughtIDs || editNavigationGuard.canLeaveEditor() else { return }
+                selectedThoughtIDs = requestedIDs
             }
         )
     }
@@ -178,9 +232,41 @@ struct MainView: View {
         )
     }
 
+    private var bulkMoveBar: some View {
+        HStack {
+            Text("\(selectedThoughtIDs.count) selected")
+                .accessibilityLabel("\(selectedThoughtIDs.count) Thought\(selectedThoughtIDs.count == 1 ? "" : "s") selected")
+                .accessibilityIdentifier("bulk.selection.count")
+            Spacer()
+            Menu("Move Selected") {
+                Button("Inbox") { moveSelection(to: nil) }
+                ForEach(projects) { project in
+                    Button(project.name) { moveSelection(to: project) }
+                }
+            }
+            .keyboardShortcut("m", modifiers: [.command, .shift])
+            .help("Moves every selected active Thought together in one save.")
+            .accessibilityHint("Choose Inbox or one Project. All selected Thoughts move atomically.")
+            .accessibilityIdentifier("bulk.destination")
+        }
+        .padding(8)
+        .background(.bar)
+    }
+
     private func selectNewestThought(force: Bool = false) {
-        guard force || selectedThought == nil else { return }
-        selectedThoughtID = filteredThoughts.first?.id
+        guard force || selectedThoughtIDs.isEmpty else { return }
+        selectedThoughtIDs = Set(visibleThoughts.prefix(1).map(\.id))
+    }
+
+    private func reconcileSelection(
+        forceSingleSelection: Bool = false,
+        selectNewestIfEmpty: Bool
+    ) {
+        let visibleIDs = Set(visibleThoughts.map(\.id))
+        selectedThoughtIDs.formIntersection(visibleIDs)
+        if forceSingleSelection || (selectedThoughtIDs.isEmpty && selectNewestIfEmpty) {
+            selectedThoughtIDs = Set(visibleThoughts.prefix(1).map(\.id))
+        }
     }
 
     private func beginCreate() {
@@ -199,6 +285,49 @@ struct MainView: View {
     private func requestCollection(_ requestedCollection: LibrarySelection) {
         guard requestedCollection == collection || editNavigationGuard.canLeaveEditor() else { return }
         collection = requestedCollection
+    }
+
+    private func moveSelection(to project: Project?) {
+        guard editNavigationGuard.canLeaveEditor() else { return }
+        let selectedThoughts = activeThoughts.filter { selectedThoughtIDs.contains($0.id) }
+        guard !selectedThoughts.isEmpty else { return }
+
+        do {
+            let repository = ThoughtRepository(context: modelContext)
+            if ProcessInfo.processInfo.arguments.contains("--simulate-bulk-move-failure") {
+                try repository.move(selectedThoughts, to: project) {
+                    throw ProjectError.couldNotSave
+                }
+            } else {
+                try repository.move(selectedThoughts, to: project)
+            }
+            let destinationName = project?.name ?? "Inbox"
+            operationMessage = "Moved \(selectedThoughts.count) Thought\(selectedThoughts.count == 1 ? "" : "s") to \(destinationName)."
+            operationIsError = false
+            operationFocused = true
+            announce(operationMessage ?? "Bulk move completed")
+        } catch {
+            operationMessage = ProjectError.couldNotSave.localizedDescription
+            operationIsError = true
+            operationFocused = true
+            announce(operationMessage ?? "Bulk move failed")
+        }
+    }
+
+    private func announceSearchResults() {
+        guard searchText.containsNonWhitespace else { return }
+        announce("\(visibleThoughts.count) search result\(visibleThoughts.count == 1 ? "" : "s") in \(collectionTitle)")
+    }
+
+    private func announce(_ message: String) {
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: message,
+                .priority: NSAccessibilityPriorityLevel.medium.rawValue
+            ]
+        )
     }
 }
 

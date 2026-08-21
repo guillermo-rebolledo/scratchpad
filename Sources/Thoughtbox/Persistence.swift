@@ -56,7 +56,7 @@ final class ThoughtRepository {
         let descriptor = FetchDescriptor<Thought>(
             sortBy: [SortDescriptor(\Thought.createdAt, order: .reverse)]
         )
-        return try context.fetch(descriptor)
+        return try context.fetch(descriptor).filter { $0.trashedAt == nil }
     }
 
     func inboxThoughts() throws -> [Thought] {
@@ -114,13 +114,29 @@ final class ThoughtRepository {
         to project: Project?,
         saveChanges: (() throws -> Void)? = nil
     ) throws {
-        guard thought.project?.id != project?.id else { return }
-        let previousProject = thought.project
-        thought.project = project
+        try move([thought], to: project, saveChanges: saveChanges)
+    }
+
+    func move(
+        _ thoughts: [Thought],
+        to project: Project?,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws {
+        let uniqueThoughts = Dictionary(grouping: thoughts, by: \.id).compactMap(\.value.first)
+        let changes = uniqueThoughts.compactMap { thought -> (Thought, Project?)? in
+            guard thought.project?.id != project?.id else { return nil }
+            return (thought, thought.project)
+        }
+        guard !changes.isEmpty else { return }
+        for (thought, _) in changes {
+            thought.project = project
+        }
         do {
             try save(saveChanges)
         } catch {
-            thought.project = previousProject
+            for (thought, previousProject) in changes {
+                thought.project = previousProject
+            }
             throw error
         }
     }

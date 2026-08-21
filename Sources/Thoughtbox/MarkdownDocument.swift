@@ -62,6 +62,12 @@ struct MarkdownDocument {
             .joined(separator: "\n")
     }
 
+    var searchableText: String {
+        blocks.map(\.plainText)
+            .filter(\.containsNonWhitespace)
+            .joined(separator: "\n")
+    }
+
     static func replacingImages(in source: String) -> String {
         MarkdownDocument(source: source).renderableSource
     }
@@ -122,6 +128,16 @@ struct MarkdownDocument {
     }
 }
 
+enum ThoughtSearch {
+    static func filter(_ thoughts: [Thought], query: String) -> [Thought] {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalizedQuery.containsNonWhitespace else { return thoughts }
+        return thoughts.filter {
+            MarkdownDocument(source: $0.markdown).searchableText.localizedStandardContains(normalizedQuery)
+        }
+    }
+}
+
 private struct ImageSanitizer: MarkupRewriter {
     mutating func visitImage(_ image: Markdown.Image) -> Markup? {
         let altText = image.plainText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -146,4 +162,3 @@ private struct PlainTextVisitor: MarkupVisitor {
         visit(markup)
     }
 }
-
