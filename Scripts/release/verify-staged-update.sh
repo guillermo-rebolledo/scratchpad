@@ -47,5 +47,7 @@ xcodebuild \
     -project "$repository_directory/Thoughtbox.xcodeproj" \
     -scheme Thoughtbox \
     -destination 'platform=macOS' \
+    -clonedSourcePackagesDirPath "${XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY:-$repository_directory/.build/xcode-release-packages}" \
+    -disableAutomaticPackageResolution \
     -only-testing:ThoughtboxUITests/ThoughtboxRealAppAcceptanceTests/testStagedSparkleUpdatePreservesAllLocalData \
     test

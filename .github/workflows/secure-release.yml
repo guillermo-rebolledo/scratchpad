@@ -20,9 +20,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-sign-notarize:
+  verify-source:
     runs-on: macos-15
-    timeout-minutes: 45
+    steps:
+      - name: Require the protected main branch
+        run: |
+          set -eu
+          test "$GITHUB_REF" = "refs/heads/main"
+
+  build-sign-notarize:
+    needs: verify-source
+    runs-on: macos-15
+    timeout-minutes: 60
     environment: release
     env:
       RELEASE_VERSION: ${{ inputs.version }}
@@ -87,10 +96,17 @@ jobs:
           echo "SPARKLE_TOOLS_DIRECTORY=$sparkle_tools_directory" >> "$GITHUB_ENV"
 
       - name: Test behavior and durable data compatibility
-        run: swift test --disable-automatic-resolution
+        run: |
+          Scripts/release/test-release-scripts.sh
+          swift test --disable-automatic-resolution
 
       - name: Build, sign, notarize, staple, and sign update
         run: Scripts/release/build-and-notarize.sh
+
+      - name: Exercise a signed Sparkle install and relaunch
+        env:
+          THOUGHTBOX_ALLOW_LOCAL_UPDATE_TEST: "1"
+        run: Scripts/release/verify-local-update-pipeline.sh
 
       - name: Retain verified release artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

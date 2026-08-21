@@ -33,13 +33,13 @@ Configure these only in the protected GitHub release environment:
 - `NOTARY_PRIVATE_KEY`, `NOTARY_KEY_ID`, and `NOTARY_ISSUER_ID`: notarization API credentials.
 - `SPARKLE_PRIVATE_KEY`: the base64 Ed25519 seed exported from Sparkle `generate_keys`.
 
-The workflow creates a temporary keychain and credential directory, never enables shell tracing, and deletes them in its final step. GitHub-hosted runners are ephemeral. Limit approval of the release environment to the responsible roles above.
+The workflow creates a temporary keychain and credential directory, never enables shell tracing, and deletes them in its final step. GitHub-hosted runners are ephemeral. The workflow job names the `release` environment and also rejects every ref except `refs/heads/main`; configure the environment's deployment-branch rule to allow only protected `main`, and limit approval to the responsible roles above.
 
 ## Build and notarize
 
 1. Make sure `main` is clean, all tests pass, and `appcast.xml` contains the currently published channel.
 2. Choose a SemVer marketing version and an integer build number greater than every `sparkle:version` already in the appcast.
-3. Run the manual **Secure Thoughtbox release** workflow. It resolves the pinned dependencies, tests durable storage compatibility, archives with the release identity, verifies the entitlement allowlist and nested signatures, submits to notarytool, staples and assesses the app, creates the update ZIP, generates EdDSA metadata, signs the appcast, and retains the evidence for review.
+3. Run the manual **Secure Thoughtbox release** workflow from `main`. It resolves the pinned dependencies, tests durable storage compatibility, archives with the release identity, verifies the entitlement allowlist and nested signatures, submits to notarytool, staples and assesses the app, creates the update ZIP, generates EdDSA metadata, signs the appcast, and retains the evidence for review. Before retaining artifacts, it builds a lower signed fixture, serves the candidate over a temporary trusted local HTTPS channel, and runs the real Sparkle install/relaunch XCUITest.
 4. Download the retained archive, appcast, and `notary.json`. Confirm the latter says `Accepted` and record its submission ID in the release issue.
 5. Create the draft GitHub release with `Scripts/release/publish.sh VERSION UPDATE_ZIP APPCAST`. The script deliberately stops at a draft.
 6. Publish the approved draft, confirm its archive URL works without authentication, then commit the already verified generated appcast to `main`. A feed must never advertise an unavailable archive.

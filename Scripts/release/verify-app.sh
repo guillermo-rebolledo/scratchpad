@@ -14,7 +14,8 @@ fi
 
 info_path="$app_path/Contents/Info.plist"
 entitlements_path="$(mktemp /tmp/thoughtbox-entitlements.XXXXXX.plist)"
-trap 'rm -f "$entitlements_path"' EXIT HUP INT TERM
+nested_entitlements_path="$entitlements_path.nested"
+trap 'rm -f "$entitlements_path" "$nested_entitlements_path"' EXIT HUP INT TERM
 
 codesign --verify --deep --strict --verbose=4 "$app_path"
 signature_details="$(codesign -d --verbose=4 "$app_path" 2>&1)"
@@ -81,17 +82,28 @@ decoded_key_length="$(printf '%s' "$public_key" | base64 -D | wc -c | tr -d ' ')
 [ "$(plutil -extract SUEnableInstallerLauncherService raw -expect bool "$info_path")" = "true" ]
 [ "$(plutil -extract SUSendProfileInfo raw -expect bool "$info_path")" = "false" ]
 
-find "$app_path/Contents" -type d \( -name '*.app' -o -name '*.framework' -o -name '*.xpc' \) -print |
-while IFS= read -r nested_code; do
+verify_nested_code() {
+    nested_code="$1"
     codesign --verify --strict --verbose=2 "$nested_code"
     nested_signature="$(codesign -d --verbose=4 "$nested_code" 2>&1)"
     printf '%s\n' "$nested_signature" | grep -F "Authority=$expected_authority" >/dev/null
+    printf '%s\n' "$nested_signature" | grep -E 'flags=.*runtime' >/dev/null
+    codesign -d --entitlements :- "$nested_code" >"$nested_entitlements_path" 2>/dev/null || true
+    if plutil -extract com.apple.security.get-task-allow raw "$nested_entitlements_path" >/dev/null 2>&1; then
+        printf '%s\n' "Nested release code must not include get-task-allow: $nested_code" >&2
+        exit 1
+    fi
+}
+
+find "$app_path/Contents" -type d \( -name '*.app' -o -name '*.framework' -o -name '*.xpc' \) -print |
+while IFS= read -r nested_code; do
+    verify_nested_code "$nested_code"
 done
 
 find "$app_path/Contents/Frameworks" -type f -perm -111 -print |
 while IFS= read -r executable; do
     if file "$executable" | grep -F 'Mach-O' >/dev/null; then
-        codesign --verify --strict --verbose=2 "$executable"
+        verify_nested_code "$executable"
     fi
 done
 

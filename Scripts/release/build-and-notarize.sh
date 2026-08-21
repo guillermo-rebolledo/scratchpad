@@ -72,6 +72,7 @@ xcodebuild archive \
     CODE_SIGN_IDENTITY="$DEVELOPER_ID_APPLICATION"
 
 "$script_directory/verify-app.sh" "$app_path"
+"$script_directory/verify-update-key.sh" "$app_path" "$SPARKLE_PRIVATE_KEY_PATH"
 
 ditto -c -k --sequesterRsrc --keepParent "$app_path" "$submission_zip"
 xcrun notarytool submit "$submission_zip" \
@@ -113,22 +114,15 @@ fi
     exit 1
 }
 
-"$sparkle_tools_directory/generate_appcast" \
-    --ed-key-file "$SPARKLE_PRIVATE_KEY_PATH" \
-    --download-url-prefix "$THOUGHTBOX_DOWNLOAD_URL_PREFIX" \
-    "$channel_directory"
-"$sparkle_tools_directory/sign_update" \
-    --ed-key-file "$SPARKLE_PRIVATE_KEY_PATH" \
-    "$channel_directory/appcast.xml"
-"$sparkle_tools_directory/sign_update" \
-    --verify \
-    --ed-key-file "$SPARKLE_PRIVATE_KEY_PATH" \
-    "$channel_directory/appcast.xml"
-
-xmllint --noout "$channel_directory/appcast.xml"
-grep -F 'sparkle:edSignature=' "$channel_directory/appcast.xml" >/dev/null
-grep -F "sparkle:version=\"$RELEASE_BUILD\"" "$channel_directory/appcast.xml" >/dev/null
-grep -F "$THOUGHTBOX_DOWNLOAD_URL_PREFIX" "$channel_directory/appcast.xml" >/dev/null
+"$script_directory/sign-appcast.sh" \
+    "$channel_directory" \
+    "$THOUGHTBOX_DOWNLOAD_URL_PREFIX" \
+    "$SPARKLE_PRIVATE_KEY_PATH" \
+    "$sparkle_tools_directory"
+"$script_directory/verify-appcast.sh" \
+    "$channel_directory/appcast.xml" \
+    "$RELEASE_BUILD" \
+    "$THOUGHTBOX_DOWNLOAD_URL_PREFIX"
 
 printf '%s\n' "Accepted notarization: $submission_id"
 printf '%s\n' "Signed update archive: $update_zip"

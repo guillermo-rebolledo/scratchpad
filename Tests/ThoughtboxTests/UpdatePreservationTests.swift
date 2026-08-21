@@ -8,8 +8,8 @@ struct UpdatePreservationTests {
     @Test("Relaunching a newer build preserves every local data category")
     func relaunchPreservesLocalData() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appending(path: "ThoughtboxUpdatePreservation-(UUID().uuidString)", directoryHint: .isDirectory)
-        let suiteName = "ThoughtboxUpdatePreservation-(UUID().uuidString)"
+            .appending(path: "ThoughtboxUpdatePreservation-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let suiteName = "ThoughtboxUpdatePreservation-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer {
             try? FileManager.default.removeItem(at: directory)

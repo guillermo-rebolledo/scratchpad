@@ -20,14 +20,9 @@ if [ "$candidate_build" -le 0 ]; then
 fi
 
 xmllint --noout "$appcast_path"
-highest_build="$(ruby -r rexml/document -e '
-  document = REXML::Document.new(File.read(ARGV.fetch(0)))
-  versions = REXML::XPath.match(document, "//*[local-name()=\"version\"]").map do |node|
-    value = node.text.to_s.strip
-    Integer(value, 10) if value.match?(/\A[0-9]+\z/)
-  end.compact
-  puts(versions.max || 0)
-' "$appcast_path")"
+script_directory="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+highest_build="$(ruby "$script_directory/read-appcast-builds.rb" "$appcast_path" | tail -1)"
+highest_build="${highest_build:-0}"
 
 if [ "$candidate_build" -le "$highest_build" ]; then
     printf '%s\n' "Build $candidate_build must be newer than appcast build $highest_build." >&2

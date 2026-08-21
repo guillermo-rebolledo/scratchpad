@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import SwiftUI
 
 @main
@@ -18,12 +19,6 @@ struct ThoughtboxApp: App {
                 Button("New Thought") { appState.showCapture() }
                     .keyboardShortcut("n", modifiers: .command)
             }
-            CommandGroup(after: .appInfo) {
-                Button("Check for Updates…") {
-                    appState.updaterController.checkForUpdates(nil)
-                }
-                .accessibilityHint("Checks the signed Thoughtbox update channel for a newer version.")
-            }
         }
 
         Settings {
@@ -37,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppState.shared.startCaptureServices()
         NSApp.setActivationPolicy(.regular)
+        installUpdateMenuItem()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -49,5 +45,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    private func installUpdateMenuItem() {
+        guard let applicationMenu = NSApp.mainMenu?.items.first?.submenu else { return }
+        let selector = #selector(SPUStandardUpdaterController.checkForUpdates(_:))
+        guard !applicationMenu.items.contains(where: { $0.action == selector }) else { return }
+        let item = NSMenuItem(
+            title: "Check for Updates…",
+            action: selector,
+            keyEquivalent: ""
+        )
+        item.target = AppState.shared.updaterController
+        item.toolTip = "Checks the signed Thoughtbox update channel for a newer version."
+        applicationMenu.insertItem(item, at: min(1, applicationMenu.items.count))
     }
 }
