@@ -9,6 +9,7 @@ final class Thought {
     var createdAt: Date
     var editedAt: Date
     var trashedAt: Date?
+    var formerProjectID: UUID?
     var project: Project?
 
     init(
@@ -17,6 +18,7 @@ final class Thought {
         createdAt: Date = .now,
         editedAt: Date? = nil,
         trashedAt: Date? = nil,
+        formerProjectID: UUID? = nil,
         project: Project? = nil
     ) {
         self.id = id
@@ -25,6 +27,7 @@ final class Thought {
         self.createdAt = createdAt
         self.editedAt = editedAt ?? createdAt
         self.trashedAt = trashedAt
+        self.formerProjectID = formerProjectID
         self.project = project
     }
 }
@@ -81,6 +84,47 @@ enum OrganizationError: LocalizedError, Equatable {
     var errorDescription: String? {
         "Thoughtbox could not move the selected Thoughts. Nothing was moved; try again."
     }
+}
+
+enum TrashError: LocalizedError, Equatable {
+    case onlyTrashCanBePermanentlyDeleted(count: Int)
+    case projectContainsActiveThoughts(count: Int)
+    case trashFailed
+    case restoreFailed
+    case permanentDeletionFailed
+    case projectDeletionFailed
+
+    var errorDescription: String? {
+        switch self {
+        case let .onlyTrashCanBePermanentlyDeleted(count):
+            "Permanent deletion is only available in Trash. \(count) selected Thought\(count == 1 ? " is" : "s are") still active."
+        case let .projectContainsActiveThoughts(count):
+            "This Project contains \(count) active Thought\(count == 1 ? "" : "s"). Move or delete \(count == 1 ? "it" : "them") before deleting the Project."
+        case .trashFailed:
+            "Thoughtbox could not move the selected Thoughts to Trash. Nothing was moved; try again."
+        case .restoreFailed:
+            "Thoughtbox could not restore the selected Thoughts. Nothing was restored; try again."
+        case .permanentDeletionFailed:
+            "Thoughtbox could not permanently delete the selected Thoughts. They remain in Trash; try again."
+        case .projectDeletionFailed:
+            "Thoughtbox could not delete this Project. It was not removed; try again."
+        }
+    }
+}
+
+struct RestoreResult: Equatable {
+    let restoredCount: Int
+    let inboxFallbackCount: Int
+}
+
+struct ProjectDeletionImpact: Equatable {
+    let activeThoughtCount: Int
+    let trashedThoughtCount: Int
+}
+
+struct ProjectDeletionResult: Equatable {
+    let trashedThoughtCount: Int
+    let draftDestinationReset: Bool
 }
 
 extension String {

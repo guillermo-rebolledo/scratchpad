@@ -43,16 +43,23 @@ struct ThoughtDetailView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 8) {
-                    Picker("Destination", selection: destinationBinding) {
-                        Text("Inbox").tag(UUID?.none)
-                        ForEach(projects) { project in
-                            Text(project.name).tag(Optional(project.id))
+                    if thought.trashedAt == nil {
+                        Picker("Destination", selection: destinationBinding) {
+                            Text("Inbox").tag(UUID?.none)
+                            ForEach(projects) { project in
+                                Text(project.name).tag(Optional(project.id))
+                            }
                         }
+                        .pickerStyle(.menu)
+                        .help("Moves this Thought between Inbox and one Project.")
+                        .accessibilityHint("Moves this Thought between Inbox and one Project. Changes save immediately.")
+                        .accessibilityIdentifier("thought.destination")
+                    } else {
+                        Label("In Trash", systemImage: "trash")
+                            .foregroundStyle(.secondary)
+                            .accessibilityHint("Use Restore Selected or Delete Permanently below the Trash list.")
+                            .accessibilityIdentifier("thought.trash.status")
                     }
-                    .pickerStyle(.menu)
-                    .help("Moves this Thought between Inbox and one Project.")
-                    .accessibilityHint("Moves this Thought between Inbox and one Project. Changes save immediately.")
-                    .accessibilityIdentifier("thought.destination")
 
                     Picker("Thought presentation", selection: guardedMode) {
                         ForEach(ThoughtPresentationMode.allCases) { mode in

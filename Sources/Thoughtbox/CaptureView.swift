@@ -8,6 +8,7 @@ struct CaptureView: View {
     @FocusState private var editorFocused: Bool
     @State private var errorMessage: String?
     @State private var confirmsClear = false
+    @AccessibilityFocusState private var destinationNoticeFocused: Bool
 
     let onSaved: () -> Void
 
@@ -49,8 +50,16 @@ struct CaptureView: View {
                     .accessibilityIdentifier("capture.error")
             }
 
+            if let destinationNotice = draft.destinationNotice {
+                Label(destinationNotice, systemImage: "tray.and.arrow.down")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(destinationNotice)
+                    .accessibilityIdentifier("capture.destination.notice")
+                    .accessibilityFocused($destinationNoticeFocused)
+            }
+
             HStack {
-                Picker("Save to", selection: $draft.projectID) {
+                Picker("Save to", selection: draftDestinationBinding) {
                     Text("Inbox").tag(UUID?.none)
                     ForEach(projects) { project in
                         Text(project.name).tag(Optional(project.id))
@@ -127,7 +136,18 @@ struct CaptureView: View {
     private func validateDestination() {
         guard let projectID = draft.projectID else { return }
         if !projects.contains(where: { $0.id == projectID }) {
-            draft.projectID = nil
+            draft.fallBackToInboxBecauseProjectIsUnavailable()
+            destinationNoticeFocused = true
         }
+    }
+
+    private var draftDestinationBinding: Binding<UUID?> {
+        Binding(
+            get: { draft.projectID },
+            set: { projectID in
+                draft.destinationNotice = nil
+                draft.projectID = projectID
+            }
+        )
     }
 }

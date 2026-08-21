@@ -9,6 +9,7 @@ struct ThoughtboxApp: App {
     var body: some Scene {
         Window("Thoughtbox", id: "main") {
             MainView()
+                .environment(appState.draft)
                 .modelContainer(appState.container)
         }
         .defaultSize(width: 1_050, height: 680)

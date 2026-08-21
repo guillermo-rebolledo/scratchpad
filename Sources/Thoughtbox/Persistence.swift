@@ -67,6 +67,13 @@ final class ThoughtRepository {
         try allThoughts().filter { $0.project?.id == project.id }
     }
 
+    func trashedThoughts() throws -> [Thought] {
+        let descriptor = FetchDescriptor<Thought>(
+            sortBy: [SortDescriptor(\Thought.createdAt, order: .reverse)]
+        )
+        return try context.fetch(descriptor).filter { $0.trashedAt != nil }
+    }
+
     func allProjects() throws -> [Project] {
         let descriptor = FetchDescriptor<Project>(
             sortBy: [SortDescriptor(\Project.createdAt, order: .reverse)]
@@ -123,24 +130,167 @@ final class ThoughtRepository {
         to project: Project?,
         saveChanges: (() throws -> Void)? = nil
     ) throws -> Int {
-        let uniqueThoughts = Dictionary(grouping: thoughts, by: \.id).compactMap(\.value.first)
-        let changes = uniqueThoughts.compactMap { thought -> (Thought, Project?)? in
+        let uniqueThoughts = unique(thoughts).filter { $0.trashedAt == nil }
+        let changes = uniqueThoughts.compactMap { thought -> (Thought, Project?, UUID?)? in
             guard thought.project?.id != project?.id else { return nil }
-            return (thought, thought.project)
+            return (thought, thought.project, thought.formerProjectID)
         }
         guard !changes.isEmpty else { return 0 }
-        for (thought, _) in changes {
+        for (thought, _, _) in changes {
             thought.project = project
+            thought.formerProjectID = nil
         }
         do {
             try save(saveChanges)
         } catch {
-            for (thought, previousProject) in changes {
+            for (thought, previousProject, previousFormerProjectID) in changes {
                 thought.project = previousProject
+                thought.formerProjectID = previousFormerProjectID
             }
             throw error
         }
         return changes.count
+    }
+
+    func trash(
+        _ thought: Thought,
+        at date: Date = .now,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws {
+        _ = try trash([thought], at: date, saveChanges: saveChanges)
+    }
+
+    @discardableResult
+    func trash(
+        _ thoughts: [Thought],
+        at date: Date = .now,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws -> Int {
+        let uniqueThoughts = unique(thoughts).filter { $0.trashedAt == nil }
+        guard !uniqueThoughts.isEmpty else { return 0 }
+        let previous = uniqueThoughts.map {
+            (thought: $0, project: $0.project, formerProjectID: $0.formerProjectID, trashedAt: $0.trashedAt)
+        }
+        for thought in uniqueThoughts {
+            thought.formerProjectID = thought.project?.id
+            thought.project = nil
+            thought.trashedAt = date
+        }
+        do {
+            try save(saveChanges)
+        } catch {
+            for state in previous {
+                state.thought.project = state.project
+                state.thought.formerProjectID = state.formerProjectID
+                state.thought.trashedAt = state.trashedAt
+            }
+            throw error
+        }
+        return uniqueThoughts.count
+    }
+
+    func restore(
+        _ thought: Thought,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws -> RestoreResult {
+        try restore([thought], saveChanges: saveChanges)
+    }
+
+    @discardableResult
+    func restore(
+        _ thoughts: [Thought],
+        saveChanges: (() throws -> Void)? = nil
+    ) throws -> RestoreResult {
+        let uniqueThoughts = unique(thoughts).filter { $0.trashedAt != nil }
+        guard !uniqueThoughts.isEmpty else {
+            return RestoreResult(restoredCount: 0, inboxFallbackCount: 0)
+        }
+        let projectsByID = Dictionary(uniqueKeysWithValues: try allProjects().map { ($0.id, $0) })
+        let previous = uniqueThoughts.map {
+            (thought: $0, project: $0.project, formerProjectID: $0.formerProjectID, trashedAt: $0.trashedAt)
+        }
+        var fallbackCount = 0
+        for thought in uniqueThoughts {
+            if let formerProjectID = thought.formerProjectID {
+                if let project = projectsByID[formerProjectID] {
+                    thought.project = project
+                } else {
+                    thought.project = nil
+                    fallbackCount += 1
+                }
+            } else {
+                thought.project = nil
+            }
+            thought.formerProjectID = nil
+            thought.trashedAt = nil
+        }
+        do {
+            try save(saveChanges)
+        } catch {
+            for state in previous {
+                state.thought.project = state.project
+                state.thought.formerProjectID = state.formerProjectID
+                state.thought.trashedAt = state.trashedAt
+            }
+            throw error
+        }
+        return RestoreResult(restoredCount: uniqueThoughts.count, inboxFallbackCount: fallbackCount)
+    }
+
+    @discardableResult
+    func permanentlyDelete(
+        _ thoughts: [Thought],
+        saveChanges: (() throws -> Void)? = nil
+    ) throws -> Int {
+        let uniqueThoughts = unique(thoughts)
+        let activeCount = uniqueThoughts.filter { $0.trashedAt == nil }.count
+        guard activeCount == 0 else {
+            throw TrashError.onlyTrashCanBePermanentlyDeleted(count: activeCount)
+        }
+        guard !uniqueThoughts.isEmpty else { return 0 }
+        for thought in uniqueThoughts {
+            context.delete(thought)
+        }
+        do {
+            try save(saveChanges)
+        } catch {
+            context.rollback()
+            throw error
+        }
+        return uniqueThoughts.count
+    }
+
+    func projectDeletionImpact(for project: Project) throws -> ProjectDeletionImpact {
+        let activeCount = try allThoughts().filter { $0.project?.id == project.id }.count
+        let trashedCount = try trashedThoughts().filter { $0.formerProjectID == project.id }.count
+        return ProjectDeletionImpact(activeThoughtCount: activeCount, trashedThoughtCount: trashedCount)
+    }
+
+    @discardableResult
+    func deleteProject(
+        _ project: Project,
+        draft: DraftStore?,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws -> ProjectDeletionResult {
+        let impact = try projectDeletionImpact(for: project)
+        guard impact.activeThoughtCount == 0 else {
+            throw TrashError.projectContainsActiveThoughts(count: impact.activeThoughtCount)
+        }
+        let resetsDraft = draft?.projectID == project.id
+        context.delete(project)
+        do {
+            try save(saveChanges)
+        } catch {
+            context.rollback()
+            throw error
+        }
+        if resetsDraft {
+            draft?.fallBackToInboxBecauseProjectIsUnavailable()
+        }
+        return ProjectDeletionResult(
+            trashedThoughtCount: impact.trashedThoughtCount,
+            draftDestinationReset: resetsDraft
+        )
     }
 
     func update(
@@ -190,6 +340,10 @@ final class ThoughtRepository {
         } else {
             try context.save()
         }
+    }
+
+    private func unique(_ thoughts: [Thought]) -> [Thought] {
+        Dictionary(grouping: thoughts, by: \.id).compactMap(\.value.first)
     }
 }
 

@@ -373,6 +373,105 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Inbox Is Empty"].waitForExistence(timeout: 3))
     }
 
+    func testSingleAndBulkTrashSearchRestoreAndRelaunchRetention() throws {
+        let app = try launch(reset: true)
+        createProject("Trash Source", in: app)
+        capture("Oldest Trash Thought", destination: "Trash Source", in: app)
+        capture("Middle Trash Thought", destination: "Trash Source", in: app)
+        capture("Newest Trash SearchNeedle", destination: "Trash Source", in: app)
+
+        app.staticTexts["Trash Source"].firstMatch.click()
+        app.staticTexts["Oldest Trash Thought"].click()
+        app.buttons["trash.move"].click()
+        XCTAssertTrue(app.descendants(matching: .any)["bulk.status"].label.contains("Moved 1 Thought"))
+
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        XCTAssertTrue(app.descendants(matching: .any)["bulk.selection.count"].label.contains("2 Thoughts selected"))
+        app.buttons["trash.move"].click()
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        let newest = app.staticTexts["Newest Trash SearchNeedle"]
+        let middle = app.staticTexts["Middle Trash Thought"]
+        let oldest = app.staticTexts["Oldest Trash Thought"]
+        XCTAssertTrue(newest.waitForExistence(timeout: 3))
+        XCTAssertLessThan(newest.frame.minY, middle.frame.minY)
+        XCTAssertLessThan(middle.frame.minY, oldest.frame.minY)
+
+        let search = app.searchFields.firstMatch
+        search.typeText("SearchNeedle")
+        XCTAssertTrue(newest.exists)
+        XCTAssertFalse(middle.exists)
+        search.typeKey("a", modifierFlags: .command)
+        search.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        XCTAssertTrue(newest.waitForExistence(timeout: 3))
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        app.buttons["trash.restore"].click()
+
+        app.staticTexts["Trash Source"].firstMatch.click()
+        XCTAssertTrue(newest.waitForExistence(timeout: 3))
+        XCTAssertTrue(middle.exists)
+        XCTAssertTrue(oldest.exists)
+    }
+
+    func testProjectDeleteConstraintDraftFallbackRestoreFallbackAndPermanentDelete() throws {
+        let app = try launch(reset: true)
+        createProject("Disposable Project", in: app)
+        capture("Disposable Thought", destination: "Disposable Project", in: app)
+
+        app.staticTexts["Disposable Project"].firstMatch.click()
+        app.buttons["project.delete"].click()
+        let status = app.descendants(matching: .any)["bulk.status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 3))
+        XCTAssertTrue(status.label.contains("Move or delete it before deleting the Project"))
+
+        let editor = openCapture(in: app)
+        choose("Disposable Project", from: "capture.destination", in: app)
+        editor.typeText("Draft remains intact")
+        editor.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.staticTexts["Disposable Thought"].click()
+        app.buttons["trash.move"].click()
+        app.buttons["project.delete"].click()
+        XCTAssertTrue(app.buttons["project.delete.confirm"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'formerly belonged'")).firstMatch.exists)
+        app.buttons["project.delete.confirm"].click()
+        XCTAssertFalse(app.staticTexts["Disposable Project"].firstMatch.exists)
+        XCTAssertTrue(status.label.contains("Draft is intact"))
+
+        let restoredDraft = openCapture(in: app)
+        XCTAssertEqual(restoredDraft.value as? String, "Draft remains intact")
+        XCTAssertEqual(app.descendants(matching: .any)["capture.destination"].value as? String, "Inbox")
+        XCTAssertTrue(app.descendants(matching: .any)["capture.destination.notice"].exists)
+        restoredDraft.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        app.staticTexts["Disposable Thought"].click()
+        app.buttons["trash.restore"].click()
+        app.staticTexts["Inbox"].firstMatch.click()
+        XCTAssertTrue(app.staticTexts["Disposable Thought"].waitForExistence(timeout: 3))
+
+        app.buttons["trash.move"].click()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        app.staticTexts["Disposable Thought"].click()
+        app.buttons["trash.delete"].click()
+        XCTAssertTrue(app.buttons["trash.delete.confirm"].waitForExistence(timeout: 3))
+        app.buttons["trash.delete.confirm"].click()
+        XCTAssertTrue(app.staticTexts["Trash Is Empty"].waitForExistence(timeout: 3))
+
+        app.terminate()
+        app.launchArguments = ["--ui-testing"]
+        app.launch()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        XCTAssertTrue(app.staticTexts["Trash Is Empty"].waitForExistence(timeout: 3))
+    }
+
     private func application() throws -> XCUIApplication {
         if let path = ProcessInfo.processInfo.environment["THOUGHTBOX_APP_PATH"] {
             return XCUIApplication(url: URL(fileURLWithPath: path, isDirectory: true))

@@ -25,10 +25,13 @@ final class DraftStore {
         }
     }
 
+    var destinationNotice: String?
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         markdown = defaults.string(forKey: Key.markdown) ?? ""
         projectID = defaults.string(forKey: Key.projectID).flatMap(UUID.init(uuidString:))
+        destinationNotice = nil
     }
 
     var canSave: Bool {
@@ -38,5 +41,11 @@ final class DraftStore {
     func clear() {
         markdown = ""
         projectID = nil
+        destinationNotice = nil
+    }
+
+    func fallBackToInboxBecauseProjectIsUnavailable() {
+        projectID = nil
+        destinationNotice = "The selected Project no longer exists. Your Draft is intact and will save to Inbox."
     }
 }

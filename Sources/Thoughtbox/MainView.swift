@@ -6,12 +6,14 @@ private enum LibrarySelection: Hashable {
     case allThoughts
     case inbox
     case project(UUID)
+    case trash
 
     var title: String {
         switch self {
         case .allThoughts: "All Thoughts"
         case .inbox: "Inbox"
         case .project: "Project"
+        case .trash: "Trash"
         }
     }
 }
@@ -21,12 +23,23 @@ private struct ProjectEditorContext: Identifiable {
     let project: Project?
 }
 
+private struct ProjectDeletionConfirmation {
+    let projectID: UUID
+    let projectName: String
+    let trashedThoughtCount: Int
+}
+
 struct MainView: View {
+    @Environment(DraftStore.self) private var draft
     @Environment(\.modelContext) private var modelContext
     @Query(
         filter: #Predicate<Thought> { $0.trashedAt == nil },
         sort: [SortDescriptor(\Thought.createdAt, order: .reverse)]
     ) private var activeThoughts: [Thought]
+    @Query(
+        filter: #Predicate<Thought> { $0.trashedAt != nil },
+        sort: [SortDescriptor(\Thought.createdAt, order: .reverse)]
+    ) private var trashedThoughts: [Thought]
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var collection: LibrarySelection? = .allThoughts
     @State private var selectedThoughtIDs: Set<UUID> = []
@@ -35,6 +48,10 @@ struct MainView: View {
     @State private var searchText = ""
     @State private var operationMessage: String?
     @State private var operationIsError = false
+    @State private var confirmsPermanentDeletion = false
+    @State private var pendingPermanentDeletionIDs: Set<UUID> = []
+    @State private var projectDeletionConfirmation: ProjectDeletionConfirmation?
+    @State private var confirmsProjectDeletion = false
     @FocusState private var thoughtListFocused: Bool
     @AccessibilityFocusState private var operationFocused: Bool
 
@@ -50,6 +67,12 @@ struct MainView: View {
                     .tag(LibrarySelection.inbox)
                     .help("Shows active Thoughts that are not assigned to a Project.")
                     .accessibilityHint("Shows active Thoughts that are not assigned to a Project.")
+
+                Label("Trash", systemImage: "trash")
+                    .tag(LibrarySelection.trash)
+                    .help("Shows trashed Thoughts newest first. Trash is retained until you permanently delete it.")
+                    .accessibilityHint("Shows trashed Thoughts newest first. Search is scoped to Trash.")
+                    .accessibilityIdentifier("trash.sidebar")
 
                 Section("Projects") {
                     ForEach(projects) { project in
@@ -80,6 +103,14 @@ struct MainView: View {
                         .accessibilityLabel("Rename Project")
                         .accessibilityHint("Renames the selected Project without changing its order.")
                         .accessibilityIdentifier("project.rename")
+
+                    Button("Delete Project", systemImage: "trash", action: requestDeleteSelectedProject)
+                        .labelStyle(.iconOnly)
+                        .disabled(selectedProject == nil)
+                        .help("Deletes the selected Project only when it contains no active Thoughts.")
+                        .accessibilityLabel("Delete Project")
+                        .accessibilityHint("Explains any active-Thought constraint, then asks for confirmation before deleting an empty Project.")
+                        .accessibilityIdentifier("project.delete")
                     Spacer()
                 }
                 .padding(8)
@@ -101,7 +132,11 @@ struct MainView: View {
                     }
                 } else {
                     List(visibleThoughts, selection: guardedSelection) { thought in
-                        ThoughtRow(thought: thought, showsDestination: collection == .allThoughts)
+                        ThoughtRow(
+                            thought: thought,
+                            showsDestination: collection == .allThoughts,
+                            isInTrash: collection == .trash
+                        )
                             .tag(thought.id)
                     }
                     .focused($thoughtListFocused)
@@ -139,7 +174,7 @@ struct MainView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if !selectedThoughtIDs.isEmpty {
-                    bulkMoveBar
+                    selectionActionBar
                 }
             }
         } detail: {
@@ -174,6 +209,28 @@ struct MainView: View {
                 requestCollection(.project(savedProject.id))
             }
         }
+        .confirmationDialog(
+            permanentDeletionTitle,
+            isPresented: $confirmsPermanentDeletion,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Permanently", role: .destructive, action: permanentlyDeleteConfirmed)
+                .accessibilityIdentifier("trash.delete.confirm")
+            Button("Keep in Trash", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone. The selected Thought\(pendingPermanentDeletionIDs.count == 1 ? "" : "s") will be removed from this Mac.")
+        }
+        .confirmationDialog(
+            projectDeletionTitle,
+            isPresented: $confirmsProjectDeletion,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Project", role: .destructive, action: deleteProjectConfirmed)
+                .accessibilityIdentifier("project.delete.confirm")
+            Button("Keep Project", role: .cancel) {}
+        } message: {
+            Text(projectDeletionMessage)
+        }
     }
 
     private var collectionThoughts: [Thought] {
@@ -184,6 +241,8 @@ struct MainView: View {
             activeThoughts.filter { $0.project == nil }
         case let .project(projectID):
             activeThoughts.filter { $0.project?.id == projectID }
+        case .trash:
+            trashedThoughts
         }
     }
 
@@ -201,6 +260,25 @@ struct MainView: View {
         return projects.first { $0.id == projectID }
     }
 
+    private var permanentDeletionTitle: String {
+        let count = pendingPermanentDeletionIDs.count
+        return count == 1 ? "Permanently delete this Thought?" : "Permanently delete \(count) Thoughts?"
+    }
+
+    private var projectDeletionTitle: String {
+        guard let confirmation = projectDeletionConfirmation else { return "Delete this Project?" }
+        return "Delete “\(confirmation.projectName)”?"
+    }
+
+    private var projectDeletionMessage: String {
+        guard let confirmation = projectDeletionConfirmation else { return "This cannot be undone." }
+        guard confirmation.trashedThoughtCount > 0 else {
+            return "The empty Project will be permanently deleted. This cannot be undone."
+        }
+        let count = confirmation.trashedThoughtCount
+        return "\(count) Thought\(count == 1 ? "" : "s") in Trash formerly belonged to this Project. If restored later, \(count == 1 ? "it" : "they") will go to Inbox. The Project deletion cannot be undone."
+    }
+
     private var collectionTitle: String {
         if let selectedProject { return selectedProject.name }
         return collection?.title ?? "Thoughts"
@@ -212,17 +290,20 @@ struct MainView: View {
         case .allThoughts: "No Thoughts Yet"
         case .inbox: "Inbox Is Empty"
         case .project: "Project Is Empty"
+        case .trash: "Trash Is Empty"
         }
     }
 
     private var emptyDescription: String {
         if searchText.containsNonWhitespace {
-            return "No active Thoughts in \(collectionTitle) match “\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))”."
+            let kind = collection == .trash ? "trashed" : "active"
+            return "No \(kind) Thoughts in \(collectionTitle) match “\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))”."
         }
         return switch collection ?? .allThoughts {
         case .allThoughts: "Capture a Thought from the menu bar or press Command N."
         case .inbox: "Capture to Inbox or move an existing Thought here."
         case .project: "Capture to this Project or move an existing Thought here."
+        case .trash: "Thoughts remain here until you restore or permanently delete them."
         }
     }
 
@@ -256,7 +337,16 @@ struct MainView: View {
         )
     }
 
-    private var bulkMoveBar: some View {
+    @ViewBuilder
+    private var selectionActionBar: some View {
+        if collection == .trash {
+            trashActionBar
+        } else {
+            activeActionBar
+        }
+    }
+
+    private var activeActionBar: some View {
         HStack {
             Text("\(selectedThoughtIDs.count) selected")
                 .accessibilityLabel("\(selectedThoughtIDs.count) Thought\(selectedThoughtIDs.count == 1 ? "" : "s") selected")
@@ -272,6 +362,32 @@ struct MainView: View {
             .help("Moves every selected active Thought together in one save.")
             .accessibilityHint("Choose Inbox or one Project. All selected Thoughts move atomically.")
             .accessibilityIdentifier("bulk.destination")
+
+            Button("Move to Trash", action: trashSelection)
+                .keyboardShortcut(.delete, modifiers: .command)
+                .help("Moves every selected Thought to Trash immediately in one save.")
+                .accessibilityHint("Moves all selected Thoughts to Trash without confirmation. You can restore them later.")
+                .accessibilityIdentifier("trash.move")
+        }
+        .padding(8)
+        .background(.bar)
+    }
+
+    private var trashActionBar: some View {
+        HStack {
+            Text("\(selectedThoughtIDs.count) selected")
+                .accessibilityLabel("\(selectedThoughtIDs.count) Thought\(selectedThoughtIDs.count == 1 ? "" : "s") selected in Trash")
+                .accessibilityIdentifier("bulk.selection.count")
+            Spacer()
+            Button("Restore Selected", action: restoreSelection)
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .help("Restores each selected Thought to its former Project when available, otherwise Inbox.")
+                .accessibilityHint("Restores all selected Thoughts atomically. Missing Projects fall back to Inbox.")
+                .accessibilityIdentifier("trash.restore")
+            Button("Delete Permanently", role: .destructive, action: requestPermanentDeletion)
+                .help("Always asks for confirmation before permanently deleting the selected Thoughts.")
+                .accessibilityHint("Opens a confirmation that states how many Thoughts will be permanently deleted.")
+                .accessibilityIdentifier("trash.delete")
         }
         .padding(8)
         .background(.bar)
@@ -341,6 +457,137 @@ struct MainView: View {
         }
     }
 
+    private func trashSelection() {
+        guard editNavigationGuard.canLeaveEditor() else { return }
+        let selected = activeThoughts.filter { selectedThoughtIDs.contains($0.id) }
+        guard !selected.isEmpty else { return }
+
+        do {
+            let repository = ThoughtRepository(context: modelContext)
+            let count: Int
+            if ProcessInfo.processInfo.arguments.contains("--simulate-trash-failure") {
+                count = try repository.trash(selected) { throw TrashError.trashFailed }
+            } else {
+                count = try repository.trash(selected)
+            }
+            operationMessage = "Moved \(count) Thought\(count == 1 ? "" : "s") to Trash."
+            operationIsError = false
+            focusOperationStatus()
+        } catch {
+            operationMessage = TrashError.trashFailed.localizedDescription
+            operationIsError = true
+            focusOperationStatus()
+        }
+    }
+
+    private func restoreSelection() {
+        guard editNavigationGuard.canLeaveEditor() else { return }
+        let selected = trashedThoughts.filter { selectedThoughtIDs.contains($0.id) }
+        guard !selected.isEmpty else { return }
+
+        do {
+            let repository = ThoughtRepository(context: modelContext)
+            let result: RestoreResult
+            if ProcessInfo.processInfo.arguments.contains("--simulate-restore-failure") {
+                result = try repository.restore(selected) { throw TrashError.restoreFailed }
+            } else {
+                result = try repository.restore(selected)
+            }
+            if result.inboxFallbackCount == 0 {
+                operationMessage = "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s") to \(result.restoredCount == 1 ? "its" : "their") former destination."
+            } else {
+                operationMessage = "Restored \(result.restoredCount) Thoughts. \(result.inboxFallbackCount) went to Inbox because \(result.inboxFallbackCount == 1 ? "its former Project no longer exists" : "their former Projects no longer exist")."
+            }
+            operationIsError = false
+            focusOperationStatus()
+        } catch {
+            operationMessage = TrashError.restoreFailed.localizedDescription
+            operationIsError = true
+            focusOperationStatus()
+        }
+    }
+
+    private func requestPermanentDeletion() {
+        guard editNavigationGuard.canLeaveEditor() else { return }
+        pendingPermanentDeletionIDs = selectedThoughtIDs.intersection(Set(trashedThoughts.map(\.id)))
+        confirmsPermanentDeletion = !pendingPermanentDeletionIDs.isEmpty
+    }
+
+    private func permanentlyDeleteConfirmed() {
+        let deleting = trashedThoughts.filter { pendingPermanentDeletionIDs.contains($0.id) }
+        let requestedCount = deleting.count
+        guard requestedCount > 0 else { return }
+
+        do {
+            let repository = ThoughtRepository(context: modelContext)
+            let count: Int
+            if ProcessInfo.processInfo.arguments.contains("--simulate-permanent-delete-failure") {
+                count = try repository.permanentlyDelete(deleting) { throw TrashError.permanentDeletionFailed }
+            } else {
+                count = try repository.permanentlyDelete(deleting)
+            }
+            selectedThoughtIDs.subtract(pendingPermanentDeletionIDs)
+            pendingPermanentDeletionIDs = []
+            operationMessage = "Permanently deleted \(count) Thought\(count == 1 ? "" : "s")."
+            operationIsError = false
+            focusOperationStatus()
+        } catch {
+            operationMessage = TrashError.permanentDeletionFailed.localizedDescription
+            operationIsError = true
+            focusOperationStatus()
+        }
+    }
+
+    private func requestDeleteSelectedProject() {
+        guard let project = selectedProject, editNavigationGuard.canLeaveEditor() else { return }
+        do {
+            let impact = try ThoughtRepository(context: modelContext).projectDeletionImpact(for: project)
+            guard impact.activeThoughtCount == 0 else {
+                throw TrashError.projectContainsActiveThoughts(count: impact.activeThoughtCount)
+            }
+            projectDeletionConfirmation = ProjectDeletionConfirmation(
+                projectID: project.id,
+                projectName: project.name,
+                trashedThoughtCount: impact.trashedThoughtCount
+            )
+            confirmsProjectDeletion = true
+        } catch let error as TrashError {
+            operationMessage = error.localizedDescription
+            operationIsError = true
+            focusOperationStatus()
+        } catch {
+            operationMessage = TrashError.projectDeletionFailed.localizedDescription
+            operationIsError = true
+            focusOperationStatus()
+        }
+    }
+
+    private func deleteProjectConfirmed() {
+        guard let confirmation = projectDeletionConfirmation,
+              let project = projects.first(where: { $0.id == confirmation.projectID }) else { return }
+        do {
+            let result = try ThoughtRepository(context: modelContext).deleteProject(project, draft: draft)
+            collection = .inbox
+            selectedThoughtIDs = []
+            projectDeletionConfirmation = nil
+            operationMessage = if result.draftDestinationReset {
+                "Deleted \(confirmation.projectName). Your Draft is intact and its destination is now Inbox."
+            } else {
+                "Deleted \(confirmation.projectName)."
+            }
+            operationIsError = false
+            focusOperationStatus()
+        } catch let error as TrashError {
+            operationMessage = error.localizedDescription
+            operationIsError = true
+            focusOperationStatus()
+        } catch {
+            operationMessage = TrashError.projectDeletionFailed.localizedDescription
+            operationIsError = true
+            focusOperationStatus()
+        }
+    }
+
     private func announceSearchResults() {
         guard searchText.containsNonWhitespace else { return }
         announce("\(visibleThoughts.count) search result\(visibleThoughts.count == 1 ? "" : "s") in \(collectionTitle)")
@@ -368,6 +615,7 @@ struct MainView: View {
 private struct ThoughtRow: View {
     let thought: Thought
     let showsDestination: Bool
+    let isInTrash: Bool
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -387,12 +635,16 @@ private struct ThoughtRow: View {
                     Text(thought.project?.name ?? "Inbox")
                         .accessibilityIdentifier("thought.destination.\(thought.id.uuidString)")
                 }
+                if isInTrash {
+                    Text("·")
+                    Text("Trash")
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Thought created \(Self.dateFormatter.string(from: thought.createdAt)), in \(thought.project?.name ?? "Inbox")")
+        .accessibilityLabel("Thought created \(Self.dateFormatter.string(from: thought.createdAt)), in \(isInTrash ? "Trash" : thought.project?.name ?? "Inbox")")
         .accessibilityValue(thought.markdown)
     }
 }
