@@ -308,7 +308,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         capture("Newer Bulk Thought", destination: "Bulk Source", in: app)
 
         app.staticTexts["Bulk Source"].firstMatch.click()
-        app.staticTexts["Newer Bulk Thought"].click()
+        app.typeKey("l", modifierFlags: .command)
         app.typeKey("a", modifierFlags: .command)
         let selectionCount = app.descendants(matching: .any)["bulk.selection.count"]
         XCTAssertTrue(selectionCount.waitForExistence(timeout: 3))
@@ -338,13 +338,19 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
     func testKeyboardSearchAndSelectionAnnouncements() throws {
         let app = try launch(reset: true)
         capture("Keyboard Search Result", in: app)
+        capture("Keyboard Other Result", in: app)
 
         app.typeKey("f", modifierFlags: .command)
         app.typeText("Keyboard Search")
         XCTAssertTrue(app.staticTexts["Keyboard Search Result"].waitForExistence(timeout: 3))
+        app.typeKey("a", modifierFlags: .command)
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
-        app.staticTexts["Keyboard Search Result"].click()
-        XCTAssertTrue(app.descendants(matching: .any)["bulk.selection.count"].waitForExistence(timeout: 3))
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        let selectionCount = app.descendants(matching: .any)["bulk.selection.count"]
+        XCTAssertTrue(selectionCount.waitForExistence(timeout: 3))
+        XCTAssertTrue(selectionCount.label.contains("2 Thoughts selected"))
     }
 
     func testFailedBulkMoveReportsErrorWithoutPartialMovement() throws {
@@ -360,7 +366,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         let error = app.descendants(matching: .any)["bulk.status"]
         XCTAssertTrue(error.waitForExistence(timeout: 3))
-        XCTAssertTrue(error.label.contains("could not save"))
+        XCTAssertTrue(error.label.contains("could not move"))
         XCTAssertTrue(app.staticTexts["First Failure Thought"].exists)
         XCTAssertTrue(app.staticTexts["Second Failure Thought"].exists)
         app.staticTexts["Inbox"].firstMatch.click()

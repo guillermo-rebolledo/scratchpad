@@ -23,7 +23,10 @@ private struct ProjectEditorContext: Identifiable {
 
 struct MainView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Thought.createdAt, order: .reverse) private var storedThoughts: [Thought]
+    @Query(
+        filter: #Predicate<Thought> { $0.trashedAt == nil },
+        sort: [SortDescriptor(\Thought.createdAt, order: .reverse)]
+    ) private var activeThoughts: [Thought]
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var collection: LibrarySelection? = .allThoughts
     @State private var selectedThoughtIDs: Set<UUID> = []
@@ -32,6 +35,7 @@ struct MainView: View {
     @State private var searchText = ""
     @State private var operationMessage: String?
     @State private var operationIsError = false
+    @FocusState private var thoughtListFocused: Bool
     @AccessibilityFocusState private var operationFocused: Bool
 
     var body: some View {
@@ -100,12 +104,23 @@ struct MainView: View {
                         ThoughtRow(thought: thought, showsDestination: collection == .allThoughts)
                             .tag(thought.id)
                     }
+                    .focused($thoughtListFocused)
                     .accessibilityLabel("\(collectionTitle) list")
                     .accessibilityIdentifier("library.thoughts")
                 }
             }
             .navigationTitle(collectionTitle)
-            .searchable(text: $searchText, placement: .toolbar, prompt: "Search \(collectionTitle)")
+            .searchable(text: guardedSearchText, placement: .toolbar, prompt: "Search \(collectionTitle)")
+            .toolbar {
+                Button("Focus Thought List", systemImage: "list.bullet") {
+                    thoughtListFocused = true
+                }
+                .labelStyle(.iconOnly)
+                .keyboardShortcut("l", modifiers: .command)
+                .help("Move keyboard focus to the Thought list.")
+                .accessibilityLabel("Focus Thought List")
+                .accessibilityHint("Moves keyboard focus to the Thought list. Command A selects all visible results.")
+            }
             .safeAreaInset(edge: .top) {
                 if let operationMessage {
                     Label(
@@ -143,10 +158,13 @@ struct MainView: View {
         .onAppear { selectNewestThought() }
         .onChange(of: visibleThoughts.map(\.id)) { oldIDs, _ in
             reconcileSelection(selectNewestIfEmpty: oldIDs.isEmpty)
+        }
+        .onChange(of: searchText) { _, _ in
             announceSearchResults()
         }
         .onChange(of: collection) { _, _ in
             reconcileSelection(forceSingleSelection: true, selectNewestIfEmpty: true)
+            announceSearchResults()
         }
         .onChange(of: selectedThoughtIDs) { _, selection in
             announce("\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected")
@@ -156,10 +174,6 @@ struct MainView: View {
                 requestCollection(.project(savedProject.id))
             }
         }
-    }
-
-    private var activeThoughts: [Thought] {
-        storedThoughts.filter { $0.trashedAt == nil }
     }
 
     private var collectionThoughts: [Thought] {
@@ -232,6 +246,16 @@ struct MainView: View {
         )
     }
 
+    private var guardedSearchText: Binding<String> {
+        Binding(
+            get: { searchText },
+            set: { requestedSearch in
+                guard requestedSearch == searchText || editNavigationGuard.canLeaveEditor() else { return }
+                searchText = requestedSearch
+            }
+        )
+    }
+
     private var bulkMoveBar: some View {
         HStack {
             Text("\(selectedThoughtIDs.count) selected")
@@ -294,23 +318,26 @@ struct MainView: View {
 
         do {
             let repository = ThoughtRepository(context: modelContext)
+            let changedCount: Int
             if ProcessInfo.processInfo.arguments.contains("--simulate-bulk-move-failure") {
-                try repository.move(selectedThoughts, to: project) {
+                changedCount = try repository.move(selectedThoughts, to: project) {
                     throw ProjectError.couldNotSave
                 }
             } else {
-                try repository.move(selectedThoughts, to: project)
+                changedCount = try repository.move(selectedThoughts, to: project)
             }
             let destinationName = project?.name ?? "Inbox"
-            operationMessage = "Moved \(selectedThoughts.count) Thought\(selectedThoughts.count == 1 ? "" : "s") to \(destinationName)."
+            operationMessage = if changedCount == 0 {
+                "Every selected Thought is already in \(destinationName)."
+            } else {
+                "Moved \(changedCount) Thought\(changedCount == 1 ? "" : "s") to \(destinationName)."
+            }
             operationIsError = false
-            operationFocused = true
-            announce(operationMessage ?? "Bulk move completed")
+            focusOperationStatus()
         } catch {
-            operationMessage = ProjectError.couldNotSave.localizedDescription
+            operationMessage = OrganizationError.bulkMoveFailed.localizedDescription
             operationIsError = true
-            operationFocused = true
-            announce(operationMessage ?? "Bulk move failed")
+            focusOperationStatus()
         }
     }
 
@@ -328,6 +355,13 @@ struct MainView: View {
                 .priority: NSAccessibilityPriorityLevel.medium.rawValue
             ]
         )
+    }
+
+    private func focusOperationStatus() {
+        operationFocused = false
+        Task { @MainActor in
+            operationFocused = true
+        }
     }
 }
 

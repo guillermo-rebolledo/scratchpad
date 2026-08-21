@@ -5,6 +5,7 @@ import SwiftData
 final class Thought {
     @Attribute(.unique) var id: UUID
     var markdown: String
+    var searchableText: String = ""
     var createdAt: Date
     var editedAt: Date
     var trashedAt: Date?
@@ -20,6 +21,7 @@ final class Thought {
     ) {
         self.id = id
         self.markdown = markdown
+        searchableText = MarkdownDocument(source: markdown).searchableText
         self.createdAt = createdAt
         self.editedAt = editedAt ?? createdAt
         self.trashedAt = trashedAt
@@ -70,6 +72,14 @@ enum ProjectError: LocalizedError, Equatable {
         case .couldNotSave:
             "Thoughtbox could not save this Project change. Try again."
         }
+    }
+}
+
+enum OrganizationError: LocalizedError, Equatable {
+    case bulkMoveFailed
+
+    var errorDescription: String? {
+        "Thoughtbox could not move the selected Thoughts. Nothing was moved; try again."
     }
 }
 

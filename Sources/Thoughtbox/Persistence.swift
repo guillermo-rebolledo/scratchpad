@@ -114,20 +114,21 @@ final class ThoughtRepository {
         to project: Project?,
         saveChanges: (() throws -> Void)? = nil
     ) throws {
-        try move([thought], to: project, saveChanges: saveChanges)
+        _ = try move([thought], to: project, saveChanges: saveChanges)
     }
 
+    @discardableResult
     func move(
         _ thoughts: [Thought],
         to project: Project?,
         saveChanges: (() throws -> Void)? = nil
-    ) throws {
+    ) throws -> Int {
         let uniqueThoughts = Dictionary(grouping: thoughts, by: \.id).compactMap(\.value.first)
         let changes = uniqueThoughts.compactMap { thought -> (Thought, Project?)? in
             guard thought.project?.id != project?.id else { return nil }
             return (thought, thought.project)
         }
-        guard !changes.isEmpty else { return }
+        guard !changes.isEmpty else { return 0 }
         for (thought, _) in changes {
             thought.project = project
         }
@@ -139,6 +140,7 @@ final class ThoughtRepository {
             }
             throw error
         }
+        return changes.count
     }
 
     func update(
@@ -152,8 +154,10 @@ final class ThoughtRepository {
         }
         guard thought.markdown != markdown else { return }
         let previousMarkdown = thought.markdown
+        let previousSearchableText = thought.searchableText
         let previousEditedAt = thought.editedAt
         thought.markdown = markdown
+        thought.searchableText = MarkdownDocument(source: markdown).searchableText
         thought.editedAt = date
         do {
             if let saveChanges {
@@ -163,6 +167,7 @@ final class ThoughtRepository {
             }
         } catch {
             thought.markdown = previousMarkdown
+            thought.searchableText = previousSearchableText
             thought.editedAt = previousEditedAt
             throw error
         }
@@ -202,10 +207,14 @@ enum PersistenceFactory {
             }
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let configuration = ModelConfiguration(url: directory.appending(path: "Thoughtbox.store"))
-            return try ModelContainer(for: Thought.self, Project.self, configurations: configuration)
+            let container = try ModelContainer(for: Thought.self, Project.self, configurations: configuration)
+            try backfillSearchableText(in: container)
+            return container
         }
 
-        return try ModelContainer(for: Thought.self, Project.self)
+        let container = try ModelContainer(for: Thought.self, Project.self)
+        try backfillSearchableText(in: container)
+        return container
     }
 
     static func makeDraftDefaults(processInfo: ProcessInfo = .processInfo) -> UserDefaults {
@@ -217,5 +226,19 @@ enum PersistenceFactory {
             defaults.removePersistentDomain(forName: suiteName)
         }
         return defaults
+    }
+
+    @MainActor
+    private static func backfillSearchableText(in container: ModelContainer) throws {
+        let context = container.mainContext
+        let thoughts = try context.fetch(FetchDescriptor<Thought>())
+        var changed = false
+        for thought in thoughts where thought.searchableText.isEmpty && thought.markdown.containsNonWhitespace {
+            thought.searchableText = MarkdownDocument(source: thought.markdown).searchableText
+            changed = true
+        }
+        if changed {
+            try context.save()
+        }
     }
 }

@@ -26,6 +26,10 @@ struct SearchOrganizationTests {
         #expect(ThoughtSearch.filter(try repository.allThoughts(), query: "searchneedle").count == 2)
         let allThoughts = try repository.allThoughts()
         #expect(ThoughtSearch.filter(allThoughts, query: "").map(\.id) == allThoughts.map(\.id))
+
+        try repository.update(older, markdown: "Updated searchable phrase")
+        #expect(ThoughtSearch.filter(try repository.allThoughts(), query: "linked phrase").isEmpty)
+        #expect(ThoughtSearch.filter(try repository.allThoughts(), query: "updated searchable").map(\.id) == [older.id])
     }
 
     @Test("Active scopes exclude trashed Thoughts")
@@ -61,7 +65,9 @@ struct SearchOrganizationTests {
         #expect(newer.project?.id == source.id)
         #expect(older.project?.id == source.id)
 
-        try repository.move([newer, older], to: destination)
+        let changedCount = try repository.move([newer, older], to: destination)
+        #expect(changedCount == 2)
+        #expect(try repository.move([newer, older], to: destination) == 0)
         let moved = try repository.thoughts(in: destination)
         #expect(moved.map(\.id) == [newer.id, older.id])
         #expect(moved.map(\.markdown) == ["Duplicate", "Duplicate"])

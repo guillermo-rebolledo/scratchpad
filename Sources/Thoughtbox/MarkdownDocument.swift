@@ -132,9 +132,7 @@ enum ThoughtSearch {
     static func filter(_ thoughts: [Thought], query: String) -> [Thought] {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard normalizedQuery.containsNonWhitespace else { return thoughts }
-        return thoughts.filter {
-            MarkdownDocument(source: $0.markdown).searchableText.localizedStandardContains(normalizedQuery)
-        }
+        return thoughts.filter { $0.searchableText.localizedStandardContains(normalizedQuery) }
     }
 }
 
