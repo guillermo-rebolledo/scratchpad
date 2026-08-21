@@ -125,6 +125,7 @@ jobs:
         run: Scripts/release/build-and-notarize.sh
 
       - name: Exercise a signed Sparkle install and relaunch
+        timeout-minutes: 15
         env:
           THOUGHTBOX_ALLOW_LOCAL_UPDATE_TEST: "1"
         run: Scripts/release/verify-local-update-pipeline.sh
