@@ -15,10 +15,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: thoughtbox-secure-release
+  cancel-in-progress: false
+
 jobs:
   build-sign-notarize:
     runs-on: macos-15
     timeout-minutes: 45
+    environment: release
     env:
       RELEASE_VERSION: ${{ inputs.version }}
       RELEASE_BUILD: ${{ inputs.build_number }}
@@ -44,6 +49,7 @@ jobs:
           chmod 700 "$credential_directory"
           keychain_path="$credential_directory/release.keychain-db"
           keychain_password="$(openssl rand -base64 32)"
+          echo "THOUGHTBOX_RELEASE_KEYCHAIN=$keychain_path" >> "$GITHUB_ENV"
           printf '%s' "$DEVELOPER_ID_P12_BASE64" | base64 -D > "$credential_directory/developer-id.p12"
           printf '%s' "$NOTARY_PRIVATE_KEY" > "$credential_directory/notary.p8"
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$credential_directory/sparkle-private-key"
@@ -65,7 +71,6 @@ jobs:
           {
             echo "NOTARY_KEY_PATH=$credential_directory/notary.p8"
             echo "SPARKLE_PRIVATE_KEY_PATH=$credential_directory/sparkle-private-key"
-            echo "THOUGHTBOX_RELEASE_KEYCHAIN=$keychain_path"
           } >> "$GITHUB_ENV"
 
       - name: Resolve pinned dependencies

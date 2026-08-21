@@ -19,6 +19,12 @@ repository_directory="$(dirname "$(dirname "$script_directory")")"
 : "${SPARKLE_PRIVATE_KEY_PATH:?Set SPARKLE_PRIVATE_KEY_PATH to a protected EdDSA seed file}"
 : "${THOUGHTBOX_DOWNLOAD_URL_PREFIX:?Set the HTTPS archive download URL prefix}"
 
+case "$RELEASE_VERSION" in
+    ''|*[!0-9A-Za-z.-]*|.*|*..*|*.)
+        printf '%s\n' "RELEASE_VERSION must contain only letters, numbers, dots, and hyphens without empty path-like segments." >&2
+        exit 64
+        ;;
+esac
 case "$THOUGHTBOX_DOWNLOAD_URL_PREFIX" in
     https://*) ;;
     *)

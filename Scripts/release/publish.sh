@@ -10,6 +10,12 @@ version="$1"
 update_zip="$2"
 generated_appcast="$3"
 tag="thoughtbox-v$version"
+case "$version" in
+    ''|*[!0-9A-Za-z.-]*|.*|*..*|*.)
+        printf '%s\n' "VERSION must contain only letters, numbers, dots, and hyphens without empty path-like segments." >&2
+        exit 64
+        ;;
+esac
 
 for artifact in "$update_zip" "$generated_appcast"; do
     [ -f "$artifact" ] || {
@@ -37,4 +43,4 @@ gh release create "$tag" "$update_zip" \
     --draft
 
 printf '%s\n' "Draft release $tag created. Review it before publishing."
-printf '%s\n' "After the archive URL is final, regenerate and commit $generated_appcast as appcast.xml."
+printf '%s\n' "After publishing the draft and confirming the archive URL works, commit $generated_appcast as appcast.xml."

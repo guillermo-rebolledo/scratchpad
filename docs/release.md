@@ -42,7 +42,7 @@ The workflow creates a temporary keychain and credential directory, never enable
 3. Run the manual **Secure Thoughtbox release** workflow. It resolves the pinned dependencies, tests durable storage compatibility, archives with the release identity, verifies the entitlement allowlist and nested signatures, submits to notarytool, staples and assesses the app, creates the update ZIP, generates EdDSA metadata, signs the appcast, and retains the evidence for review.
 4. Download the retained archive, appcast, and `notary.json`. Confirm the latter says `Accepted` and record its submission ID in the release issue.
 5. Create the draft GitHub release with `Scripts/release/publish.sh VERSION UPDATE_ZIP APPCAST`. The script deliberately stops at a draft.
-6. Once the draft archive URL is final, regenerate the appcast with that URL prefix, verify it again, and commit it to `main`. A feed must never advertise an unavailable archive.
+6. Publish the approved draft, confirm its archive URL works without authentication, then commit the already verified generated appcast to `main`. A feed must never advertise an unavailable archive.
 
 Local invocation uses the same `Scripts/release/build-and-notarize.sh` gates. Supply credential file paths and release values through environment variables; do not pass secrets as command-line values.
 
