@@ -1,0 +1,94 @@
+name: Thoughtbox release preflight
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: thoughtbox-release-preflight-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-release-gates:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Resolve pinned dependencies
+        run: |
+          set -eu
+          package_directory="$RUNNER_TEMP/ThoughtboxSourcePackages"
+          xcodebuild -resolvePackageDependencies \
+            -project Thoughtbox.xcodeproj \
+            -scheme Thoughtbox \
+            -clonedSourcePackagesDirPath "$package_directory"
+          echo "XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY=$package_directory" >> "$GITHUB_ENV"
+
+      - name: Resolve current release notes
+        run: |
+          set -eu
+          release_notes="$(python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          candidates = []
+          for path in Path("docs/releases").glob("*.md"):
+              match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?", path.stem)
+              if match:
+                  major, minor, patch, beta = match.groups()
+                  version = (int(major), int(minor), int(patch), beta is None, int(beta or 0))
+                  candidates.append((version, path))
+
+          if not candidates:
+              raise SystemExit("No versioned release notes were found.")
+          print(max(candidates)[1])
+          PY
+          )"
+          test -f "$release_notes"
+          echo "RELEASE_NOTES=$release_notes" >> "$GITHUB_ENV"
+
+      - name: Test behavior and durable data compatibility
+        run: |
+          Scripts/release/test-release-scripts.sh
+          swift test --disable-automatic-resolution
+
+      - name: Compile the app and acceptance suite
+        run: |
+          xcodebuild build-for-testing \
+            -project Thoughtbox.xcodeproj \
+            -scheme Thoughtbox \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build/release-product-gate \
+            -clonedSourcePackagesDirPath "$XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Verify product, accessibility, localization, and privacy boundaries
+        run: |
+          Scripts/release/verify-product-release.sh \
+            .build/release-product-gate \
+            "$RELEASE_NOTES"
+
+      - name: Stress sidebar transitions
+        env:
+          THOUGHTBOX_RUN_UI_TESTS: "1"
+        run: |
+          xcodebuild \
+            -project Thoughtbox.xcodeproj \
+            -scheme Thoughtbox \
+            -destination 'platform=macOS' \
+            -clonedSourcePackagesDirPath "$XCODE_CLONED_SOURCE_PACKAGES_DIRECTORY" \
+            -only-testing:ThoughtboxUITests/ThoughtboxRealAppAcceptanceTests/testLibraryAdaptsAtMinimumWindowSizeAndRestoresItsSidebar \
+            -test-iterations 5 \
+            test
+
+      - name: Exercise complete real-app journeys
+        env:
+          THOUGHTBOX_RUN_UI_TESTS: "1"
+        run: Scripts/test-ui.sh
