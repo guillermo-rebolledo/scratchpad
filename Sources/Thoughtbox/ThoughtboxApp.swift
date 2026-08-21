@@ -74,6 +74,7 @@ private struct ProjectCommands: Commands {
 
 private struct ThoughtCommands: Commands {
     @FocusedValue(\.thoughtCommandActions) private var actions
+    @FocusedValue(\.thoughtSelectionCommandActions) private var selectionActions
 
     var body: some Commands {
         CommandMenu("Thought") {
@@ -86,21 +87,57 @@ private struct ThoughtCommands: Commands {
                 : "Shows the canonical Markdown source for editing.")
             .disabled(actions == nil)
 
-            Menu("Move Thought To") {
-                ForEach(actions?.destinations ?? []) { destination in
-                    Button {
-                        actions?.move(destination.projectID)
-                    } label: {
-                        if destination.isCurrent {
-                            Label(destination.name, systemImage: "checkmark")
-                        } else {
-                            Text(destination.name)
+            Divider()
+
+            if selectionActions?.isTrash == true {
+                Button("Restore Selected", systemImage: "arrow.uturn.backward") {
+                    selectionActions?.restore()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .help("Restores selected Thoughts to their former destinations when available.")
+                .disabled((selectionActions?.selectionCount ?? 0) == 0)
+
+                Button("Delete Permanently", systemImage: "trash.slash", role: .destructive) {
+                    selectionActions?.deletePermanently()
+                }
+                .help("Asks for confirmation before permanently deleting the selected Thoughts.")
+                .disabled((selectionActions?.selectionCount ?? 0) == 0)
+
+                Button("Export Selected Trash…", systemImage: "square.and.arrow.up") {
+                    selectionActions?.exportTrash()
+                }
+                .keyboardShortcut("e", modifiers: [.command, .option, .shift])
+                .help("Exports the selected trashed Thoughts as portable Markdown.")
+                .disabled((selectionActions?.selectionCount ?? 0) == 0)
+            } else {
+                Menu((selectionActions?.selectionCount ?? 0) > 1 ? "Move Selected Thoughts To" : "Move Thought To") {
+                    ForEach(selectionActions?.destinations ?? []) { destination in
+                        Button {
+                            selectionActions?.move(destination.projectID)
+                        } label: {
+                            if destination.isCurrent {
+                                Label(destination.name, systemImage: "checkmark")
+                            } else {
+                                Text(destination.name)
+                            }
                         }
                     }
                 }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+                .help("Moves the selected active Thoughts to Inbox or one Project.")
+                .disabled((selectionActions?.selectionCount ?? 0) == 0)
+
+                Button(
+                    (selectionActions?.selectionCount ?? 0) > 1 ? "Move Selected to Trash" : "Move to Trash",
+                    systemImage: "trash",
+                    role: .destructive
+                ) {
+                    selectionActions?.trash()
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .help("Moves the selected active Thoughts to Trash. You can restore them later.")
+                .disabled((selectionActions?.selectionCount ?? 0) == 0)
             }
-            .help("Moves the selected Thought to Inbox or one Project.")
-            .disabled(actions?.canChangeDestination != true)
         }
     }
 }

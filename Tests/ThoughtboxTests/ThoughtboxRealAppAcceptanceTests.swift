@@ -716,7 +716,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         capture("Newest Trash SearchNeedle", destination: "Trash Source", in: app)
 
         app.staticTexts["Trash Source"].firstMatch.click()
+        XCTAssertFalse(app.descendants(matching: .any)["bulk.selection.count"].exists)
+        XCTAssertEqual(app.buttons["trash.move"].label, "Move to Trash")
         thoughtRow("Oldest Trash Thought", in: app).click()
+        XCTAssertFalse(app.descendants(matching: .any)["bulk.selection.count"].exists)
         app.buttons["trash.move"].click()
         XCTAssertTrue(app.descendants(matching: .any)["bulk.status"].label.contains("Moved 1 Thought"))
 
@@ -732,6 +735,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(newest.waitForExistence(timeout: 3))
         XCTAssertLessThan(newest.frame.minY, middle.frame.minY)
         XCTAssertLessThan(middle.frame.minY, oldest.frame.minY)
+        XCTAssertTrue(app.descendants(matching: .any)["bulk.selection.count"].exists)
+        XCTAssertTrue(app.buttons["trash.restore"].exists)
+        XCTAssertTrue(app.buttons["trash.delete"].exists)
+        XCTAssertTrue(app.buttons["export.selected.trash.button"].exists)
 
         let search = app.searchFields.firstMatch
         search.click()

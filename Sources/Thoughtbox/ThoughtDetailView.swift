@@ -27,10 +27,7 @@ struct ThoughtDestinationCommand: Identifiable {
 
 struct ThoughtCommandActions {
     let isEditing: Bool
-    let canChangeDestination: Bool
-    let destinations: [ThoughtDestinationCommand]
     let toggleEditing: () -> Void
-    let move: (UUID?) -> Void
 }
 
 struct ThoughtCommandActionsKey: FocusedValueKey {
@@ -53,6 +50,7 @@ struct ThoughtDetailView: View {
 
     let thought: Thought
     let editNavigationGuard: ThoughtEditNavigationGuard
+    let onMoveToTrash: (() -> Void)?
     @State private var mode = ThoughtPresentationMode.read
 
     var body: some View {
@@ -87,6 +85,18 @@ struct ThoughtDetailView: View {
                     destinationMenu
                 }
                 editButton
+                if let onMoveToTrash {
+                    Button(role: .destructive, action: onMoveToTrash) {
+                        Label("Move to Trash", systemImage: "trash")
+                    }
+                    .labelStyle(.iconOnly)
+                    .controlSize(.regular)
+                    .help("Move this Thought to Trash.")
+                    .accessibilityLabel("Move to Trash")
+                    .accessibilityValue("Selected Thought")
+                    .accessibilityHint("Moves this Thought to Trash without confirmation. You can restore it later.")
+                    .accessibilityIdentifier("trash.move")
+                }
             }
         }
         .focusedSceneValue(\.thoughtCommandActions, focusedThoughtCommandActions)
@@ -196,22 +206,7 @@ struct ThoughtDetailView: View {
     private var focusedThoughtCommandActions: ThoughtCommandActions {
         ThoughtCommandActions(
             isEditing: mode == .edit,
-            canChangeDestination: thought.trashedAt == nil,
-            destinations: [
-                ThoughtDestinationCommand(
-                    projectID: nil,
-                    name: String(localized: "Inbox"),
-                    isCurrent: thought.project == nil
-                )
-            ] + projects.map { project in
-                ThoughtDestinationCommand(
-                    projectID: project.id,
-                    name: project.name,
-                    isCurrent: thought.project?.id == project.id
-                )
-            },
-            toggleEditing: toggleEditing,
-            move: moveThought(to:)
+            toggleEditing: toggleEditing
         )
     }
 
