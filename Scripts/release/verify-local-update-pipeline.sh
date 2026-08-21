@@ -39,6 +39,8 @@ candidate_zip="$release_directory/channel/Thoughtbox-$RELEASE_VERSION.zip"
 
 test_directory="$(mktemp -d /tmp/thoughtbox-update-pipeline.XXXXXX)"
 fixture_archive="$test_directory/Previous.xcarchive"
+fixture_export_directory="$test_directory/export"
+fixture_export_options="$test_directory/ExportOptions.plist"
 fixture_zip="$test_directory/Thoughtbox-previous.zip"
 stage_directory="$test_directory/stage"
 tls_key="$test_directory/localhost.key"
@@ -72,8 +74,18 @@ xcodebuild archive \
     CODE_SIGN_STYLE=Manual \
     CODE_SIGN_IDENTITY="$DEVELOPER_ID_APPLICATION"
 
-fixture_app="$fixture_archive/Products/Applications/Thoughtbox.app"
-codesign --verify --deep --strict --verbose=2 "$fixture_app"
+plutil -create xml1 "$fixture_export_options"
+plutil -insert method -string developer-id "$fixture_export_options"
+plutil -insert signingStyle -string manual "$fixture_export_options"
+plutil -insert signingCertificate -string "$DEVELOPER_ID_APPLICATION" "$fixture_export_options"
+plutil -insert teamID -string "$APPLE_TEAM_ID" "$fixture_export_options"
+xcodebuild -exportArchive \
+    -archivePath "$fixture_archive" \
+    -exportPath "$fixture_export_directory" \
+    -exportOptionsPlist "$fixture_export_options"
+
+fixture_app="$fixture_export_directory/Thoughtbox.app"
+"$script_directory/verify-app.sh" "$fixture_app"
 ditto -c -k --sequesterRsrc --keepParent "$fixture_app" "$fixture_zip"
 
 mkdir -p "$stage_directory"
