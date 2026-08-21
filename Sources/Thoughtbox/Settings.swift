@@ -45,7 +45,8 @@ struct CaptureShortcut: Codable, Equatable, Hashable, Sendable {
     )
 
     var isValid: Bool {
-        !modifiers.intersection([.control, .option, .command]).isEmpty
+        UInt16(exactly: keyCode) != nil
+            && !modifiers.intersection([.control, .option, .command]).isEmpty
     }
 
     var displayName: String {
@@ -163,12 +164,12 @@ final class SettingsModel {
     init(defaults: UserDefaults, loginItemService: LoginItemServicing) {
         self.defaults = defaults
         self.loginItemService = loginItemService
-        if let savedKeyCode = UInt32(exactly: defaults.integer(forKey: Key.shortcutKeyCode)),
+        if let savedKeyCode = UInt16(exactly: defaults.integer(forKey: Key.shortcutKeyCode)),
            let savedModifiers = UInt8(exactly: defaults.integer(forKey: Key.shortcutModifiers)),
            defaults.object(forKey: Key.shortcutKeyCode) != nil,
            defaults.object(forKey: Key.shortcutModifiers) != nil {
             let saved = CaptureShortcut(
-                keyCode: savedKeyCode,
+                keyCode: UInt32(savedKeyCode),
                 modifiers: ShortcutModifiers(rawValue: savedModifiers)
             )
             shortcut = saved.isValid ? saved : .default

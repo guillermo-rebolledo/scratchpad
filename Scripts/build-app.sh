@@ -18,6 +18,8 @@ binary_directory="$(swift build -c "$configuration" --show-bin-path)"
 swift build -c "$configuration"
 mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources"
 cp "$binary_directory/Thoughtbox" "$app_path/Contents/MacOS/Thoughtbox"
+xcrun xcstringstool compile Sources/Thoughtbox/Localizable.xcstrings \
+    --output-directory "$app_path/Contents/Resources"
 cp Resources/Info.plist "$app_path/Contents/Info.plist"
 codesign --force --sign - --entitlements Resources/Thoughtbox.entitlements "$app_path"
 

@@ -351,9 +351,15 @@ struct MarkdownExportWriter {
 
     private func existingOutput(at url: URL, hasStableID id: UUID) -> Bool {
         guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return false }
-        return contents.split(whereSeparator: \Character.isNewline).contains {
-            $0.trimmingCharacters(in: .whitespaces) == "id: \"\(id.uuidString)\""
+        let lines = contents.split(whereSeparator: \Character.isNewline)
+        guard lines.first?.trimmingCharacters(in: .whitespaces) == "---" else { return false }
+        var foundStableID = false
+        for line in lines.dropFirst() {
+            let value = line.trimmingCharacters(in: .whitespaces)
+            if value == "---" { return foundStableID }
+            if value == "id: \"\(id.uuidString)\"" { foundStableID = true }
         }
+        return false
     }
 
     private static func isSafeRelativePath(_ path: String) -> Bool {

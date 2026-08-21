@@ -3,7 +3,8 @@ import Foundation
 
 enum KeyboardLayoutKeyNameResolver {
     static func name(for keyCode: UInt32) -> String? {
-        guard let inputSource = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+        guard let carbonKeyCode = UInt16(exactly: keyCode),
+              let inputSource = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
               let property = TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData) else {
             return nil
         }
@@ -15,7 +16,7 @@ enum KeyboardLayoutKeyNameResolver {
         var length = 0
         let status = UCKeyTranslate(
             layout,
-            UInt16(keyCode),
+            carbonKeyCode,
             UInt16(kUCKeyActionDisplay),
             0,
             UInt32(LMGetKbdType()),

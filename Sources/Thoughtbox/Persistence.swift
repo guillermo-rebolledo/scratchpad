@@ -248,13 +248,21 @@ final class ThoughtRepository {
             throw TrashError.onlyTrashCanBePermanentlyDeleted(count: activeCount)
         }
         guard !uniqueThoughts.isEmpty else { return 0 }
+        context.processPendingChanges()
+        let previousUndoManager = context.undoManager
+        let deletionUndoManager = UndoManager()
+        context.undoManager = deletionUndoManager
+        defer { context.undoManager = previousUndoManager }
+        deletionUndoManager.beginUndoGrouping()
         for thought in uniqueThoughts {
             context.delete(thought)
         }
+        deletionUndoManager.endUndoGrouping()
         do {
             try save(saveChanges)
+            deletionUndoManager.removeAllActions()
         } catch {
-            context.rollback()
+            deletionUndoManager.undo()
             throw error
         }
         return uniqueThoughts.count
@@ -277,11 +285,19 @@ final class ThoughtRepository {
             throw TrashError.projectContainsActiveThoughts(count: impact.activeThoughtCount)
         }
         let resetsDraft = draft?.projectID == project.id
+        context.processPendingChanges()
+        let previousUndoManager = context.undoManager
+        let deletionUndoManager = UndoManager()
+        context.undoManager = deletionUndoManager
+        defer { context.undoManager = previousUndoManager }
+        deletionUndoManager.beginUndoGrouping()
         context.delete(project)
+        deletionUndoManager.endUndoGrouping()
         do {
             try save(saveChanges)
+            deletionUndoManager.removeAllActions()
         } catch {
-            context.rollback()
+            deletionUndoManager.undo()
             throw error
         }
         if resetsDraft {

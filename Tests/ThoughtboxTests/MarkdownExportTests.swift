@@ -184,7 +184,7 @@ struct MarkdownExportTests {
             content: content
         )
         let suffixedURL = destination.appending(path: suffixedFile.relativePath)
-        try Data("unrelated existing file".utf8).write(to: suffixedURL)
+        try Data("Unrelated note\n\nid: \"\(id.uuidString)\"\n\nThat line is body text.".utf8).write(to: suffixedURL)
         let suffixedResult = writer.write(.init(files: [suffixedFile]), to: destination)
 
         #expect(suffixedResult.writtenRelativePaths == ["Inbox/suffixed-eeeeeeee-eeeeeeee.md"])

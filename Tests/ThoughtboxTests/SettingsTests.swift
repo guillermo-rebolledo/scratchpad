@@ -89,6 +89,11 @@ struct SettingsTests {
         let model = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
 
         #expect(model.shortcut == .default)
+
+        defaults.set(70_000, forKey: "settings.shortcut.keyCode")
+        defaults.set(Int(ShortcutModifiers.control.rawValue), forKey: "settings.shortcut.modifiers")
+        let oversized = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+        #expect(oversized.shortcut == .default)
     }
 }
 
