@@ -60,6 +60,9 @@
     "%lld Thoughts Selected" : {
 
     },
+    "%lld Thoughts selected" : {
+
+    },
     "%lld search result%@ in %@" : {
       "localizations" : {
         "en" : {
@@ -88,6 +91,9 @@
     "An export with this stable ID already exists. No file was overwritten." : {
 
     },
+    "Asks for confirmation before permanently deleting the selected Thoughts." : {
+
+    },
     "Available in Trash when one or more Thoughts are selected." : {
 
     },
@@ -110,6 +116,12 @@
 
     },
     "Capture a Thought from the menu bar or press Command N." : {
+
+    },
+    "Capture to %@" : {
+
+    },
+    "Capture to Inbox" : {
 
     },
     "Capture to Inbox or move an existing Thought here." : {
@@ -142,6 +154,9 @@
     "Choose Inbox or one Project. All selected Thoughts move atomically." : {
 
     },
+    "Choose Inbox or one Project. Changes save immediately." : {
+
+    },
     "Choose a destination for %lld Thought%@…" : {
       "localizations" : {
         "en" : {
@@ -158,7 +173,13 @@
     "Clear Draft" : {
 
     },
+    "Clear Search" : {
+
+    },
     "Clear this Draft?" : {
+
+    },
+    "Clears the current query and returns to every Thought in this collection." : {
 
     },
     "Code" : {
@@ -176,13 +197,16 @@
     "Create Project" : {
 
     },
-    "Create a Project in the main window." : {
+    "Create a Project." : {
 
     },
     "Created %@" : {
 
     },
     "Creates a Project in the main window." : {
+
+    },
+    "Delete" : {
 
     },
     "Delete Permanently" : {
@@ -206,10 +230,13 @@
     "Deletes the selected Project only when it contains no active Thoughts." : {
 
     },
-    "Destination" : {
+    "Deletes this Project only when it contains no active Thoughts." : {
 
     },
-    "Destination error: %@" : {
+    "Done" : {
+
+    },
+    "Done Editing" : {
 
     },
     "Draft Markdown" : {
@@ -218,10 +245,16 @@
     "Edit" : {
 
     },
-    "Edit error: %@" : {
+    "Edit Thought" : {
+
+    },
+    "Edit the canonical Markdown source." : {
 
     },
     "Edited %@" : {
+
+    },
+    "Editing canonical Markdown" : {
 
     },
     "Empty" : {
@@ -239,19 +272,19 @@
     "Every selected Thought is already in %@." : {
 
     },
-    "Explains any active-Thought constraint, then asks for confirmation before deleting an empty Project." : {
-
-    },
     "Export" : {
 
     },
     "Export All…" : {
 
     },
-    "Export Selected Trash…" : {
+    "Export Selected" : {
 
     },
-    "Export Selected…" : {
+    "Export Selected Trash" : {
+
+    },
+    "Export Selected Trash…" : {
 
     },
     "Export Thoughtbox Markdown" : {
@@ -306,6 +339,9 @@
     "Exports only the selected trashed Thoughts without restoring them." : {
 
     },
+    "Exports the selected trashed Thoughts as portable Markdown." : {
+
+    },
     "Focus Thought List" : {
 
     },
@@ -333,10 +369,28 @@
     "List item" : {
 
     },
+    "Move" : {
+
+    },
     "Move Selected" : {
 
     },
+    "Move Selected Thoughts To" : {
+
+    },
+    "Move Selected to Trash" : {
+
+    },
+    "Move Thought To" : {
+
+    },
     "Move keyboard focus to the Thought list." : {
+
+    },
+    "Move this Thought to Trash." : {
+
+    },
+    "Move this Thought. Current destination: %@." : {
 
     },
     "Move to Trash" : {
@@ -374,10 +428,16 @@
     "Moves keyboard focus to the Thought list. Command A selects all visible results." : {
 
     },
-    "Moves this Thought between Inbox and one Project." : {
+    "Moves the selected active Thoughts to Inbox or one Project." : {
 
     },
-    "Moves this Thought between Inbox and one Project. Changes save immediately." : {
+    "Moves the selected active Thoughts to Trash. You can restore them later." : {
+
+    },
+    "Moves this Thought to Trash without confirmation. You can restore it later." : {
+
+    },
+    "Moves this Thought to Trash. You can restore it later." : {
 
     },
     "Names are trimmed and compared without regard to capitalization." : {
@@ -408,7 +468,22 @@
     "Opens a confirmation that states how many Thoughts will be permanently deleted." : {
 
     },
+    "Opens the persistent Draft editor and preserves Inbox as its destination." : {
+
+    },
+    "Opens the persistent Draft editor and preserves this Project as its destination." : {
+
+    },
+    "Opens the persistent Draft editor preselected to Inbox." : {
+
+    },
+    "Opens the persistent Draft editor preselected to this Project." : {
+
+    },
     "Opens the persistent Draft editor." : {
+
+    },
+    "Opens the persistent Draft editor. Any saved Thought appears in All Thoughts." : {
 
     },
     "Opens the system folder picker and exports every active Thought. Trash is excluded." : {
@@ -455,31 +530,28 @@
     "Project Is Empty" : {
 
     },
-    "Project error: %@" : {
-
-    },
     "Project name" : {
 
     },
     "Projects" : {
 
     },
-    "Read" : {
-
-    },
-    "Read renders Markdown. Edit shows the canonical source and auto-saves changes." : {
-
-    },
     "Rename Project" : {
-
-    },
-    "Rename the selected Project without changing its order." : {
 
     },
     "Renames the selected Project without changing its order." : {
 
     },
+    "Renames this Project without changing its order." : {
+
+    },
+    "Rendered Markdown" : {
+
+    },
     "Rendered Thought" : {
+
+    },
+    "Restore" : {
 
     },
     "Restore Selected" : {
@@ -511,19 +583,28 @@
     "Restores each selected Thought to its former Project when available, otherwise Inbox." : {
 
     },
+    "Restores selected Thoughts to their former destinations when available." : {
+
+    },
     "Save Name" : {
 
     },
     "Save Thought" : {
 
     },
-    "Save error: %@" : {
+    "Save and return to rendered Markdown." : {
 
     },
     "Save to" : {
 
     },
     "Saved" : {
+
+    },
+    "Saves pending changes and returns focus to this button." : {
+
+    },
+    "Saves pending changes and returns to rendered Markdown." : {
 
     },
     "Saves the trimmed Project name if it is unique." : {
@@ -553,6 +634,9 @@
     "Select one or more Thoughts in Trash before exporting." : {
 
     },
+    "Selected Thought" : {
+
+    },
     "Shows active Thoughts in %@, newest first." : {
 
     },
@@ -563,6 +647,12 @@
 
     },
     "Shows every active Thought, newest first." : {
+
+    },
+    "Shows the canonical Markdown source for editing." : {
+
+    },
+    "Shows the raw Markdown editor and focuses it." : {
 
     },
     "Shows trashed Thoughts newest first. Search is scoped to Trash." : {
@@ -621,20 +711,13 @@
     "This cannot be undone. The selected Thought%@ will be removed from this Mac." : {
 
     },
+    "Thought" : {
+
+    },
     "Thought Markdown source" : {
 
     },
-    "Thought created %@, in %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Thought created %1$@, in %2$@"
-          }
-        }
-      }
-    },
-    "Thought presentation" : {
+    "Thought destination" : {
 
     },
     "Thoughtbox" : {
@@ -679,7 +762,7 @@
     "Unordered list with %lld items" : {
 
     },
-    "Use Restore Selected or Delete Permanently below the Trash list." : {
+    "Use the available Trash actions to restore, export, or permanently delete this Thought." : {
 
     },
     "active" : {
@@ -959,9 +1042,6 @@
       }
     },
     "trashed" : {
-
-    },
-    "·" : {
 
     }
   },
