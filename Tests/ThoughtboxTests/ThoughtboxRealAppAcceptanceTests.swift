@@ -96,7 +96,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["# Durable\n\nCaptured from the real app"].waitForExistence(timeout: 3))
     }
 
-    func testThoughtControlsRemainUsableAtMinimumWindowSize() throws {
+    func testLibraryAdaptsAtMinimumWindowSizeAndRestoresItsSidebar() throws {
         let app = try launch(reset: true)
         capture("Minimum boundary Thought", in: app)
 
@@ -106,10 +106,11 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let undersizedTarget = window.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.35))
         resizeHandle.press(forDuration: 0.1, thenDragTo: undersizedTarget, withVelocity: .slow, thenHoldForDuration: 0)
 
-        XCTAssertGreaterThanOrEqual(window.frame.width, 1_050)
+        XCTAssertGreaterThanOrEqual(window.frame.width, 840)
         XCTAssertGreaterThanOrEqual(window.frame.height, 540)
         XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
         XCTAssertTrue(app.descendants(matching: .any)["library.thoughts"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["thought.detail"].isHittable)
 
         let destination = app.descendants(matching: .any)["thought.destination"]
         let presentation = app.descendants(matching: .any)["thought.mode"]
@@ -118,6 +119,26 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertEqual(presentation.label, "Thought presentation")
         XCTAssertTrue(app.radioButtons["Read"].isHittable)
         XCTAssertTrue(app.radioButtons["Edit"].isHittable)
+
+        let sidebarToggle = app.buttons["Toggle Sidebar"]
+        XCTAssertTrue(sidebarToggle.isHittable)
+        sidebarToggle.click()
+        XCTAssertFalse(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["library.thoughts"].isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["thought.detail"].isHittable)
+
+        let viewMenu = app.menuBars.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 3))
+        viewMenu.click()
+        let showSidebar = app.menuItems["Show Sidebar"]
+        XCTAssertTrue(showSidebar.waitForExistence(timeout: 3))
+        showSidebar.click()
+        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].waitForExistence(timeout: 3))
+
+        app.typeKey("s", modifierFlags: [.command, .control])
+        XCTAssertFalse(app.descendants(matching: .any)["library.sidebar.all"].isHittable)
+        app.typeKey("s", modifierFlags: [.command, .control])
+        XCTAssertTrue(app.descendants(matching: .any)["library.sidebar.all"].waitForExistence(timeout: 3))
     }
 
     func testFailedSaveKeepsDraftAndShowsAccessibleError() throws {

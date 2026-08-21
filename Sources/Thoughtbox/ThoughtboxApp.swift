@@ -3,8 +3,8 @@ import Sparkle
 import SwiftUI
 
 enum ThoughtboxWindowMetrics {
-    /// The smallest content size where all three Library columns remain independently operable.
-    static let minimumWidth: CGFloat = 1_050
+    /// The smallest content size supported by the Library's adaptive three-column layout.
+    static let minimumWidth: CGFloat = 840
     static let minimumHeight: CGFloat = 540
 }
 
@@ -37,6 +37,7 @@ struct ThoughtboxApp: App {
                     .help("Checks the signed Thoughtbox update channel for a newer version.")
             }
             ProjectCommands()
+            SidebarCommands()
         }
 
         Settings {

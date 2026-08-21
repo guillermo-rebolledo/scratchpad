@@ -54,6 +54,12 @@ enum ExportAccessibility {
     static let hint = String(localized: "Choose Export All or export the selected trashed Thoughts.")
 }
 
+enum LibraryColumnMetrics {
+    static let sidebar = (minimum: CGFloat(180), ideal: CGFloat(220), maximum: CGFloat(260))
+    static let thoughtList = (minimum: CGFloat(220), ideal: CGFloat(280), maximum: CGFloat(340))
+    static let detail = (minimum: CGFloat(440), ideal: CGFloat(560), maximum: CGFloat(1_200))
+}
+
 struct MainView: View {
     @Environment(DraftStore.self) private var draft
     @Environment(\.modelContext) private var modelContext
@@ -67,6 +73,7 @@ struct MainView: View {
     ) private var trashedThoughts: [Thought]
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var collection: LibrarySelection? = .allThoughts
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var selectedThoughtIDs: Set<UUID> = []
     @State private var editNavigationGuard = ThoughtEditNavigationGuard()
     @State private var projectEditor: ProjectEditorContext?
@@ -84,7 +91,7 @@ struct MainView: View {
     @AccessibilityFocusState private var operationFocused: Bool
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: guardedCollection) {
                 Label("All Thoughts", systemImage: "rectangle.stack")
                     .tag(LibrarySelection.allThoughts)
@@ -135,6 +142,11 @@ struct MainView: View {
                 .background(.bar)
             }
             .navigationTitle("Thoughtbox")
+            .navigationSplitViewColumnWidth(
+                min: LibraryColumnMetrics.sidebar.minimum,
+                ideal: LibraryColumnMetrics.sidebar.ideal,
+                max: LibraryColumnMetrics.sidebar.maximum
+            )
         } content: {
             Group {
                 if visibleThoughts.isEmpty {
@@ -222,19 +234,33 @@ struct MainView: View {
                     selectionActionBar
                 }
             }
+            .navigationSplitViewColumnWidth(
+                min: LibraryColumnMetrics.thoughtList.minimum,
+                ideal: LibraryColumnMetrics.thoughtList.ideal,
+                max: LibraryColumnMetrics.thoughtList.maximum
+            )
         } detail: {
-            if let selectedThought {
-                ThoughtDetailView(thought: selectedThought, editNavigationGuard: editNavigationGuard)
-                    .id(selectedThought.id)
-            } else if selectedThoughtIDs.count > 1 {
-                ContentUnavailableView(
-                    "\(selectedThoughtIDs.count) Thoughts Selected",
-                    systemImage: "checklist"
-                )
-            } else {
-                ContentUnavailableView("Select a Thought", systemImage: "doc.text")
+            Group {
+                if let selectedThought {
+                    ThoughtDetailView(thought: selectedThought, editNavigationGuard: editNavigationGuard)
+                        .id(selectedThought.id)
+                        .accessibilityIdentifier("thought.detail")
+                } else if selectedThoughtIDs.count > 1 {
+                    ContentUnavailableView(
+                        "\(selectedThoughtIDs.count) Thoughts Selected",
+                        systemImage: "checklist"
+                    )
+                } else {
+                    ContentUnavailableView("Select a Thought", systemImage: "doc.text")
+                }
             }
+            .navigationSplitViewColumnWidth(
+                min: LibraryColumnMetrics.detail.minimum,
+                ideal: LibraryColumnMetrics.detail.ideal,
+                max: LibraryColumnMetrics.detail.maximum
+            )
         }
+        .navigationSplitViewStyle(.balanced)
         .onAppear { selectNewestThought() }
         .onChange(of: visibleThoughts.map(\.id)) { oldIDs, _ in
             reconcileSelection(selectNewestIfEmpty: oldIDs.isEmpty)
