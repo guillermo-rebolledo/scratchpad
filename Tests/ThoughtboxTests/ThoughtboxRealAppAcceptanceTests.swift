@@ -87,17 +87,24 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         var recorder = openSettings(in: app)
         XCTAssertEqual(recorder.value as? String, "Control–Option–Space")
 
-        recorder.click()
-        recorder.typeKey("k", modifierFlags: [.control, .option])
+        app.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [])
+        app.typeKey("k", modifierFlags: [.control, .option])
         let conflict = app.descendants(matching: .any)["settings.shortcut.error"]
         XCTAssertTrue(conflict.waitForExistence(timeout: 3))
         XCTAssertTrue(conflict.label.contains("previous shortcut is still active"))
         XCTAssertEqual(recorder.value as? String, "Control–Option–Space")
 
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        finder.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option])
+        XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
+        app.textViews["capture.editor"].typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        app.activate()
+        recorder = openSettings(in: app)
+
         recorder.click()
         recorder.typeKey("j", modifierFlags: [.control, .option])
         XCTAssertEqual(recorder.value as? String, "Control–Option–J")
-        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
         finder.typeKey("j", modifierFlags: [.control, .option])
         XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))

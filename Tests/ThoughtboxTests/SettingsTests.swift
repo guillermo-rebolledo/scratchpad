@@ -30,6 +30,7 @@ struct SettingsTests {
         #expect(registered == [.default])
 
         let replacement = CaptureShortcut(keyCode: 38, modifiers: [.control, .option])
+        #expect(replacement.displayName(resolvedKeyName: "ñ") == "Control–Option–Ñ")
         model.assignShortcut(replacement)
         #expect(model.shortcut == replacement)
         #expect(model.shortcutError == nil)
@@ -44,6 +45,11 @@ struct SettingsTests {
         relaunched.restoreDefaultShortcut()
         #expect(relaunched.shortcut == .default)
         #expect(relaunchedRegistration == .default)
+
+        let modifiedEscape = CaptureShortcut(keyCode: 53, modifiers: [.control, .option])
+        relaunched.assignShortcut(modifiedEscape)
+        #expect(relaunched.shortcut == modifiedEscape)
+        #expect(modifiedEscape.displayName(resolvedKeyName: nil) == "Control–Option–Escape")
     }
 
     @Test("Launch at Login mirrors system registration and preserves state on failure")
@@ -64,10 +70,25 @@ struct SettingsTests {
         #expect(loginItem.status == .enabled)
         #expect(model.launchAtLoginError != nil)
 
+        loginItem.status = .notRegistered
+        model.refreshLaunchAtLogin()
+        #expect(model.launchAtLoginError == nil)
+
         loginItem.shouldFail = false
         model.setLaunchAtLogin(false)
         #expect(model.launchAtLoginEnabled == false)
         #expect(loginItem.status == .notRegistered)
+    }
+
+    @Test("Malformed persisted shortcut values recover to the default")
+    func malformedShortcutPersistence() {
+        let defaults = UserDefaults(suiteName: "ThoughtboxMalformedSettings-\(UUID().uuidString)")!
+        defaults.set(-1, forKey: "settings.shortcut.keyCode")
+        defaults.set(10_000, forKey: "settings.shortcut.modifiers")
+
+        let model = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+
+        #expect(model.shortcut == .default)
     }
 }
 

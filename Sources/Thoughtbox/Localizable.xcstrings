@@ -18,6 +18,7 @@
     "settings.shortcut.section" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Quick Capture" } } } },
     "settings.shortcut.startupError" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "The saved shortcut is unavailable. Choose another shortcut." } } } },
     "shortcut.key.delete" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } } } },
+    "shortcut.key.escape" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Escape" } } } },
     "shortcut.key.forwardDelete" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Forward Delete" } } } },
     "shortcut.key.return" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Return" } } } },
     "shortcut.key.space" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Space" } } } },

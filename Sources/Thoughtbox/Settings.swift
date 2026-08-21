@@ -49,20 +49,25 @@ struct CaptureShortcut: Codable, Equatable, Hashable, Sendable {
     }
 
     var displayName: String {
+        displayName(resolvedKeyName: KeyboardLayoutKeyNameResolver.name(for: keyCode))
+    }
+
+    func displayName(resolvedKeyName: String?) -> String {
         let modifierNames = [
             (ShortcutModifiers.control, String(localized: "shortcut.modifier.control", defaultValue: "Control")),
             (.option, String(localized: "shortcut.modifier.option", defaultValue: "Option")),
             (.shift, String(localized: "shortcut.modifier.shift", defaultValue: "Shift")),
             (.command, String(localized: "shortcut.modifier.command", defaultValue: "Command"))
         ].compactMap { modifiers.contains($0.0) ? $0.1 : nil }
-        return (modifierNames + [Self.keyName(keyCode)]).joined(separator: "–")
+        return (modifierNames + [Self.keyName(keyCode, resolvedKeyName: resolvedKeyName)]).joined(separator: "–")
     }
 
-    private static func keyName(_ keyCode: UInt32) -> String {
+    private static func keyName(_ keyCode: UInt32, resolvedKeyName: String?) -> String {
         let names: [UInt32: String] = [
             UInt32(kVK_Space): String(localized: "shortcut.key.space", defaultValue: "Space"),
             UInt32(kVK_Return): String(localized: "shortcut.key.return", defaultValue: "Return"),
             UInt32(kVK_Tab): String(localized: "shortcut.key.tab", defaultValue: "Tab"),
+            UInt32(kVK_Escape): String(localized: "shortcut.key.escape", defaultValue: "Escape"),
             UInt32(kVK_Delete): String(localized: "shortcut.key.delete", defaultValue: "Delete"),
             UInt32(kVK_ForwardDelete): String(localized: "shortcut.key.forwardDelete", defaultValue: "Forward Delete"),
             UInt32(kVK_LeftArrow): "←",
@@ -71,17 +76,9 @@ struct CaptureShortcut: Codable, Equatable, Hashable, Sendable {
             UInt32(kVK_DownArrow): "↓"
         ]
         if let name = names[keyCode] { return name }
-        if let scalar = keyCodeCharacters[keyCode] { return scalar }
+        if let resolvedKeyName, !resolvedKeyName.isEmpty { return resolvedKeyName.uppercased() }
         return String(localized: "shortcut.key.unknown", defaultValue: "Key \(keyCode)")
     }
-
-    private static let keyCodeCharacters: [UInt32: String] = [
-        0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
-        11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 18: "1", 19: "2",
-        20: "3", 21: "4", 22: "6", 23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8",
-        29: "0", 30: "]", 31: "O", 32: "U", 33: "[", 34: "I", 35: "P", 37: "L", 38: "J",
-        39: "'", 40: "K", 41: ";", 42: "\\", 43: ",", 44: "/", 45: "N", 46: "M", 47: ".", 50: "`"
-    ]
 }
 
 enum LoginItemStatus: Equatable {
@@ -166,11 +163,13 @@ final class SettingsModel {
     init(defaults: UserDefaults, loginItemService: LoginItemServicing) {
         self.defaults = defaults
         self.loginItemService = loginItemService
-        if defaults.object(forKey: Key.shortcutKeyCode) != nil,
+        if let savedKeyCode = UInt32(exactly: defaults.integer(forKey: Key.shortcutKeyCode)),
+           let savedModifiers = UInt8(exactly: defaults.integer(forKey: Key.shortcutModifiers)),
+           defaults.object(forKey: Key.shortcutKeyCode) != nil,
            defaults.object(forKey: Key.shortcutModifiers) != nil {
             let saved = CaptureShortcut(
-                keyCode: UInt32(defaults.integer(forKey: Key.shortcutKeyCode)),
-                modifiers: ShortcutModifiers(rawValue: UInt8(defaults.integer(forKey: Key.shortcutModifiers)))
+                keyCode: savedKeyCode,
+                modifiers: ShortcutModifiers(rawValue: savedModifiers)
             )
             shortcut = saved.isValid ? saved : .default
         } else {
@@ -220,27 +219,35 @@ final class SettingsModel {
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
-        launchAtLoginError = nil
+        var operationError: String?
         do {
             try loginItemService.setEnabled(enabled)
         } catch {
-            launchAtLoginError = String(
+            operationError = String(
                 localized: "settings.login.failure",
                 defaultValue: "Thoughtbox could not update Launch at Login. The system setting was not changed."
             )
         }
-        refreshLaunchAtLogin()
+        reconcileLaunchAtLogin(operationError: operationError)
     }
 
     func refreshLaunchAtLogin() {
+        reconcileLaunchAtLogin(operationError: nil)
+    }
+
+    private func reconcileLaunchAtLogin(operationError: String?) {
         let status = loginItemService.status
         launchAtLoginEnabled = status.isRequested
         launchAtLoginNeedsApproval = status == .requiresApproval
-        if status == .unavailable {
+        if let operationError {
+            launchAtLoginError = operationError
+        } else if status == .unavailable {
             launchAtLoginError = String(
                 localized: "settings.login.unavailable",
                 defaultValue: "Launch at Login is unavailable for this copy of Thoughtbox."
             )
+        } else {
+            launchAtLoginError = nil
         }
     }
 }
@@ -305,6 +312,9 @@ struct ThoughtboxSettingsView: View {
         .padding(8)
         .frame(width: 480, height: 310)
         .onAppear { model.refreshLaunchAtLogin() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.refreshLaunchAtLogin()
+        }
         .onChange(of: model.shortcutError) { _, error in shortcutErrorFocused = error != nil }
         .onChange(of: model.launchAtLoginError) { _, error in loginErrorFocused = error != nil }
     }
@@ -368,6 +378,13 @@ private final class ShortcutRecorderButton: NSButton {
 
     override var acceptsFirstResponder: Bool { true }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window, window.initialFirstResponder == nil else { return }
+        window.initialFirstResponder = self
+        window.makeFirstResponder(self)
+    }
+
     @objc private func beginRecording() {
         isRecording = true
         window?.makeFirstResponder(self)
@@ -395,14 +412,15 @@ private final class ShortcutRecorderButton: NSButton {
     }
 
     private func capture(_ event: NSEvent) {
-        if event.keyCode == UInt16(kVK_Escape) {
+        let modifiers = ShortcutModifiers(eventFlags: event.modifierFlags)
+        if event.keyCode == UInt16(kVK_Escape), modifiers.isEmpty {
             isRecording = false
             updateAppearance()
             return
         }
         let candidate = CaptureShortcut(
             keyCode: UInt32(event.keyCode),
-            modifiers: ShortcutModifiers(eventFlags: event.modifierFlags)
+            modifiers: modifiers
         )
         isRecording = false
         onChange(candidate)

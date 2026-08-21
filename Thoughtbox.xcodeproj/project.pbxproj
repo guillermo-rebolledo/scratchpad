@@ -23,6 +23,7 @@
 		A10000000000000000000017 /* MarkdownExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* MarkdownExport.swift */; };
 		A10000000000000000000018 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000020 /* Settings.swift */; };
 		A10000000000000000000019 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000021 /* Localizable.xcstrings */; };
+		A10000000000000000000020 /* KeyboardLayoutKeyNameResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000022 /* KeyboardLayoutKeyNameResolver.swift */; };
 		A10000000000000000000016 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = N10000000000000000000001 /* Markdown */; };
 /* End PBXBuildFile section */
 
@@ -58,6 +59,7 @@
 		B10000000000000000000019 /* MarkdownExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownExport.swift; sourceTree = "<group>"; };
 		B10000000000000000000020 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		B10000000000000000000021 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		B10000000000000000000022 /* KeyboardLayoutKeyNameResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardLayoutKeyNameResolver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +92,7 @@
 				B10000000000000000000019 /* MarkdownExport.swift */,
 				B10000000000000000000020 /* Settings.swift */,
 				B10000000000000000000021 /* Localizable.xcstrings */,
+				B10000000000000000000022 /* KeyboardLayoutKeyNameResolver.swift */,
 				B10000000000000000000006 /* MainView.swift */,
 				B10000000000000000000007 /* Models.swift */,
 				B10000000000000000000008 /* Persistence.swift */,
@@ -180,7 +183,7 @@
 		I10000000000000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000011, A10000000000000000000012, A10000000000000000000013, A10000000000000000000017, A10000000000000000000018, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009, A10000000000000000000014,);
+			files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000011, A10000000000000000000012, A10000000000000000000013, A10000000000000000000017, A10000000000000000000018, A10000000000000000000020, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A10000000000000000000009, A10000000000000000000014,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		I10000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000010,); runOnlyForDeploymentPostprocessing = 0; };
