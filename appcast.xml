@@ -1,9 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-  <channel>
-    <title>Thoughtbox Beta Updates</title>
-    <link>https://raw.githubusercontent.com/guillermo-rebolledo/scratchpad/main/appcast.xml</link>
-    <description>Signed Thoughtbox beta releases.</description>
-    <language>en</language>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Thoughtbox Beta Updates</title>
+        <link>https://raw.githubusercontent.com/guillermo-rebolledo/scratchpad/main/appcast.xml</link>
+        <description>Signed Thoughtbox beta releases.</description>
+        <language>en</language>
+        <item>
+            <title>1.0.0-beta.1</title>
+            <pubDate>Fri, 21 Aug 2026 06:00:42 +0000</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.0.0-beta.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/guillermo-rebolledo/scratchpad/releases/download/thoughtbox-v1.0.0-beta.1/Thoughtbox-1.0.0-beta.1.zip" length="2477380" type="application/octet-stream" sparkle:edSignature="EJ579UYERjgmQVqBMBs6fQCxtP+ani+Z2UhvE7NcggXr/bvKib3l9oLGbEc5WIO+8jOjZyWj6Y32CuG1E+TOCQ=="></enclosure>
+        </item>
+    </channel>
+</rss><!-- sparkle-signatures:
+edSignature: t5JBWqgio0QSQVa7mBGhfX62sjaMLl7xZo2JpqLY++WbCtd6iNvAjUMXH3Y6DlTmQhOsuVlJEA6aBZhDiB6cCw==
+length: 1330
+-->

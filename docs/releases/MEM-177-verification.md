@@ -22,14 +22,15 @@ The application contains no analytics, advertising, telemetry, crash-reporting S
 
 `Scripts/release/verify-product-release.sh` enforces the source-level dependency, network, logging, sharing, motion, custom-color, release-note, and localization boundaries. `verify-app.sh` separately enforces the signed artifact's sandbox entitlement allowlist.
 
-## Distribution evidence to attach before completion
+## Published evidence — 2026-08-21
 
-- Exact source commit and workflow run URL.
-- Accepted Apple notarization submission ID.
-- Stapled and Gatekeeper-approved application verification output.
-- Signed update ZIP and appcast signature verification output.
-- Successful clean install and staged Sparkle update run.
-- Runtime network observation showing only the documented Sparkle feed and release-download hosts.
-- Public, authentication-free download URL for the free unlisted beta.
+- Release source: commit `61c7b373f020235f8b6c4c96c90c65448a7c3463` on `main`.
+- Protected workflow: [Secure Thoughtbox release run 32452361568](https://github.com/guillermo-rebolledo/scratchpad/actions/runs/32452361568) passed the unit/data suite, product and localization gates, complete real-app journeys, Developer ID signing, notarization, stapling, Gatekeeper assessment, signed Sparkle install/relaunch, and data-preservation checks.
+- Apple notarization: submission `baa1535d-392f-4c84-afb1-c269a8a78c0a` completed with status `Accepted`.
+- Distribution: [Thoughtbox 1.0 beta 1](https://github.com/guillermo-rebolledo/scratchpad/releases/tag/thoughtbox-v1.0.0-beta.1) is a public GitHub prerelease with no account or access gate.
+- Public archive: [Thoughtbox-1.0.0-beta.1.zip](https://github.com/guillermo-rebolledo/scratchpad/releases/download/thoughtbox-v1.0.0-beta.1/Thoughtbox-1.0.0-beta.1.zip) downloaded successfully without GitHub credentials; 2,477,380 bytes; SHA-256 `02fcd7a7640b684471fc986fb049c5eac12ddeccd2e78615085dca7f0dec4dc1`.
+- Update authenticity: the archive EdDSA signature and the signed appcast both verified against the public key embedded in the archived app. The published feed advertises build `2` only after the archive URL became public.
+- Network boundary: the release product gate found no app-defined network client, telemetry, analytics, crash reporting, content logging, or sharing SDK. The real staged update journey exercised the sole outbound integration through Sparkle over HTTPS.
+- Accessibility: the complete real-app suite drove the shipped workflows through the macOS accessibility tree without a pointer; the release gate also verified localization, semantic presentation, system color, motion, help, error, and completion-state policies.
 
-MEM-177 must remain open until every item above is attached to the Linear issue and the download has been tested without a signed-in account.
+The parent MEM-168 specification remains open and unchanged. Final publication evidence is attached to MEM-177 in Linear.
