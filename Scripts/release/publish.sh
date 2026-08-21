@@ -128,12 +128,19 @@ case "$remote_main_status" in
         ;;
 esac
 
-gh release create "$tag" "$update_zip" \
-    --repo guillermo-rebolledo/scratchpad \
-    --target "$source_commit" \
-    --title "Thoughtbox $version" \
-    --notes-file "$reviewed_release_notes" \
-    --draft
+create_draft_release() {
+    gh release create "$tag" "$update_zip" \
+        --repo guillermo-rebolledo/scratchpad \
+        --target "$source_commit" \
+        --title "Thoughtbox $version" \
+        --notes-file "$reviewed_release_notes" \
+        --draft \
+        "$@"
+}
+case "$version" in
+    *-*) create_draft_release --prerelease ;;
+    *) create_draft_release ;;
+esac
 
 printf '%s\n' "Draft release $tag created. Review it before publishing."
 printf '%s\n' "After publishing the draft and confirming the archive URL works, commit $generated_appcast as appcast.xml."
