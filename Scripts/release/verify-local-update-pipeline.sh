@@ -8,7 +8,6 @@ set -eu
 : "${APPLE_TEAM_ID:?Set APPLE_TEAM_ID}"
 : "${SPARKLE_PRIVATE_KEY_PATH:?Set SPARKLE_PRIVATE_KEY_PATH}"
 : "${SPARKLE_TOOLS_DIRECTORY:?Set SPARKLE_TOOLS_DIRECTORY}"
-: "${THOUGHTBOX_RELEASE_KEYCHAIN:?Set THOUGHTBOX_RELEASE_KEYCHAIN}"
 [ "$THOUGHTBOX_ALLOW_LOCAL_UPDATE_TEST" = "1" ]
 
 case "$RELEASE_BUILD" in
@@ -54,7 +53,9 @@ cleanup() {
         kill "$server_pid" 2>/dev/null || true
     fi
     if [ -n "$certificate_hash" ]; then
-        security delete-certificate -Z "$certificate_hash" "$THOUGHTBOX_RELEASE_KEYCHAIN" >/dev/null 2>&1 || true
+        sudo -n security delete-certificate \
+            -Z "$certificate_hash" \
+            /Library/Keychains/System.keychain >/dev/null 2>&1 || true
     fi
     rm -rf "$test_directory"
 }
@@ -120,10 +121,13 @@ certificate_hash="$(
         cut -d= -f2 |
         tr -d :
 )"
-security add-trusted-cert \
+printf '%s\n' "Installing the temporary localhost CA into this ephemeral runner's system trust store."
+sudo -n security add-trusted-cert \
+    -d \
     -r trustRoot \
-    -k "$THOUGHTBOX_RELEASE_KEYCHAIN" \
+    -k /Library/Keychains/System.keychain \
     "$tls_certificate"
+printf '%s\n' "Temporary localhost CA installed."
 
 (
     cd "$stage_directory"
