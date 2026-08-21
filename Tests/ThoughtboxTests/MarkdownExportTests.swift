@@ -133,6 +133,31 @@ struct MarkdownExportTests {
         #expect(try String(contentsOf: exportedURL, encoding: .utf8) == "portable artifact")
     }
 
+    @Test("Repeating a collision export recognizes its existing stable-ID output")
+    func repeatedExistingCollision() throws {
+        let destination = FileManager.default.temporaryDirectory
+            .appending(path: "ThoughtboxRepeatedCollision-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let id = UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!
+        let file = PlannedMarkdownFile(
+            thoughtID: id,
+            relativePath: "Inbox/portable.md",
+            content: "---\nid: \"\(id.uuidString)\"\n---\n\nportable artifact"
+        )
+        let baseURL = destination.appending(path: file.relativePath)
+        try FileManager.default.createDirectory(at: baseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("unrelated existing file".utf8).write(to: baseURL)
+        let writer = MarkdownExportWriter()
+        let first = writer.write(.init(files: [file]), to: destination)
+
+        let second = writer.write(.init(files: [file]), to: destination)
+
+        #expect(first.writtenRelativePaths == ["Inbox/portable-dddddddd.md"])
+        #expect(second.writtenRelativePaths.isEmpty)
+        #expect(second.failures.map(\.relativePath) == ["Inbox/portable-dddddddd.md"])
+        #expect(FileManager.default.fileExists(atPath: destination.appending(path: "Inbox/portable-dddddddddddd.md").path) == false)
+    }
+
     @Test("Path components honor byte limits, Windows device names, and secondary stable-ID collisions")
     func deepPortabilityEdges() throws {
         let date = Date(timeIntervalSince1970: 1_700_000_000)

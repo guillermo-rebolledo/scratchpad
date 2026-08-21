@@ -336,11 +336,24 @@ struct MarkdownExportWriter {
             if !fileManager.fileExists(atPath: collisionURL.path) {
                 return .success((collisionPath, collisionURL))
             }
+            if existingOutput(at: collisionURL, hasStableID: file.thoughtID) {
+                return .failure(.init(
+                    relativePath: collisionPath,
+                    message: "An export with this stable ID already exists. No file was overwritten."
+                ))
+            }
         }
         return .failure(.init(
             relativePath: file.relativePath,
             message: "An export with this stable ID already exists. No file was overwritten."
         ))
+    }
+
+    private func existingOutput(at url: URL, hasStableID id: UUID) -> Bool {
+        guard let contents = try? String(contentsOf: url, encoding: .utf8) else { return false }
+        return contents.split(whereSeparator: \Character.isNewline).contains {
+            $0.trimmingCharacters(in: .whitespaces) == "id: \"\(id.uuidString)\""
+        }
     }
 
     private static func isSafeRelativePath(_ path: String) -> Bool {
