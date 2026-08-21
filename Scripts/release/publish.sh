@@ -52,9 +52,21 @@ archive_build="$(plutil -extract CFBundleVersion raw "$archive_info")"
     "$generated_appcast" \
     "$archive_build" \
     "https://github.com/guillermo-rebolledo/scratchpad/releases/download/$tag/" \
-    "$(basename "$update_zip")" \
+    "$update_zip" \
     "$archive_version"
-source_commit="$(tr -d '\r\n' <"$source_commit_file")"
+archive_signature="$(
+    ruby "$script_directory/read-appcast-update-signature.rb" \
+        "$generated_appcast" \
+        "$archive_build" \
+        "$(basename "$update_zip")"
+)"
+archive_public_key="$(plutil -extract SUPublicEDKey raw "$archive_info")"
+"$script_directory/verify-update-signature.sh" \
+    "$update_zip" \
+    "$archive_signature" \
+    "$archive_public_key"
+"$script_directory/verify-appcast-signature.sh" "$generated_appcast" "$archive_public_key"
+source_commit="$(tr -d '\r\n' <"$source_commit_file" | tr 'A-F' 'a-f')"
 case "$source_commit" in
     *[!0-9a-fA-F]*|'')
         printf '%s\n' "The source commit evidence is not a hexadecimal Git commit ID." >&2

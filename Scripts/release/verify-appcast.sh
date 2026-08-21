@@ -2,14 +2,14 @@
 set -eu
 
 if [ "$#" -ne 3 ] && [ "$#" -ne 5 ]; then
-    printf '%s\n' "Usage: $0 APPCAST EXPECTED_BUILD HTTPS_DOWNLOAD_PREFIX [ARCHIVE_BASENAME EXPECTED_VERSION]" >&2
+    printf '%s\n' "Usage: $0 APPCAST EXPECTED_BUILD HTTPS_DOWNLOAD_PREFIX [UPDATE_ARCHIVE EXPECTED_VERSION]" >&2
     exit 64
 fi
 
 appcast_path="$1"
 expected_build="$2"
 download_prefix="$3"
-archive_basename="${4:-}"
+archive_path="${4:-}"
 expected_version="${5:-}"
 script_path="$0"
 case "$script_path" in
@@ -18,6 +18,16 @@ case "$script_path" in
 esac
 script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
 ruby "$script_directory/validate-https-prefix.rb" "$download_prefix"
+archive_basename=""
+archive_size=""
+if [ -n "$archive_path" ]; then
+    [ -f "$archive_path" ] || {
+        printf '%s\n' "Expected update archive not found: $archive_path" >&2
+        exit 66
+    }
+    archive_basename="$(basename "$archive_path")"
+    archive_size="$(stat -f '%z' "$archive_path")"
+fi
 
 xmllint --noout "$appcast_path"
 builds="$(ruby "$script_directory/read-appcast-builds.rb" "$appcast_path")"
@@ -28,7 +38,7 @@ latest_build="$(printf '%s\n' "$builds" | tail -1)"
 }
 
 ruby -r rexml/document -r base64 -r uri -e '
-  path, expected_build, prefix, archive_basename, expected_version = ARGV
+  path, expected_build, prefix, archive_basename, expected_version, archive_size = ARGV
   document = REXML::Document.new(File.read(path))
   sparkle_namespace = "http://www.andymatuschak.org/xml-namespaces/sparkle"
   matching = REXML::XPath.match(document, "//*[local-name()=\"item\"]").select do |item|
@@ -71,7 +81,9 @@ ruby -r rexml/document -r base64 -r uri -e '
   abort "Update archive has an invalid EdDSA signature." unless decoded_signature.bytesize == 64
   length = enclosure.attributes["length"].to_s
   abort "Update archive has no valid length." unless length.match?(/\A[1-9][0-9]*\z/)
-' "$appcast_path" "$expected_build" "$download_prefix" "$archive_basename" "$expected_version"
+  abort "Update archive length does not match the appcast." unless
+    archive_size.empty? || length == archive_size
+' "$appcast_path" "$expected_build" "$download_prefix" "$archive_basename" "$expected_version" "$archive_size"
 
 grep -F 'sparkle-signatures:' "$appcast_path" >/dev/null
 grep -E 'edSignature: [A-Za-z0-9+/]{86}==' "$appcast_path" >/dev/null

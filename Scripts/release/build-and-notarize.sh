@@ -54,7 +54,9 @@ update_zip="$channel_directory/Thoughtbox-$RELEASE_VERSION.zip"
 app_path="$archive_path/Products/Applications/Thoughtbox.app"
 source_commit_file="$output_directory/source-commit.txt"
 
-mkdir -p "$output_directory" "$channel_directory"
+mkdir -p "$output_directory"
+rm -rf "$channel_directory"
+mkdir -p "$channel_directory"
 git -C "$repository_directory" rev-parse HEAD >"$source_commit_file"
 "$script_directory/verify-version-order.sh" "$repository_directory/appcast.xml" "$RELEASE_BUILD"
 
@@ -126,6 +128,10 @@ fi
     "$channel_directory/appcast.xml" \
     "$RELEASE_BUILD" \
     "$THOUGHTBOX_DOWNLOAD_URL_PREFIX"
+archive_public_key="$(plutil -extract SUPublicEDKey raw "$app_path/Contents/Info.plist")"
+"$script_directory/verify-appcast-signature.sh" \
+    "$channel_directory/appcast.xml" \
+    "$archive_public_key"
 
 printf '%s\n' "Accepted notarization: $submission_id"
 printf '%s\n' "Signed update archive: $update_zip"

@@ -10,7 +10,12 @@ archives_directory="$1"
 download_prefix="$2"
 private_key_path="$3"
 sparkle_tools_directory="$4"
-script_directory="$(CDPATH= cd "$(dirname "$0")" && pwd)"
+script_path="$0"
+case "$script_path" in
+    */*) ;;
+    *) script_path="$(command -v "$script_path")" ;;
+esac
+script_directory="$(CDPATH= cd "$(dirname "$script_path")" && pwd)"
 
 ruby "$script_directory/validate-https-prefix.rb" "$download_prefix"
 [ -d "$archives_directory" ]
