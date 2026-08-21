@@ -17,12 +17,46 @@ private enum ThoughtPresentationMode {
     case edit
 }
 
+enum ThoughtDestination: Hashable {
+    case inbox
+    case project(UUID)
+
+    func project(in projects: [Project]) -> Project? {
+        switch self {
+        case .inbox:
+            nil
+        case let .project(id):
+            projects.first { $0.id == id }
+        }
+    }
+}
+
 struct ThoughtDestinationCommand: Identifiable {
-    let projectID: UUID?
+    let destination: ThoughtDestination
     let name: String
     let isCurrent: Bool
 
-    var id: String { projectID?.uuidString ?? "inbox" }
+    var id: ThoughtDestination { destination }
+
+    static func options(
+        projects: [Project],
+        currentProjectID: UUID?,
+        marksCurrent: Bool = true
+    ) -> [ThoughtDestinationCommand] {
+        [
+            ThoughtDestinationCommand(
+                destination: .inbox,
+                name: String(localized: "Inbox"),
+                isCurrent: marksCurrent && currentProjectID == nil
+            )
+        ] + projects.map { project in
+            ThoughtDestinationCommand(
+                destination: .project(project.id),
+                name: project.name,
+                isCurrent: marksCurrent && currentProjectID == project.id
+            )
+        }
+    }
 }
 
 struct ThoughtCommandActions {
@@ -137,26 +171,14 @@ struct ThoughtDetailView: View {
 
     private var destinationMenu: some View {
         Menu {
-            Button {
-                moveThought(to: nil)
-            } label: {
-                if thought.project == nil {
-                    Label("Inbox", systemImage: "checkmark")
-                } else {
-                    Text("Inbox")
-                }
-            }
-
-            Divider()
-
-            ForEach(projects) { project in
+            ForEach(destinationCommands) { command in
                 Button {
-                    moveThought(to: project.id)
+                    moveThought(to: command.destination)
                 } label: {
-                    if thought.project?.id == project.id {
-                        Label(project.name, systemImage: "checkmark")
+                    if command.isCurrent {
+                        Label(command.name, systemImage: "checkmark")
                     } else {
-                        Text(project.name)
+                        Text(command.name)
                     }
                 }
             }
@@ -199,6 +221,13 @@ struct ThoughtDetailView: View {
         thought.project?.name ?? String(localized: "Inbox")
     }
 
+    private var destinationCommands: [ThoughtDestinationCommand] {
+        ThoughtDestinationCommand.options(
+            projects: projects,
+            currentProjectID: thought.project?.id
+        )
+    }
+
     private var destinationSystemImage: String {
         thought.project == nil ? "tray" : "folder"
     }
@@ -223,11 +252,10 @@ struct ThoughtDetailView: View {
         }
     }
 
-    private func moveThought(to requestedID: UUID?) {
+    private func moveThought(to destination: ThoughtDestination) {
         guard editNavigationGuard.canLeaveEditor() else { return }
         do {
-            let destination = requestedID.flatMap { id in projects.first { $0.id == id } }
-            try ThoughtRepository(context: modelContext).move(thought, to: destination)
+            try ThoughtRepository(context: modelContext).move(thought, to: destination.project(in: projects))
             destinationError = nil
         } catch {
             if let projectError = error as? ProjectError {

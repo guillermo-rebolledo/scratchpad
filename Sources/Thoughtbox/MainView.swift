@@ -53,7 +53,7 @@ struct ThoughtSelectionCommandActions {
     let selectionCount: Int
     let isTrash: Bool
     let destinations: [ThoughtDestinationCommand]
-    let move: (UUID?) -> Void
+    let move: (ThoughtDestination) -> Void
     let trash: () -> Void
     let restore: () -> Void
     let deletePermanently: () -> Void
@@ -76,10 +76,16 @@ enum ExportAccessibility {
     static let hint = String(localized: "Choose Export All or export the selected trashed Thoughts.")
 }
 
+struct LibraryColumnWidth {
+    let minimum: CGFloat
+    let ideal: CGFloat
+    let maximum: CGFloat
+}
+
 enum LibraryColumnMetrics {
-    static let sidebar = (minimum: CGFloat(180), ideal: CGFloat(220), maximum: CGFloat(260))
-    static let thoughtList = (minimum: CGFloat(220), ideal: CGFloat(280), maximum: CGFloat(340))
-    static let detail = (minimum: CGFloat(440), ideal: CGFloat(560), maximum: CGFloat(1_200))
+    static let sidebar = LibraryColumnWidth(minimum: 180, ideal: 220, maximum: 260)
+    static let thoughtList = LibraryColumnWidth(minimum: 220, ideal: 280, maximum: 340)
+    static let detail = LibraryColumnWidth(minimum: 440, ideal: 560, maximum: 1_200)
 }
 
 struct MainView: View {
@@ -183,7 +189,8 @@ struct MainView: View {
                     List(visibleThoughts, selection: guardedSelection) { thought in
                         ThoughtRow(
                             thought: thought,
-                            isInTrash: collection == .trash
+                            isInTrash: collection == .trash,
+                            restoreDestinationName: restoreDestinationName(for: thought)
                         )
                             .tag(thought.id)
                             .contextMenu {
@@ -394,22 +401,13 @@ struct MainView: View {
         return ThoughtSelectionCommandActions(
             selectionCount: selected.count,
             isTrash: collection == .trash,
-            destinations: [
-                ThoughtDestinationCommand(
-                    projectID: nil,
-                    name: String(localized: "Inbox"),
-                    isCurrent: hasCommonDestination && commonProjectID == nil
-                )
-            ] + projects.map { project in
-                ThoughtDestinationCommand(
-                    projectID: project.id,
-                    name: project.name,
-                    isCurrent: hasCommonDestination && commonProjectID == project.id
-                )
-            },
-            move: { projectID in
-                let project = projectID.flatMap { id in projects.first { $0.id == id } }
-                moveSelection(to: project)
+            destinations: ThoughtDestinationCommand.options(
+                projects: projects,
+                currentProjectID: commonProjectID,
+                marksCurrent: hasCommonDestination
+            ),
+            move: { destination in
+                moveSelection(to: destination.project(in: projects))
             },
             trash: trashSelection,
             restore: restoreSelection,
@@ -474,6 +472,12 @@ struct MainView: View {
     private var emptySystemImage: String {
         if searchText.containsNonWhitespace { return "magnifyingglass" }
         return collection == .trash ? "trash" : "text.badge.plus"
+    }
+
+    private func restoreDestinationName(for thought: Thought) -> String? {
+        guard thought.trashedAt != nil else { return nil }
+        guard let formerProjectID = thought.formerProjectID else { return String(localized: "Inbox") }
+        return projects.first(where: { $0.id == formerProjectID })?.name ?? String(localized: "Inbox")
     }
 
     @ViewBuilder
@@ -586,6 +590,7 @@ struct MainView: View {
                 .controlSize(.regular)
                 .help("Moves every selected Thought to Trash immediately in one save.")
                 .accessibilityLabel("Move to Trash")
+                .accessibilityValue("\(selectedThoughtIDs.count) Thoughts selected")
                 .accessibilityHint("Moves all selected Thoughts to Trash without confirmation. You can restore them later.")
                 .accessibilityIdentifier("trash.move")
         }
@@ -617,6 +622,7 @@ struct MainView: View {
                 .disabled(exportIsRunning)
                 .help("Exports only the selected trashed Thoughts without restoring them.")
                 .accessibilityLabel("Export Selected Trash")
+                .accessibilityValue("\(selectedThoughtIDs.count) Thought\(selectedThoughtIDs.count == 1 ? "" : "s") selected in Trash")
                 .accessibilityHint("Opens the system folder picker, then exports the selected trashed Thoughts as portable Markdown.")
                 .accessibilityIdentifier("export.selected.trash.button")
         }
@@ -974,6 +980,7 @@ struct MainView: View {
 private struct ThoughtRow: View {
     let thought: Thought
     let isInTrash: Bool
+    let restoreDestinationName: String?
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -1019,10 +1026,15 @@ private struct ThoughtRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "Thought created \(creationDate), in \(contextTitle)"
-        )
+        .accessibilityLabel(accessibilityContext)
         .accessibilityValue(thought.markdown)
+    }
+
+    private var accessibilityContext: String {
+        if isInTrash {
+            return "Thought created \(creationDate), in Trash, restores to \(restoreDestinationName ?? String(localized: "Inbox"))"
+        }
+        return "Thought created \(creationDate), in \(contextTitle)"
     }
 }
 

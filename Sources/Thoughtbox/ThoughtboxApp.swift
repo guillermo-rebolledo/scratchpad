@@ -113,7 +113,7 @@ private struct ThoughtCommands: Commands {
                 Menu((selectionActions?.selectionCount ?? 0) > 1 ? "Move Selected Thoughts To" : "Move Thought To") {
                     ForEach(selectionActions?.destinations ?? []) { destination in
                         Button {
-                            selectionActions?.move(destination.projectID)
+                            selectionActions?.move(destination.destination)
                         } label: {
                             if destination.isCurrent {
                                 Label(destination.name, systemImage: "checkmark")

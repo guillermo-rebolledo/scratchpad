@@ -428,6 +428,11 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
     func testProjectCreationNormalizedUniquenessOrderingAndRename() throws {
         let app = try launch(reset: true)
+
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        XCTAssertTrue(app.textFields["project.name"].waitForExistence(timeout: 3))
+        app.buttons["Cancel"].click()
+
         createProject(" Older Project ", in: app)
         createProject("Newer Project", in: app)
 
@@ -463,6 +468,14 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let renamed = element(labeled: "Renamed Project", in: app)
         XCTAssertTrue(renamed.waitForExistence(timeout: 3))
         XCTAssertLessThan(newer.frame.minY, renamed.frame.minY)
+
+        renamed.click()
+        app.typeKey("r", modifierFlags: [.command, .option])
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.typeKey("a", modifierFlags: .command)
+        name.typeText("Keyboard Renamed Project")
+        app.buttons["project.save"].click()
+        XCTAssertTrue(element(labeled: "Keyboard Renamed Project", in: app).waitForExistence(timeout: 3))
     }
 
     func testProjectNavigationReassignmentAndInboxFiltering() throws {
@@ -521,7 +534,9 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         inboxRow.click()
         app.buttons["trash.move"].click()
         app.descendants(matching: .any)["trash.sidebar"].click()
-        XCTAssertTrue(accessibilityText(of: thoughtRow("Inbox Thought", in: app)).contains("Trash"))
+        let trashedInboxRow = thoughtRow("Inbox Thought", in: app)
+        XCTAssertTrue(accessibilityText(of: trashedInboxRow).contains("Inbox"))
+        XCTAssertTrue(accessibilityText(of: trashedInboxRow).contains("Trash"))
     }
 
     func testDraftProjectDestinationPersistsAndResetsAfterCapture() throws {
@@ -726,6 +741,9 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         app.typeKey("l", modifierFlags: .command)
         app.typeKey("a", modifierFlags: .command)
         XCTAssertTrue(accessibilityText(of: app.descendants(matching: .any)["bulk.selection.count"]).contains("2 Thoughts selected"))
+        XCTAssertEqual(app.descendants(matching: .any)["bulk.destination"].label, "Move Selected")
+        XCTAssertEqual(app.buttons["trash.move"].label, "Move to Trash")
+        XCTAssertTrue(accessibilityText(of: app.buttons["trash.move"]).contains("2 Thoughts selected"))
         app.buttons["trash.move"].click()
 
         app.descendants(matching: .any)["trash.sidebar"].click()
@@ -736,9 +754,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertLessThan(newest.frame.minY, middle.frame.minY)
         XCTAssertLessThan(middle.frame.minY, oldest.frame.minY)
         XCTAssertTrue(app.descendants(matching: .any)["bulk.selection.count"].exists)
-        XCTAssertTrue(app.buttons["trash.restore"].exists)
-        XCTAssertTrue(app.buttons["trash.delete"].exists)
-        XCTAssertTrue(app.buttons["export.selected.trash.button"].exists)
+        XCTAssertEqual(app.buttons["trash.restore"].label, "Restore Selected")
+        XCTAssertEqual(app.buttons["trash.delete"].label, "Delete Permanently")
+        XCTAssertEqual(app.buttons["export.selected.trash.button"].label, "Export Selected Trash")
+        XCTAssertTrue(accessibilityText(of: app.buttons["export.selected.trash.button"]).contains("selected in Trash"))
 
         let search = app.searchFields.firstMatch
         search.click()
@@ -800,7 +819,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         thoughtRow("Disposable Thought", in: app).click()
         app.buttons["trash.move"].click()
-        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [.command, .option])
+        app.staticTexts["Disposable Project"].firstMatch.rightClick()
+        let contextualDelete = app.menuItems["Delete Project"]
+        XCTAssertTrue(contextualDelete.waitForExistence(timeout: 3))
+        contextualDelete.click()
         XCTAssertTrue(app.buttons["project.delete.confirm"].waitForExistence(timeout: 3))
         XCTAssertTrue(
             app.descendants(matching: .any)
