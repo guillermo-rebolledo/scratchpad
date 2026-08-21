@@ -113,12 +113,11 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["thought.detail"].isHittable)
 
         let destination = app.descendants(matching: .any)["thought.destination"]
-        let presentation = app.descendants(matching: .any)["thought.mode"]
+        let edit = app.buttons["thought.edit"]
         XCTAssertTrue(destination.isHittable)
-        XCTAssertTrue(presentation.isHittable)
-        XCTAssertEqual(presentation.label, "Thought presentation")
-        XCTAssertTrue(app.radioButtons["Read"].isHittable)
-        XCTAssertTrue(app.radioButtons["Edit"].isHittable)
+        XCTAssertTrue(edit.isHittable)
+        XCTAssertEqual(destination.label, "Thought destination")
+        XCTAssertEqual(edit.label, "Edit Thought")
 
         let sidebarToggle = app.buttons["Toggle Sidebar"]
         XCTAssertTrue(sidebarToggle.isHittable)
@@ -343,14 +342,24 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let app = try launch(reset: true)
         capture("Before edit", in: app)
 
-        app.radioButtons["Edit"].click()
+        let thoughtMenu = app.menuBars.menuBarItems["Thought"]
+        XCTAssertTrue(thoughtMenu.waitForExistence(timeout: 3))
+        thoughtMenu.click()
+        XCTAssertTrue(app.menuItems["Edit Thought"].isEnabled)
+        XCTAssertTrue(app.menuItems["Move Thought To"].isEnabled)
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        app.typeKey("e", modifierFlags: [.command, .control])
         let editor = app.textViews["thought.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.buttons["thought.edit"].label, "Done Editing")
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("After edit")
         XCTAssertTrue(waitForLabel(app.descendants(matching: .any)["thought.save.status"], containing: "Changes saved"))
-        app.radioButtons["Read"].click()
+        app.buttons["thought.edit"].click()
         XCTAssertTrue(app.staticTexts["After edit"].exists)
+        XCTAssertTrue(app.buttons["thought.edit"].isHittable)
+        XCTAssertEqual(app.buttons["thought.edit"].label, "Edit Thought")
 
         app.terminate()
         app.launchArguments = ["--ui-testing"]
@@ -363,12 +372,12 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let app = try launch(reset: true)
         capture("Thought cannot become blank", in: app)
 
-        app.radioButtons["Edit"].click()
+        app.buttons["thought.edit"].click()
         let editor = app.textViews["thought.editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         editor.typeKey("a", modifierFlags: .command)
         editor.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
-        app.radioButtons["Read"].click()
+        app.buttons["thought.edit"].click()
 
         let error = app.descendants(matching: .any)["thought.edit.error"]
         XCTAssertTrue(error.waitForExistence(timeout: 3))
@@ -386,7 +395,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let olderRow = thoughtRow("Older Thought", in: app)
         XCTAssertLessThan(newerRow.frame.minY, olderRow.frame.minY)
         olderRow.click()
-        app.radioButtons["Edit"].click()
+        app.buttons["thought.edit"].click()
         let editor = app.textViews["thought.editor"]
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Older Thought edited")
@@ -401,7 +410,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         capture("Second Thought", in: app)
 
         thoughtRow("First Thought", in: app).click()
-        app.radioButtons["Edit"].click()
+        app.buttons["thought.edit"].click()
         var editor = app.textViews["thought.editor"]
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Saved by selection")
@@ -409,11 +418,11 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         thoughtRow("Saved by selection", in: app).click()
         XCTAssertTrue(thoughtRow("Saved by selection", in: app).exists)
 
-        app.radioButtons["Edit"].click()
+        app.buttons["thought.edit"].click()
         editor = app.textViews["thought.editor"]
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Saved by focus")
-        app.radioButtons["Read"].click()
+        app.buttons["thought.edit"].click()
         XCTAssertTrue(thoughtRow("Saved by focus", in: app).waitForExistence(timeout: 3))
     }
 

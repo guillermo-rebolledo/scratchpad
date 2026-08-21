@@ -1,3 +1,4 @@
+import Foundation
 import SwiftData
 import SwiftUI
 
@@ -11,17 +12,35 @@ final class ThoughtEditNavigationGuard {
     }
 }
 
-private enum ThoughtPresentationMode: CaseIterable, Identifiable {
+private enum ThoughtPresentationMode {
     case read
     case edit
+}
 
-    var id: Self { self }
+struct ThoughtDestinationCommand: Identifiable {
+    let projectID: UUID?
+    let name: String
+    let isCurrent: Bool
 
-    var title: String {
-        switch self {
-        case .read: String(localized: "Read")
-        case .edit: String(localized: "Edit")
-        }
+    var id: String { projectID?.uuidString ?? "inbox" }
+}
+
+struct ThoughtCommandActions {
+    let isEditing: Bool
+    let canChangeDestination: Bool
+    let destinations: [ThoughtDestinationCommand]
+    let toggleEditing: () -> Void
+    let move: (UUID?) -> Void
+}
+
+struct ThoughtCommandActionsKey: FocusedValueKey {
+    typealias Value = ThoughtCommandActions
+}
+
+extension FocusedValues {
+    var thoughtCommandActions: ThoughtCommandActions? {
+        get { self[ThoughtCommandActionsKey.self] }
+        set { self[ThoughtCommandActionsKey.self] = newValue }
     }
 }
 
@@ -29,6 +48,7 @@ struct ThoughtDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var destinationError: String?
+    @FocusState private var editButtonFocused: Bool
     @AccessibilityFocusState private var destinationErrorFocused: Bool
 
     let thought: Thought
@@ -37,52 +57,7 @@ struct ThoughtDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Created \(thought.createdAt.formatted(date: .abbreviated, time: .shortened))")
-                    if thought.editedAt != thought.createdAt {
-                        Text("Edited \(thought.editedAt.formatted(date: .abbreviated, time: .shortened))")
-                            .accessibilityIdentifier("thought.edited.at")
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 8) {
-                    if thought.trashedAt == nil {
-                        Picker("Destination", selection: destinationBinding) {
-                            Text("Inbox").tag(UUID?.none)
-                            ForEach(projects) { project in
-                                Text(project.name).tag(Optional(project.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .help("Moves this Thought between Inbox and one Project.")
-                        .accessibilityHint("Moves this Thought between Inbox and one Project. Changes save immediately.")
-                        .accessibilityIdentifier("thought.destination")
-                    } else {
-                        Label("In Trash", systemImage: "trash")
-                            .foregroundStyle(.secondary)
-                            .accessibilityHint("Use Restore Selected or Delete Permanently below the Trash list.")
-                            .accessibilityIdentifier("thought.trash.status")
-                    }
-
-                    Picker("Thought presentation", selection: guardedMode) {
-                        ForEach(ThoughtPresentationMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 150)
-                    .help("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")
-                    .accessibilityHint("Read renders Markdown. Edit shows the canonical source and auto-saves changes.")
-                    .accessibilityIdentifier("thought.mode")
-                }
-            }
-            .padding()
+            compactMetadata
 
             if let destinationError {
                 AccessibleErrorMessage(
@@ -94,49 +69,179 @@ struct ThoughtDetailView: View {
                     .accessibilityFocused($destinationErrorFocused)
             }
 
-            Divider()
-
             switch mode {
             case .read:
                 ScrollView {
                     MarkdownReader(markdown: thought.markdown)
-                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
                 }
             case .edit:
                 ThoughtSourceEditor(thought: thought, editNavigationGuard: editNavigationGuard)
             }
         }
-    }
-
-    private var guardedMode: Binding<ThoughtPresentationMode> {
-        Binding(
-            get: { mode },
-            set: { requestedMode in
-                guard requestedMode == mode || editNavigationGuard.canLeaveEditor() else { return }
-                mode = requestedMode
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if thought.trashedAt == nil {
+                    destinationMenu
+                }
+                editButton
             }
-        )
+        }
+        .focusedSceneValue(\.thoughtCommandActions, focusedThoughtCommandActions)
     }
 
-    private var destinationBinding: Binding<UUID?> {
-        Binding(
-            get: { thought.project?.id },
-            set: { requestedID in
-                guard editNavigationGuard.canLeaveEditor() else { return }
-                do {
-                    let destination = requestedID.flatMap { id in projects.first { $0.id == id } }
-                    try ThoughtRepository(context: modelContext).move(thought, to: destination)
-                    destinationError = nil
-                } catch {
-                    if let projectError = error as? ProjectError {
-                        destinationError = projectError.localizedDescription
-                    } else {
-                        destinationError = ProjectError.couldNotSave.localizedDescription
-                    }
-                    destinationErrorFocused = true
+    private var compactMetadata: some View {
+        HStack(spacing: 12) {
+            Label(
+                "Created \(thought.createdAt.formatted(date: .abbreviated, time: .shortened))",
+                systemImage: "calendar"
+            )
+            .lineLimit(1)
+
+            if thought.editedAt != thought.createdAt {
+                Label(
+                    "Edited \(thought.editedAt.formatted(date: .abbreviated, time: .shortened))",
+                    systemImage: "pencil"
+                )
+                .lineLimit(1)
+                .accessibilityIdentifier("thought.edited.at")
+            }
+
+            Spacer(minLength: 8)
+
+            if thought.trashedAt != nil {
+                Label("In Trash", systemImage: "trash")
+                    .lineLimit(1)
+                    .accessibilityHint("Use the available Trash actions to restore, export, or permanently delete this Thought.")
+                    .accessibilityIdentifier("thought.trash.status")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
+    }
+
+    private var destinationMenu: some View {
+        Menu {
+            Button {
+                moveThought(to: nil)
+            } label: {
+                if thought.project == nil {
+                    Label("Inbox", systemImage: "checkmark")
+                } else {
+                    Text("Inbox")
                 }
             }
+
+            Divider()
+
+            ForEach(projects) { project in
+                Button {
+                    moveThought(to: project.id)
+                } label: {
+                    if thought.project?.id == project.id {
+                        Label(project.name, systemImage: "checkmark")
+                    } else {
+                        Text(project.name)
+                    }
+                }
+            }
+        } label: {
+            Label {
+                Text(destinationName)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            } icon: {
+                Image(systemName: destinationSystemImage)
+            }
+            .frame(maxWidth: 180)
+        }
+        .controlSize(.regular)
+        .help("Move this Thought. Current destination: \(destinationName).")
+        .accessibilityLabel("Thought destination")
+        .accessibilityValue(destinationName)
+        .accessibilityHint("Choose Inbox or one Project. Changes save immediately.")
+        .accessibilityIdentifier("thought.destination")
+    }
+
+    private var editButton: some View {
+        Button(action: toggleEditing) {
+            Label(
+                mode == .read ? "Edit" : "Done",
+                systemImage: mode == .read ? "pencil" : "checkmark"
+            )
+        }
+        .labelStyle(.titleAndIcon)
+        .controlSize(.regular)
+        .focused($editButtonFocused)
+        .help(mode == .read ? "Edit the canonical Markdown source." : "Save and return to rendered Markdown.")
+        .accessibilityLabel(mode == .read ? "Edit Thought" : "Done Editing")
+        .accessibilityValue(mode == .read ? "Rendered Markdown" : "Editing canonical Markdown")
+        .accessibilityHint(mode == .read ? "Shows the raw Markdown editor and focuses it." : "Saves pending changes and returns focus to this button.")
+        .accessibilityIdentifier("thought.edit")
+    }
+
+    private var destinationName: String {
+        thought.project?.name ?? String(localized: "Inbox")
+    }
+
+    private var destinationSystemImage: String {
+        thought.project == nil ? "tray" : "folder"
+    }
+
+    private var focusedThoughtCommandActions: ThoughtCommandActions {
+        ThoughtCommandActions(
+            isEditing: mode == .edit,
+            canChangeDestination: thought.trashedAt == nil,
+            destinations: [
+                ThoughtDestinationCommand(
+                    projectID: nil,
+                    name: String(localized: "Inbox"),
+                    isCurrent: thought.project == nil
+                )
+            ] + projects.map { project in
+                ThoughtDestinationCommand(
+                    projectID: project.id,
+                    name: project.name,
+                    isCurrent: thought.project?.id == project.id
+                )
+            },
+            toggleEditing: toggleEditing,
+            move: moveThought(to:)
         )
+    }
+
+    private func toggleEditing() {
+        switch mode {
+        case .read:
+            mode = .edit
+        case .edit:
+            guard editNavigationGuard.canLeaveEditor() else { return }
+            mode = .read
+            Task { @MainActor in
+                editButtonFocused = true
+            }
+        }
+    }
+
+    private func moveThought(to requestedID: UUID?) {
+        guard editNavigationGuard.canLeaveEditor() else { return }
+        do {
+            let destination = requestedID.flatMap { id in projects.first { $0.id == id } }
+            try ThoughtRepository(context: modelContext).move(thought, to: destination)
+            destinationError = nil
+        } catch {
+            if let projectError = error as? ProjectError {
+                destinationError = projectError.localizedDescription
+            } else {
+                destinationError = ProjectError.couldNotSave.localizedDescription
+            }
+            destinationErrorFocused = true
+        }
     }
 }
 

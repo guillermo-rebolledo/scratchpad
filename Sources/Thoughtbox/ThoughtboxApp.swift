@@ -37,6 +37,7 @@ struct ThoughtboxApp: App {
                     .help("Checks the signed Thoughtbox update channel for a newer version.")
             }
             ProjectCommands()
+            ThoughtCommands()
             SidebarCommands()
         }
 
@@ -67,6 +68,39 @@ private struct ProjectCommands: Commands {
                 .keyboardShortcut(.delete, modifiers: [.command, .option])
                 .help("Deletes the selected Project only when it contains no active Thoughts.")
                 .disabled(actions?.canModifySelectedProject != true)
+        }
+    }
+}
+
+private struct ThoughtCommands: Commands {
+    @FocusedValue(\.thoughtCommandActions) private var actions
+
+    var body: some Commands {
+        CommandMenu("Thought") {
+            Button(actions?.isEditing == true ? "Done Editing" : "Edit Thought") {
+                actions?.toggleEditing()
+            }
+            .keyboardShortcut("e", modifiers: [.command, .control])
+            .help(actions?.isEditing == true
+                ? "Saves pending changes and returns to rendered Markdown."
+                : "Shows the canonical Markdown source for editing.")
+            .disabled(actions == nil)
+
+            Menu("Move Thought To") {
+                ForEach(actions?.destinations ?? []) { destination in
+                    Button {
+                        actions?.move(destination.projectID)
+                    } label: {
+                        if destination.isCurrent {
+                            Label(destination.name, systemImage: "checkmark")
+                        } else {
+                            Text(destination.name)
+                        }
+                    }
+                }
+            }
+            .help("Moves the selected Thought to Inbox or one Project.")
+            .disabled(actions?.canChangeDestination != true)
         }
     }
 }
