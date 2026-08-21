@@ -67,7 +67,9 @@ xcodebuild archive \
     -configuration Release \
     -destination 'generic/platform=macOS' \
     -archivePath "$fixture_archive" \
+    -derivedDataPath "$test_directory/DerivedData" \
     -clonedSourcePackagesDirPath "$package_directory" \
+    -disableAutomaticPackageResolution \
     MARKETING_VERSION="0.0.0-update-fixture" \
     CURRENT_PROJECT_VERSION="$fixture_build" \
     DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
