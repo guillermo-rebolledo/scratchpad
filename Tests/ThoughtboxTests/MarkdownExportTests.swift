@@ -158,6 +158,39 @@ struct MarkdownExportTests {
         #expect(FileManager.default.fileExists(atPath: destination.appending(path: "Inbox/portable-dddddddddddd.md").path) == false)
     }
 
+    @Test("Stable-ID contents distinguish re-exports from unrelated suffixed files")
+    func stableIDContentIdentity() throws {
+        let destination = FileManager.default.temporaryDirectory
+            .appending(path: "ThoughtboxStableIDIdentity-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: destination) }
+        let id = UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!
+        let content = "---\nid: \"\(id.uuidString)\"\n---\n\nportable artifact"
+        let baseFile = PlannedMarkdownFile(
+            thoughtID: id,
+            relativePath: "Inbox/base.md",
+            content: content
+        )
+        let writer = MarkdownExportWriter()
+        let first = writer.write(.init(files: [baseFile]), to: destination)
+        let repeated = writer.write(.init(files: [baseFile]), to: destination)
+
+        #expect(first.writtenRelativePaths == ["Inbox/base.md"])
+        #expect(repeated.writtenRelativePaths.isEmpty)
+        #expect(repeated.failures.map(\.relativePath) == ["Inbox/base.md"])
+
+        let suffixedFile = PlannedMarkdownFile(
+            thoughtID: id,
+            relativePath: "Inbox/suffixed-eeeeeeee.md",
+            content: content
+        )
+        let suffixedURL = destination.appending(path: suffixedFile.relativePath)
+        try Data("unrelated existing file".utf8).write(to: suffixedURL)
+        let suffixedResult = writer.write(.init(files: [suffixedFile]), to: destination)
+
+        #expect(suffixedResult.writtenRelativePaths == ["Inbox/suffixed-eeeeeeee-eeeeeeee.md"])
+        #expect(suffixedResult.failures.isEmpty)
+    }
+
     @Test("Path components honor byte limits, Windows device names, and secondary stable-ID collisions")
     func deepPortabilityEdges() throws {
         let date = Date(timeIntervalSince1970: 1_700_000_000)

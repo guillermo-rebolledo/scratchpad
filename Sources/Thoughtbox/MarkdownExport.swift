@@ -317,17 +317,17 @@ struct MarkdownExportWriter {
         guard fileManager.fileExists(atPath: requestedURL.path) else {
             return .success((file.relativePath, requestedURL))
         }
-
-        let relativePath = file.relativePath as NSString
-        let stem = (relativePath.lastPathComponent as NSString).deletingPathExtension
-        let stableID = file.thoughtID.uuidString.lowercased().replacingOccurrences(of: "-", with: "")
-        let suffixLengths = Array(stride(from: 8, through: 32, by: 4))
-        if suffixLengths.contains(where: { stem.hasSuffix("-\(stableID.prefix($0))") }) {
+        if existingOutput(at: requestedURL, hasStableID: file.thoughtID) {
             return .failure(.init(
                 relativePath: file.relativePath,
                 message: "An export with this stable ID already exists. No file was overwritten."
             ))
         }
+
+        let relativePath = file.relativePath as NSString
+        let stem = (relativePath.lastPathComponent as NSString).deletingPathExtension
+        let stableID = file.thoughtID.uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let suffixLengths = Array(stride(from: 8, through: 32, by: 4))
         let parent = relativePath.deletingLastPathComponent
         for length in suffixLengths {
             let collisionName = "\(stem)-\(stableID.prefix(length)).md"
