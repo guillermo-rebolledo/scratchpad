@@ -177,7 +177,7 @@ enum InlineMarkdown {
     static func attributed(_ source: String) -> AttributedString {
         let safeSource = MarkdownDocument.replacingImages(in: source)
         let parsed = Document(parsing: safeSource)
-        var sanitizer = StrikethroughSanitizer()
+        var sanitizer = StrikethroughSanitizer(source: safeSource)
         let markedDocument = (sanitizer.visit(parsed) as? Document) ?? parsed
         var result = parse(markedDocument.format())
 
@@ -207,9 +207,18 @@ private struct StrikethroughSanitizer: MarkupRewriter {
     }
 
     private(set) var replacements: [Replacement] = []
+    private var occupiedText: String
+
+    init(source: String) {
+        occupiedText = source
+    }
 
     mutating func visitStrikethrough(_ strikethrough: Strikethrough) -> Markup? {
-        let token = "THOUGHTBOXSTRIKE\(replacements.count)TOKEN"
+        var token: String
+        repeat {
+            token = "\u{E000}\(UUID().uuidString)\u{E001}"
+        } while occupiedText.contains(token)
+        occupiedText.append(token)
         let markdown = Paragraph(Array(strikethrough.inlineChildren)).format()
             .trimmingCharacters(in: .whitespacesAndNewlines)
         replacements.append(Replacement(token: token, markdown: markdown))

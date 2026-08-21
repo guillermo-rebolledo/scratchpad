@@ -20,6 +20,7 @@ struct MainView: View {
     @Query(sort: \Thought.createdAt, order: .reverse) private var thoughts: [Thought]
     @State private var collection: LibraryCollection? = .allThoughts
     @State private var selectedThoughtID: UUID?
+    @State private var editNavigationGuard = ThoughtEditNavigationGuard()
 
     var body: some View {
         NavigationSplitView {
@@ -44,7 +45,7 @@ struct MainView: View {
                             .accessibilityHint("Opens the persistent Draft editor.")
                     }
                 } else {
-                    List(thoughts, selection: $selectedThoughtID) { thought in
+                    List(thoughts, selection: guardedSelection) { thought in
                         ThoughtRow(thought: thought)
                             .tag(thought.id)
                     }
@@ -55,7 +56,7 @@ struct MainView: View {
             .navigationTitle(collection?.rawValue ?? "Thoughts")
         } detail: {
             if let selectedThought {
-                ThoughtDetailView(thought: selectedThought)
+                ThoughtDetailView(thought: selectedThought, editNavigationGuard: editNavigationGuard)
                     .id(selectedThought.id)
             } else {
                 ContentUnavailableView("Select a Thought", systemImage: "doc.text")
@@ -67,6 +68,16 @@ struct MainView: View {
 
     private var selectedThought: Thought? {
         thoughts.first { $0.id == selectedThoughtID }
+    }
+
+    private var guardedSelection: Binding<UUID?> {
+        Binding(
+            get: { selectedThoughtID },
+            set: { requestedID in
+                guard requestedID == selectedThoughtID || editNavigationGuard.canLeaveEditor() else { return }
+                selectedThoughtID = requestedID
+            }
+        )
     }
 
     private func selectNewestThought() {

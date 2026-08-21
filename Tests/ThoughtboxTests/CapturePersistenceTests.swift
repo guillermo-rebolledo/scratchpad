@@ -66,4 +66,20 @@ struct CapturePersistenceTests {
         }
         #expect(draft.markdown == "Still here after failure")
     }
+
+    @Test("A failed repository capture removes its pending insertion before retry")
+    func failedCaptureDoesNotPersistLater() throws {
+        struct SimulatedFailure: Error {}
+
+        let repository = try ThoughtRepository.inMemory()
+        #expect(throws: SimulatedFailure.self) {
+            try repository.capture(
+                markdown: "Failed once",
+                saveChanges: { throw SimulatedFailure() }
+            )
+        }
+
+        _ = try repository.capture(markdown: "Successful retry")
+        #expect(try repository.allThoughts().map(\.markdown) == ["Successful retry"])
+    }
 }

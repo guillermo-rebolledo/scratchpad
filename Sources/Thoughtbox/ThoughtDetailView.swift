@@ -1,6 +1,16 @@
 import SwiftData
 import SwiftUI
 
+@MainActor
+@Observable
+final class ThoughtEditNavigationGuard {
+    var saveBeforeLeaving: (() -> Bool)?
+
+    func canLeaveEditor() -> Bool {
+        saveBeforeLeaving?() ?? true
+    }
+}
+
 private enum ThoughtPresentationMode: String, CaseIterable, Identifiable {
     case read = "Read"
     case edit = "Edit"
@@ -10,6 +20,7 @@ private enum ThoughtPresentationMode: String, CaseIterable, Identifiable {
 
 struct ThoughtDetailView: View {
     let thought: Thought
+    let editNavigationGuard: ThoughtEditNavigationGuard
     @State private var mode = ThoughtPresentationMode.read
 
     var body: some View {
@@ -26,7 +37,7 @@ struct ThoughtDetailView: View {
 
                 Spacer()
 
-                Picker("Thought presentation", selection: $mode) {
+                Picker("Thought presentation", selection: guardedMode) {
                     ForEach(ThoughtPresentationMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode)
                     }
@@ -48,9 +59,19 @@ struct ThoughtDetailView: View {
                         .padding()
                 }
             case .edit:
-                ThoughtSourceEditor(thought: thought)
+                ThoughtSourceEditor(thought: thought, editNavigationGuard: editNavigationGuard)
             }
         }
+    }
+
+    private var guardedMode: Binding<ThoughtPresentationMode> {
+        Binding(
+            get: { mode },
+            set: { requestedMode in
+                guard requestedMode == mode || editNavigationGuard.canLeaveEditor() else { return }
+                mode = requestedMode
+            }
+        )
     }
 }
 
@@ -63,9 +84,11 @@ private struct ThoughtSourceEditor: View {
     @State private var pendingSave: Task<Void, Never>?
 
     let thought: Thought
+    let editNavigationGuard: ThoughtEditNavigationGuard
 
-    init(thought: Thought) {
+    init(thought: Thought, editNavigationGuard: ThoughtEditNavigationGuard) {
         self.thought = thought
+        self.editNavigationGuard = editNavigationGuard
         _markdown = State(initialValue: thought.markdown)
         _lastSavedMarkdown = State(initialValue: thought.markdown)
     }
@@ -102,8 +125,15 @@ private struct ThoughtSourceEditor: View {
             }
         }
         .padding()
-        .onAppear { editorFocused = true }
-        .onDisappear { saveNow() }
+        .onAppear {
+            editNavigationGuard.saveBeforeLeaving = saveNow
+            editorFocused = true
+        }
+        .onDisappear {
+            if saveNow() {
+                editNavigationGuard.saveBeforeLeaving = nil
+            }
+        }
     }
 
     private func scheduleSave() {
@@ -115,17 +145,24 @@ private struct ThoughtSourceEditor: View {
         }
     }
 
-    private func saveNow() {
+    @discardableResult
+    private func saveNow() -> Bool {
         pendingSave?.cancel()
-        guard markdown != lastSavedMarkdown else { return }
+        guard markdown != lastSavedMarkdown else {
+            saveError = nil
+            return true
+        }
 
         do {
             let repository = ThoughtRepository(context: modelContext)
             try repository.update(thought, markdown: markdown)
             lastSavedMarkdown = markdown
             saveError = nil
+            return true
         } catch {
-            saveError = "Thoughtbox could not save these changes. Keep this editor open and try again."
+            saveError = "Thoughtbox could not save these changes. Restore non-empty content or retry before leaving Edit."
+            editorFocused = true
+            return false
         }
     }
 }

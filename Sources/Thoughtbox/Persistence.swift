@@ -27,15 +27,28 @@ final class ThoughtRepository {
     }
 
     @discardableResult
-    func capture(markdown: String, at date: Date = .now) throws -> Thought {
+    func capture(
+        markdown: String,
+        at date: Date = .now,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws -> Thought {
         guard markdown.containsNonWhitespace else {
             throw CaptureError.emptyThought
         }
 
         let thought = Thought(markdown: markdown, createdAt: date)
         context.insert(thought)
-        try context.save()
-        return thought
+        do {
+            if let saveChanges {
+                try saveChanges()
+            } else {
+                try context.save()
+            }
+            return thought
+        } catch {
+            context.delete(thought)
+            throw error
+        }
     }
 
     func allThoughts() throws -> [Thought] {

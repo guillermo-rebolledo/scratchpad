@@ -43,8 +43,8 @@ struct MarkdownExperienceTests {
         #expect(!document.renderableSource.contains("https://tracker.example/pixel.png"))
         #expect(!document.renderableSource.contains("https://tracker.example/escaped.png"))
 
-        let inlineCode = InlineMarkdown.attributed("`a~~b` and ~~removed~~ and \\~~literal")
-        #expect(String(inlineCode.characters) == "a~~b and removed and ~~literal")
+        let inlineCode = InlineMarkdown.attributed("THOUGHTBOXSTRIKE0TOKEN `a~~b` and ~~removed~~ and \\~~literal")
+        #expect(String(inlineCode.characters) == "THOUGHTBOXSTRIKE0TOKEN a~~b and removed and ~~literal")
         let struckRuns = inlineCode.runs.filter { $0.strikethroughStyle != nil }
         #expect(struckRuns.count == 1)
         #expect(String(inlineCode[struckRuns[0].range].characters) == "removed")
@@ -131,5 +131,15 @@ struct MarkdownExperienceTests {
             try repository.update(thought, markdown: " \n\t")
         }
         #expect(thought.markdown == "Keep me")
+    }
+
+    @Test("Navigation stays in the editor until pending changes save")
+    func navigationGuardRequiresSuccessfulSave() {
+        let guardrail = ThoughtEditNavigationGuard()
+        guardrail.saveBeforeLeaving = { false }
+        #expect(!guardrail.canLeaveEditor())
+
+        guardrail.saveBeforeLeaving = { true }
+        #expect(guardrail.canLeaveEditor())
     }
 }
