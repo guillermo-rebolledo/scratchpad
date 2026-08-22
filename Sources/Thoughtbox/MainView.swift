@@ -320,7 +320,9 @@ struct MainView: View {
             announceSearchResults()
         }
         .onChange(of: selectedThoughtIDs) { _, selection in
-            announce(String(localized: "\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected"))
+            announceForAccessibility(
+                String(localized: "\(selection.count) Thought\(selection.count == 1 ? "" : "s") selected")
+            )
         }
         .focusedSceneValue(\.projectCommandActions, focusedProjectCommandActions)
         .focusedSceneValue(\.thoughtSelectionCommandActions, focusedThoughtSelectionCommandActions)
@@ -960,17 +962,8 @@ struct MainView: View {
 
     private func announceSearchResults() {
         guard searchText.containsNonWhitespace else { return }
-        announce(String(localized: "\(visibleThoughts.count) search result\(visibleThoughts.count == 1 ? "" : "s") in \(collectionTitle)"))
-    }
-
-    private func announce(_ message: String) {
-        NSAccessibility.post(
-            element: NSApp as Any,
-            notification: .announcementRequested,
-            userInfo: [
-                .announcement: message,
-                .priority: NSAccessibilityPriorityLevel.medium.rawValue
-            ]
+        announceForAccessibility(
+            String(localized: "\(visibleThoughts.count) search result\(visibleThoughts.count == 1 ? "" : "s") in \(collectionTitle)")
         )
     }
 

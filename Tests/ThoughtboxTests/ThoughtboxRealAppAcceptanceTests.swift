@@ -199,16 +199,12 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(error.waitForExistence(timeout: 3))
         XCTAssertEqual(error.label, "Save error: Enter a Thought before saving.")
         XCTAssertEqual(editor.value as? String, "  \n")
-        app.typeText("x")
-        XCTAssertEqual(editor.value as? String, "  \nx")
-        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        assertTypingFocus(on: editor, preserving: "  \n", in: app)
 
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
         XCTAssertTrue(error.exists)
         XCTAssertEqual(editor.value as? String, "  \n")
-        app.typeText("x")
-        XCTAssertEqual(editor.value as? String, "  \nx")
-        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        assertTypingFocus(on: editor, preserving: "  \n", in: app)
 
         editor.typeKey("a", modifierFlags: .command)
         editor.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
@@ -236,23 +232,17 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(error.waitForExistence(timeout: 3))
         XCTAssertEqual(error.label, "Project error: Enter a Project name.")
         XCTAssertEqual(name.value as? String, "   ")
-        app.typeText("x")
-        XCTAssertEqual(name.value as? String, "   x")
-        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        assertTypingFocus(on: name, preserving: "   ", in: app)
 
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
         XCTAssertTrue(error.exists)
         XCTAssertEqual(name.value as? String, "   ")
-        app.typeText("x")
-        XCTAssertEqual(name.value as? String, "   x")
-        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        assertTypingFocus(on: name, preserving: "   ", in: app)
 
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
         XCTAssertTrue(error.exists)
         XCTAssertEqual(name.value as? String, "   ")
-        app.typeText("x")
-        XCTAssertEqual(name.value as? String, "   x")
-        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+        assertTypingFocus(on: name, preserving: "   ", in: app)
 
         name.typeKey("a", modifierFlags: .command)
         name.typeText("Valid Project")
@@ -1262,6 +1252,18 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         [element.label, element.value as? String]
             .compactMap { $0 }
             .joined(separator: " ")
+    }
+
+    private func assertTypingFocus(
+        on element: XCUIElement,
+        preserving value: String,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        app.typeText("x")
+        XCTAssertEqual(element.value as? String, value + "x", file: file, line: line)
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
     }
 
     private func controlIsOn(_ element: XCUIElement) -> Bool {
