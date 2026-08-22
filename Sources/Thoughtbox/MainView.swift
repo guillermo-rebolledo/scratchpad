@@ -1047,7 +1047,6 @@ private struct ProjectEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @FocusState private var nameFocused: Bool
-    @AccessibilityFocusState private var errorFocused: Bool
     @State private var name: String
     @State private var errorMessage: String?
 
@@ -1071,6 +1070,11 @@ private struct ProjectEditorSheet: View {
                 .accessibilityHint("Names are trimmed and compared without regard to capitalization.")
                 .accessibilityIdentifier("project.name")
                 .onSubmit(save)
+                .onKeyPress(.return, phases: .down) { press in
+                    guard press.modifiers.contains(.command) else { return .ignored }
+                    save()
+                    return .handled
+                }
 
             if let errorMessage {
                 AccessibleErrorMessage(
@@ -1078,7 +1082,6 @@ private struct ProjectEditorSheet: View {
                     accessibilityLabel: "Project error: \(errorMessage)",
                     identifier: "project.error"
                 )
-                    .accessibilityFocused($errorFocused)
             }
 
             HStack {
@@ -1087,14 +1090,13 @@ private struct ProjectEditorSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button(project == nil ? "Create Project" : "Save Name", action: save)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!name.containsNonWhitespace)
                     .accessibilityHint("Saves the trimmed Project name if it is unique.")
                     .accessibilityIdentifier("project.save")
             }
         }
         .padding(20)
         .frame(width: 380)
-        .onAppear { nameFocused = true }
+        .onAppear(perform: focusName)
     }
 
     private func save() {
@@ -1116,7 +1118,16 @@ private struct ProjectEditorSheet: View {
             } else {
                 errorMessage = ProjectError.couldNotSave.localizedDescription
             }
-            errorFocused = true
+            if let errorMessage {
+                announceForAccessibility(errorMessage, priority: .high)
+            }
+            focusName()
+        }
+    }
+
+    private func focusName() {
+        nameFocused = false
+        Task { @MainActor in
             nameFocused = true
         }
     }

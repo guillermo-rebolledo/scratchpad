@@ -1,4 +1,20 @@
+import AppKit
 import SwiftUI
+
+@MainActor
+func announceForAccessibility(
+    _ message: String,
+    priority: NSAccessibilityPriorityLevel = .medium
+) {
+    NSAccessibility.post(
+        element: NSApp as Any,
+        notification: .announcementRequested,
+        userInfo: [
+            .announcement: message,
+            .priority: priority.rawValue
+        ]
+    )
+}
 
 struct ErrorMessagePalette: Sendable {
     struct RGB: Sendable {

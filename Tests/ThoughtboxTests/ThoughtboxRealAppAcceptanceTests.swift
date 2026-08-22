@@ -186,13 +186,30 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(accessibilityText(of: error).contains("Your Draft is still here"))
     }
 
-    func testKeyboardSaveNewlineAndWhitespaceValidation() throws {
+    func testCaptureSubmissionExplainsBlankDraftAndAllowsValidRetry() throws {
         let app = try launch(reset: true)
         let editor = openCapture(in: app)
         let saveButton = app.buttons["capture.save"]
 
-        editor.typeText(" \n\t")
-        XCTAssertFalse(saveButton.isEnabled)
+        editor.typeText("  \n")
+        XCTAssertTrue(saveButton.isEnabled)
+        saveButton.click()
+
+        let error = app.descendants(matching: .any)["capture.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertEqual(error.label, "Save error: Enter a Thought before saving.")
+        XCTAssertEqual(editor.value as? String, "  \n")
+        app.typeText("x")
+        XCTAssertEqual(editor.value as? String, "  \nx")
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
+        XCTAssertTrue(error.exists)
+        XCTAssertEqual(editor.value as? String, "  \n")
+        app.typeText("x")
+        XCTAssertEqual(editor.value as? String, "  \nx")
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
         editor.typeKey("a", modifierFlags: .command)
         editor.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
         editor.typeText("First line")
@@ -202,6 +219,47 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         XCTAssertFalse(editor.exists)
         XCTAssertTrue(app.staticTexts["First line\nSecond line"].waitForExistence(timeout: 3))
+    }
+
+    func testProjectSubmissionExplainsBlankNameAndAllowsValidRetry() throws {
+        let app = try launch(reset: true)
+        app.buttons["project.create"].click()
+        let name = app.textFields["project.name"]
+        let saveButton = app.buttons["project.save"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+
+        name.typeText("   ")
+        XCTAssertTrue(saveButton.isEnabled)
+        saveButton.click()
+
+        let error = app.descendants(matching: .any)["project.error"]
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+        XCTAssertEqual(error.label, "Project error: Enter a Project name.")
+        XCTAssertEqual(name.value as? String, "   ")
+        app.typeText("x")
+        XCTAssertEqual(name.value as? String, "   x")
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+        XCTAssertTrue(error.exists)
+        XCTAssertEqual(name.value as? String, "   ")
+        app.typeText("x")
+        XCTAssertEqual(name.value as? String, "   x")
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
+        XCTAssertTrue(error.exists)
+        XCTAssertEqual(name.value as? String, "   ")
+        app.typeText("x")
+        XCTAssertEqual(name.value as? String, "   x")
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        name.typeKey("a", modifierFlags: .command)
+        name.typeText("Valid Project")
+        name.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+
+        XCTAssertFalse(name.exists)
+        XCTAssertTrue(element(labeled: "Valid Project", in: app).waitForExistence(timeout: 3))
     }
 
     func testDraftSurvivesDismissalAndRelaunchUntilConfirmedClear() throws {
