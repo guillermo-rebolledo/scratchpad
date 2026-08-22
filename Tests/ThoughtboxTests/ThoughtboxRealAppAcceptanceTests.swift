@@ -121,12 +121,56 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         let sidebar = app.descendants(matching: .any)["library.sidebar.all"]
         setSidebarVisibility(false, in: app, sidebar: sidebar)
-        XCTAssertTrue(app.descendants(matching: .any)["library.thoughts"].isHittable)
+        let collapsedThoughtList = app.descendants(matching: .any)["library.thoughts"]
+        XCTAssertTrue(collapsedThoughtList.isHittable)
         XCTAssertTrue(app.descendants(matching: .any)["thought.detail"].isHittable)
+        XCTAssertEqual(
+            collapsedThoughtList.frame.minX,
+            window.frame.minX,
+            accuracy: 2,
+            "The Thought list should reclaim the sidebar's full width when the sidebar is hidden."
+        )
 
         setSidebarVisibility(true, in: app, sidebar: sidebar)
         setSidebarVisibility(false, in: app, sidebar: sidebar)
         setSidebarVisibility(true, in: app, sidebar: sidebar)
+    }
+
+    func testCollapsedSidebarReclaimsWidthAfterWindowExpansion() throws {
+        let app = try launch(reset: true)
+        capture("Expanded window Thought", in: app)
+
+        let window = app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 3))
+        let originalFrame = window.frame
+        let visibleThoughtList = app.descendants(matching: .any)["library.thoughts"]
+        let visibleThoughtRow = thoughtRow("Expanded window Thought", in: app)
+        let standardRowInset = visibleThoughtRow.frame.minX - visibleThoughtList.frame.minX
+        let sidebar = app.descendants(matching: .any)["library.sidebar.all"]
+        setSidebarVisibility(false, in: app, sidebar: sidebar)
+
+        let resizeHandle = window.coordinate(withNormalizedOffset: CGVector(dx: 0.995, dy: 0.995))
+        let expandedTarget = window.coordinate(withNormalizedOffset: CGVector(dx: 1.2, dy: 1.2))
+        resizeHandle.press(forDuration: 0.1, thenDragTo: expandedTarget, withVelocity: .slow, thenHoldForDuration: 0)
+
+        XCTAssertGreaterThan(window.frame.width, originalFrame.width + 100)
+        XCTAssertFalse(sidebar.isHittable)
+        let expandedThoughtList = app.descendants(matching: .any)["library.thoughts"]
+        XCTAssertTrue(expandedThoughtList.isHittable)
+        XCTAssertEqual(
+            expandedThoughtList.frame.minX,
+            window.frame.minX,
+            accuracy: 2,
+            "The Thought list should remain flush with the window after expanding with the sidebar hidden."
+        )
+        let expandedThoughtRow = thoughtRow("Expanded window Thought", in: app)
+        XCTAssertTrue(expandedThoughtRow.isHittable)
+        XCTAssertEqual(
+            expandedThoughtRow.frame.minX - window.frame.minX,
+            standardRowInset,
+            accuracy: 2,
+            "Collapsed navigation must not leave an empty leading rail before Thought rows."
+        )
     }
 
     func testFailedSaveKeepsDraftAndShowsAccessibleError() throws {

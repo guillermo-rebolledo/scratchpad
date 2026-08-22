@@ -209,6 +209,10 @@ struct MainView: View {
                     .accessibilityIdentifier("library.thoughts")
                 }
             }
+            .ignoresSafeArea(
+                .container,
+                edges: columnVisibility == .doubleColumn ? .leading : []
+            )
             .navigationTitle(collectionTitle)
             .searchable(text: guardedSearchText, placement: .toolbar, prompt: "Search \(collectionTitle)")
             .toolbar {
