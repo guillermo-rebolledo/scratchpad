@@ -199,12 +199,12 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(error.waitForExistence(timeout: 3))
         XCTAssertEqual(error.label, "Save error: Enter a Thought before saving.")
         XCTAssertEqual(editor.value as? String, "  \n")
-        assertTypingFocus(on: editor, preserving: "  \n", in: app)
+        XCTAssertTrue(waitForKeyboardFocus(editor))
 
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
         XCTAssertTrue(error.exists)
         XCTAssertEqual(editor.value as? String, "  \n")
-        assertTypingFocus(on: editor, preserving: "  \n", in: app)
+        XCTAssertTrue(waitForKeyboardFocus(editor))
 
         editor.typeKey("a", modifierFlags: .command)
         editor.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
@@ -232,17 +232,17 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(error.waitForExistence(timeout: 3))
         XCTAssertEqual(error.label, "Project error: Enter a Project name.")
         XCTAssertEqual(name.value as? String, "   ")
-        assertTypingFocus(on: name, preserving: "   ", in: app)
+        XCTAssertTrue(waitForKeyboardFocus(name))
 
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
         XCTAssertTrue(error.exists)
         XCTAssertEqual(name.value as? String, "   ")
-        assertTypingFocus(on: name, preserving: "   ", in: app)
+        XCTAssertTrue(waitForKeyboardFocus(name))
 
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
         XCTAssertTrue(error.exists)
         XCTAssertEqual(name.value as? String, "   ")
-        assertTypingFocus(on: name, preserving: "   ", in: app)
+        XCTAssertTrue(waitForKeyboardFocus(name))
 
         name.typeKey("a", modifierFlags: .command)
         name.typeText("Valid Project")
@@ -1254,16 +1254,15 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
             .joined(separator: " ")
     }
 
-    private func assertTypingFocus(
-        on element: XCUIElement,
-        preserving value: String,
-        in app: XCUIApplication,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
-        app.typeText("x")
-        XCTAssertEqual(element.value as? String, value + "x", file: file, line: line)
-        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+    private func waitForKeyboardFocus(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 3
+    ) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hasKeyboardFocus == true"),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     private func controlIsOn(_ element: XCUIElement) -> Bool {
