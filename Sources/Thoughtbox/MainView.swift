@@ -1065,7 +1065,9 @@ private struct ProjectEditorSheet: View {
                 .onSubmit(save)
                 .onKeyPress(.return, phases: .down) { press in
                     guard press.modifiers.contains(.command) else { return .ignored }
-                    save()
+                    DispatchQueue.main.async {
+                        save()
+                    }
                     return .handled
                 }
 
