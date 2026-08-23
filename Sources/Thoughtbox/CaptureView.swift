@@ -73,7 +73,6 @@ struct CaptureView: View {
                 Spacer()
                 Button("Save Thought", action: save)
                     .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(!draft.canSave)
                     .help("Saves this Draft to the selected destination.")
                     .accessibilityHint("Saves this Draft to the selected destination, then resets the next Draft to Inbox.")
                     .accessibilityIdentifier("capture.save")
@@ -100,6 +99,7 @@ struct CaptureView: View {
     }
 
     private func focusEditor() {
+        editorFocused = false
         Task { @MainActor in
             editorFocused = true
         }
@@ -114,7 +114,6 @@ struct CaptureView: View {
     }
 
     private func save() {
-        guard draft.canSave else { return }
         errorMessage = nil
 
         do {
@@ -129,8 +128,11 @@ struct CaptureView: View {
             try service.save()
             onSaved()
         } catch {
-            errorMessage = CaptureError.couldNotSave.localizedDescription
-            editorFocused = true
+            let message = (error as? CaptureError)?.localizedDescription
+                ?? CaptureError.couldNotSave.localizedDescription
+            errorMessage = message
+            announceForAccessibility(message, priority: .high)
+            focusEditor()
         }
     }
 
