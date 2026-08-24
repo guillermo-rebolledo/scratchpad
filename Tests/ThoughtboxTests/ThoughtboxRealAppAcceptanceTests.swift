@@ -311,9 +311,9 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
     func testUnavailableSelectionShowsToastWithoutOpeningCapture() throws {
         let app = try launch(reset: true)
-        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
-        finder.activate()
-        finder.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
+        // Global delivery from another app is covered by the successful capture test. Keep the
+        // target app active here so XCTest does not wait for Finder to idle past the toast timeout.
+        app.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
 
         let toast = app.descendants(matching: .any)["selectionCapture.toast"]
         XCTAssertTrue(toast.waitForExistence(timeout: 3))
@@ -326,17 +326,16 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
             reset: true,
             additionalArguments: ["--simulate-selection-permission-required"]
         )
-        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
-        finder.activate()
-        finder.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
+        app.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
 
-        let cancel = app.buttons["Cancel"]
+        let permissionDialog = app.dialogs.firstMatch
+        XCTAssertTrue(permissionDialog.waitForExistence(timeout: 3))
+        let cancel = permissionDialog.buttons["Cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Allow Selection Capture"].exists)
         cancel.click()
 
-        finder.activate()
-        finder.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
+        app.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
         XCTAssertTrue(app.descendants(matching: .any)["selectionCapture.toast"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["selectionCapture.toast.openSettings"].exists)
         XCTAssertFalse(app.textViews["capture.editor"].exists)
