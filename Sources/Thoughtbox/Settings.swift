@@ -163,6 +163,8 @@ final class SettingsModel {
     private var registerShortcut: ((CaptureShortcut) throws -> Void)?
     private var registerSelectionShortcut: ((CaptureShortcut) throws -> Void)?
     private var selectionPermissionStatus: ((Bool) async -> Bool)?
+    private var selectionPermissionOnboardingTask: Task<Void, Never>?
+    private var selectionPermissionOnboardingPending = false
 
     private(set) var shortcut: CaptureShortcut
     private(set) var shortcutError: String?
@@ -275,6 +277,9 @@ final class SettingsModel {
 
     func connectSelectionPermissionStatus(_ status: @escaping (Bool) async -> Bool) {
         selectionPermissionStatus = status
+        guard selectionPermissionOnboardingPending else { return }
+        selectionPermissionOnboardingPending = false
+        requestSelectionPermissionOnboardingIfNeeded()
     }
 
     func refreshSelectionPermission() async {
@@ -344,8 +349,27 @@ final class SettingsModel {
     }
 
     private func requestSelectionPermissionOnboardingIfNeeded() {
-        guard selectionPermissionGranted == false,
-              !defaults.bool(forKey: SelectionFailurePresenter.permissionAlertShownKey) else { return }
+        guard !defaults.bool(forKey: SelectionFailurePresenter.permissionAlertShownKey) else {
+            selectionPermissionOnboardingPending = false
+            return
+        }
+        if selectionPermissionGranted == nil {
+            guard selectionPermissionStatus != nil else {
+                selectionPermissionOnboardingPending = true
+                return
+            }
+            selectionPermissionOnboardingPending = false
+            selectionPermissionOnboardingTask?.cancel()
+            selectionPermissionOnboardingTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await refreshSelectionPermission()
+                guard !Task.isCancelled else { return }
+                selectionPermissionOnboardingTask = nil
+                requestSelectionPermissionOnboardingIfNeeded()
+            }
+            return
+        }
+        guard selectionPermissionGranted == false else { return }
         defaults.set(true, forKey: SelectionFailurePresenter.permissionAlertShownKey)
         selectionPermissionAlertRequested = true
     }

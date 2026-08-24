@@ -40,6 +40,7 @@ cp "$binary_directory/Thoughtbox" "$app_path/Contents/MacOS/Thoughtbox"
 cp "$binary_directory/ThoughtboxSelectionHelper" \
     "$helper_path/Contents/MacOS/ThoughtboxSelectionHelper"
 cp Resources/SelectionHelper-Info.plist "$helper_path/Contents/Info.plist"
+plutil -replace CFBundleDevelopmentRegion -string en "$helper_path/Contents/Info.plist"
 plutil -replace CFBundleExecutable -string ThoughtboxSelectionHelper "$helper_path/Contents/Info.plist"
 plutil -replace CFBundleIdentifier -string com.memoji.Thoughtbox.SelectionHelper "$helper_path/Contents/Info.plist"
 plutil -replace CFBundleName -string ThoughtboxSelectionHelper "$helper_path/Contents/Info.plist"

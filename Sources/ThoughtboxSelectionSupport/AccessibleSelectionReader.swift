@@ -1,15 +1,24 @@
 import ApplicationServices
 import Foundation
 
-public struct AccessibilitySelectionSnapshot: Equatable, Sendable {
+public final class AccessibilitySelectionSnapshot {
     public static let secureTextFieldSubrole = "AXSecureTextField"
 
     public let subrole: String?
-    public let selectedText: String?
+    private let selectedTextProvider: () -> String?
 
     public init(subrole: String?, selectedText: String?) {
         self.subrole = subrole
-        self.selectedText = selectedText
+        selectedTextProvider = { selectedText }
+    }
+
+    public init(subrole: String?, selectedTextProvider: @escaping () -> String?) {
+        self.subrole = subrole
+        self.selectedTextProvider = selectedTextProvider
+    }
+
+    public func selectedText() -> String? {
+        selectedTextProvider()
     }
 }
 
@@ -41,7 +50,7 @@ public struct AccessibleSelectionReader {
         }
         guard let snapshot = source.focusedSelection(),
               snapshot.subrole != AccessibilitySelectionSnapshot.secureTextFieldSubrole,
-              let text = snapshot.selectedText,
+              let text = snapshot.selectedText(),
               text.containsNonWhitespace else {
             return .noSelection
         }
@@ -66,8 +75,9 @@ public final class SystemAccessibilitySelectionSource: AccessibilitySelectionSou
         }
 
         let subrole: String? = attribute(kAXSubroleAttribute as CFString, from: focusedElement)
-        let selectedText: String? = attribute(kAXSelectedTextAttribute as CFString, from: focusedElement)
-        return AccessibilitySelectionSnapshot(subrole: subrole, selectedText: selectedText)
+        return AccessibilitySelectionSnapshot(subrole: subrole) { [weak self] in
+            self?.attribute(kAXSelectedTextAttribute as CFString, from: focusedElement)
+        }
     }
 
     private func attribute<Value>(_ name: CFString, from element: AXUIElement) -> Value? {

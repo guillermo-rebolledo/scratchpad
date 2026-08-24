@@ -43,6 +43,15 @@ authenticated_peer_files="$(grep -l -F 'setCodeSigningRequirement' \
     printf '%s\n' "Both sides of the selection XPC boundary must authenticate peers." >&2
     exit 1
 }
+grep -F 'Sources/ThoughtboxSelectionHelper' \
+    "$repository_directory/Scripts/release/verify-product-release.sh" >/dev/null
+grep -F 'Sources/ThoughtboxSelectionSupport' \
+    "$repository_directory/Scripts/release/verify-product-release.sh" >/dev/null
+grep -E 'NSPasteboard.*UserDefaults.*FileManager' \
+    "$repository_directory/Scripts/release/verify-product-release.sh" >/dev/null || {
+    printf '%s\n' "Selection helper privacy API gates are missing." >&2
+    exit 1
+}
 printf '%s\n' "$release_build_settings" |
     awk '
         $1 == "LD_RUNPATH_SEARCH_PATHS" && $2 == "=" {
@@ -136,6 +145,18 @@ if printf '%s' '{"com.apple.security.network.client":true}' |
     ruby "$script_directory/verify-entitlements.rb" selection-helper fixture >/dev/null 2>&1
 then
     printf '%s\n' "A selection helper with unrelated entitlements unexpectedly passed." >&2
+    exit 1
+fi
+
+unauthorized_peer="$test_directory/unauthorized-peer"
+cp /bin/echo "$unauthorized_peer"
+codesign --force --sign - --identifier com.memoji.Thoughtbox "$unauthorized_peer" >/dev/null 2>&1
+codesign --verify -R='identifier "com.memoji.Thoughtbox"' "$unauthorized_peer"
+if codesign --verify \
+    -R='anchor apple generic and identifier "com.memoji.Thoughtbox" and certificate leaf[subject.OU] = "LY8CA9554J"' \
+    "$unauthorized_peer" >/dev/null 2>&1
+then
+    printf '%s\n' "An unauthorized identifier-only peer unexpectedly passed the production requirement." >&2
     exit 1
 fi
 

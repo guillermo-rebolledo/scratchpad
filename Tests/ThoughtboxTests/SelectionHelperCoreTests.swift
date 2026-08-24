@@ -37,6 +37,24 @@ struct SelectionHelperCoreTests {
         #expect(AccessibleSelectionReader(source: whitespace).read() == .noSelection)
     }
 
+    @Test("Secure fields are rejected before selected text is requested")
+    func secureFieldNeverReadsSelectedText() {
+        let counter = ReadCounter()
+        let secure = TestAccessibilitySelectionSource(
+            trusted: true,
+            snapshot: AccessibilitySelectionSnapshot(
+                subrole: AccessibilitySelectionSnapshot.secureTextFieldSubrole,
+                selectedTextProvider: {
+                    counter.count += 1
+                    return "must never be read"
+                }
+            )
+        )
+
+        #expect(AccessibleSelectionReader(source: secure).read() == .noSelection)
+        #expect(counter.count == 0)
+    }
+
     @Test("Permission prompting remains an explicit caller decision")
     func permissionPromptIsExplicit() {
         let source = TestAccessibilitySelectionSource(trusted: false, snapshot: nil)
@@ -46,6 +64,10 @@ struct SelectionHelperCoreTests {
         #expect(reader.permissionStatus(prompt: true) == false)
         #expect(source.prompts == [false, true])
     }
+}
+
+private final class ReadCounter {
+    var count = 0
 }
 
 private final class TestAccessibilitySelectionSource: AccessibilitySelectionSource {

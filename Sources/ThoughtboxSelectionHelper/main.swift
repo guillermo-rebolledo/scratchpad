@@ -1,5 +1,4 @@
 import Foundation
-import Security
 #if canImport(ThoughtboxSelectionSupport)
 import ThoughtboxSelectionSupport
 #endif
@@ -39,37 +38,12 @@ private final class SelectionHelperListenerDelegate: NSObject, NSXPCListenerDele
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         connection.setCodeSigningRequirement(
-            PeerCodeSigning.requirement(bundleIdentifier: "com.memoji.Thoughtbox")
+            PeerCodeSigningRequirement.forPeer(bundleIdentifier: "com.memoji.Thoughtbox")
         )
         connection.exportedInterface = NSXPCInterface(with: SelectionHelperProtocol.self)
         connection.exportedObject = service
         connection.activate()
         return true
-    }
-}
-
-private enum PeerCodeSigning {
-    static func requirement(bundleIdentifier: String) -> String {
-        guard let teamIdentifier else {
-            return "identifier \"\(bundleIdentifier)\""
-        }
-        return "anchor apple generic and identifier \"\(bundleIdentifier)\" and certificate leaf[subject.OU] = \"\(teamIdentifier)\""
-    }
-
-    private static var teamIdentifier: String? {
-        var code: SecStaticCode?
-        guard SecStaticCodeCreateWithPath(Bundle.main.bundleURL as CFURL, [], &code) == errSecSuccess,
-              let code else { return nil }
-        var information: CFDictionary?
-        guard SecCodeCopySigningInformation(
-            code,
-            SecCSFlags(rawValue: kSecCSSigningInformation),
-            &information
-        ) == errSecSuccess,
-        let values = information as? [CFString: Any] else {
-            return nil
-        }
-        return values[kSecCodeInfoTeamIdentifier] as? String
     }
 }
 

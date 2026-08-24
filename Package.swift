@@ -18,6 +18,7 @@ let package = Package(
             name: "Thoughtbox",
             dependencies: [
                 .product(name: "Markdown", package: "swift-markdown"),
+                "ThoughtboxSelectionSupport",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/Thoughtbox",

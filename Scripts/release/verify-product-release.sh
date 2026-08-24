@@ -71,8 +71,18 @@ for key, value in catalog.get("strings", {}).items():
 PY
 
 if grep -RInE 'URLSession|WKWebView|import[[:space:]]+(Network|WebKit)|NSSharingService|Telemetry|Analytics|Crashlytics|Sentry' \
-    "$sources" --include='*.swift'; then
+    "$sources" \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper" \
+    "$repository_directory/Sources/ThoughtboxSelectionSupport" \
+    --include='*.swift'; then
     printf '%s\n' "An unapproved network, telemetry, or sharing API was found in app source." >&2
+    exit 1
+fi
+if grep -RInE 'NSPasteboard|UserDefaults|FileManager|import[[:space:]]+(SwiftData|CoreData|ScreenCaptureKit|AVFoundation)|NSAppleScript|CGWindowList' \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper" \
+    "$repository_directory/Sources/ThoughtboxSelectionSupport" \
+    --include='*.swift'; then
+    printf '%s\n' "The selection helper must not use clipboard, persistence, screen capture, or automation APIs." >&2
     exit 1
 fi
 if grep -RInE 'Logger\(|os_log|NSLog\(|(^|[^[:alnum:]_])print\(' \

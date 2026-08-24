@@ -167,6 +167,24 @@ struct SettingsTests {
         #expect(prompts == [false, true])
         #expect(model.selectionPermissionGranted == true)
     }
+
+    @Test("Configuring Capture Selection waits for an unknown permission status before onboarding")
+    func selectionPermissionUnknownDuringConfiguration() async {
+        let defaults = UserDefaults(suiteName: "ThoughtboxPendingPermissionSettings-\(UUID().uuidString)")!
+        let model = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+        model.connectSelectionShortcutRegistration { _ in }
+
+        model.assignSelectionShortcut(.init(keyCode: 38, modifiers: [.control, .option, .shift]))
+        for _ in 0..<4 { await Task.yield() }
+        #expect(model.selectionPermissionGranted == nil)
+        #expect(model.selectionPermissionAlertRequested == false)
+
+        model.connectSelectionPermissionStatus { _ in false }
+        for _ in 0..<4 where !model.selectionPermissionAlertRequested { await Task.yield() }
+
+        #expect(model.selectionPermissionGranted == false)
+        #expect(model.selectionPermissionAlertRequested)
+    }
 }
 
 @MainActor

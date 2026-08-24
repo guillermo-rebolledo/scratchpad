@@ -1,5 +1,7 @@
 import Foundation
-import Security
+#if canImport(ThoughtboxSelectionSupport)
+import ThoughtboxSelectionSupport
+#endif
 
 @objc(ThoughtboxSelectionHelperProtocol)
 private protocol SelectionHelperProtocol {
@@ -15,12 +17,16 @@ private enum SelectionHelperReplyCode {
 @MainActor
 final class SelectionHelperClient: SelectionProviding {
     static let serviceName = "com.memoji.Thoughtbox.SelectionHelper"
-    private static let timeout: Duration = .seconds(1)
+    static let requestTimeout: Duration = .seconds(1)
 
     func selectedText() async throws -> String {
         let connection = makeConnection()
         return try await withCheckedThrowingContinuation { continuation in
-            let request = ThrowingXPCRequest(continuation: continuation, connection: connection)
+            let request = ThrowingXPCRequest(continuation: continuation) {
+                connection.invalidationHandler = nil
+                connection.interruptionHandler = nil
+                connection.invalidate()
+            }
             configureFailureHandlers(for: connection, request: request)
             connection.activate()
             guard let proxy = connection.remoteObjectProxyWithErrorHandler({ _ in
@@ -42,14 +48,18 @@ final class SelectionHelperClient: SelectionProviding {
                     }
                 }
             }
-            request.startTimeout(Self.timeout, fallback: .unavailable)
+            request.startTimeout(Self.requestTimeout, fallback: .unavailable)
         }
     }
 
     func accessibilityPermissionStatus(prompt: Bool) async -> Bool {
         let connection = makeConnection()
         return await withCheckedContinuation { continuation in
-            let request = ValueXPCRequest(continuation: continuation, connection: connection, fallback: false)
+            let request = ValueXPCRequest(continuation: continuation, fallback: false) {
+                connection.invalidationHandler = nil
+                connection.interruptionHandler = nil
+                connection.invalidate()
+            }
             configureFailureHandlers(for: connection, request: request)
             connection.activate()
             guard let proxy = connection.remoteObjectProxyWithErrorHandler({ _ in
@@ -61,7 +71,7 @@ final class SelectionHelperClient: SelectionProviding {
             proxy.accessibilityPermissionStatus(prompt: prompt) { granted in
                 Task { @MainActor in request.finish(granted) }
             }
-            request.startTimeout(Self.timeout, fallback: false)
+            request.startTimeout(Self.requestTimeout, fallback: false)
         }
     }
 
@@ -69,7 +79,7 @@ final class SelectionHelperClient: SelectionProviding {
         let connection = NSXPCConnection(serviceName: Self.serviceName)
         connection.remoteObjectInterface = NSXPCInterface(with: SelectionHelperProtocol.self)
         connection.setCodeSigningRequirement(
-            PeerCodeSigning.requirement(bundleIdentifier: Self.serviceName)
+            PeerCodeSigningRequirement.forPeer(bundleIdentifier: Self.serviceName)
         )
         return connection
     }
@@ -100,22 +110,23 @@ final class SelectionHelperClient: SelectionProviding {
 }
 
 @MainActor
-private final class ThrowingXPCRequest<Value: Sendable> {
+final class ThrowingXPCRequest<Value: Sendable> {
     private var continuation: CheckedContinuation<Value, any Error>?
-    private let connection: NSXPCConnection
+    private let cleanup: () -> Void
+    private var timeoutTask: Task<Void, Never>?
 
     init(
         continuation: CheckedContinuation<Value, any Error>,
-        connection: NSXPCConnection
+        cleanup: @escaping () -> Void
     ) {
         self.continuation = continuation
-        self.connection = connection
+        self.cleanup = cleanup
     }
 
     func startTimeout(_ duration: Duration, fallback: SelectionCaptureError) where Value == String {
-        Task { @MainActor [weak self] in
+        timeoutTask = Task { @MainActor [self] in
             try? await Task.sleep(for: duration)
-            self?.finish(.failure(fallback))
+            finish(.failure(fallback))
         }
     }
 
@@ -126,33 +137,34 @@ private final class ThrowingXPCRequest<Value: Sendable> {
     func finish(_ result: sending Result<Value, any Error>) {
         guard let continuation else { return }
         self.continuation = nil
-        connection.invalidationHandler = nil
-        connection.interruptionHandler = nil
-        connection.invalidate()
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        cleanup()
         continuation.resume(with: result)
     }
 }
 
 @MainActor
-private final class ValueXPCRequest<Value: Sendable> {
+final class ValueXPCRequest<Value: Sendable> {
     private var continuation: CheckedContinuation<Value, Never>?
-    private let connection: NSXPCConnection
     private let fallback: Value
+    private let cleanup: () -> Void
+    private var timeoutTask: Task<Void, Never>?
 
     init(
         continuation: CheckedContinuation<Value, Never>,
-        connection: NSXPCConnection,
-        fallback: Value
+        fallback: Value,
+        cleanup: @escaping () -> Void
     ) {
         self.continuation = continuation
-        self.connection = connection
         self.fallback = fallback
+        self.cleanup = cleanup
     }
 
     func startTimeout(_ duration: Duration, fallback: Value) {
-        Task { @MainActor [weak self] in
+        timeoutTask = Task { @MainActor [self] in
             try? await Task.sleep(for: duration)
-            self?.finish(fallback)
+            finish(fallback)
         }
     }
 
@@ -163,35 +175,10 @@ private final class ValueXPCRequest<Value: Sendable> {
     func finish(_ value: sending Value) {
         guard let continuation else { return }
         self.continuation = nil
-        connection.invalidationHandler = nil
-        connection.interruptionHandler = nil
-        connection.invalidate()
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        cleanup()
         continuation.resume(returning: value)
-    }
-}
-
-private enum PeerCodeSigning {
-    static func requirement(bundleIdentifier: String) -> String {
-        guard let teamIdentifier else {
-            return "identifier \"\(bundleIdentifier)\""
-        }
-        return "anchor apple generic and identifier \"\(bundleIdentifier)\" and certificate leaf[subject.OU] = \"\(teamIdentifier)\""
-    }
-
-    private static var teamIdentifier: String? {
-        var code: SecStaticCode?
-        guard SecStaticCodeCreateWithPath(Bundle.main.bundleURL as CFURL, [], &code) == errSecSuccess,
-              let code else { return nil }
-        var information: CFDictionary?
-        guard SecCodeCopySigningInformation(
-            code,
-            SecCSFlags(rawValue: kSecCSSigningInformation),
-            &information
-        ) == errSecSuccess,
-        let values = information as? [CFString: Any] else {
-            return nil
-        }
-        return values[kSecCodeInfoTeamIdentifier] as? String
     }
 }
 
