@@ -515,9 +515,9 @@ struct ThoughtboxSettingsView: View {
 
     private var selectionPermissionLabel: String {
         switch model.selectionPermissionGranted {
-        case true: "Granted"
-        case false: "Required"
-        case nil: "Checking…"
+        case .some(true): "Granted"
+        case .some(false): "Required"
+        case .none: "Checking…"
         }
     }
 
