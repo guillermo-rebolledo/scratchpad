@@ -35,6 +35,46 @@ struct CapturePersistenceTests {
         #expect(DraftStore(defaults: defaults).projectID == projectID)
     }
 
+    @Test("Selected text is normalized and appended without changing the Draft destination")
+    func selectedTextAppendsToDraft() throws {
+        let suiteName = "ThoughtboxTests.SelectionDraft.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let projectID = UUID()
+        let draft = DraftStore(defaults: defaults)
+        draft.markdown = "Existing **context**"
+        draft.projectID = projectID
+
+        try draft.addSelectedText("  First line\n\nSecond line  \n")
+
+        #expect(draft.markdown == "Existing **context**\n\nFirst line\n\nSecond line")
+        #expect(draft.projectID == projectID)
+        #expect(DraftStore(defaults: defaults).markdown == draft.markdown)
+    }
+
+    @Test("Selected text rejects empty and oversized results atomically")
+    func selectedTextValidationIsAtomic() throws {
+        let suiteName = "ThoughtboxTests.SelectionLimit.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let draft = DraftStore(defaults: defaults)
+        draft.markdown = "Keep"
+
+        #expect(throws: SelectionCaptureError.noSelection) {
+            try draft.addSelectedText(" \n\t ")
+        }
+        #expect(draft.markdown == "Keep")
+
+        let availableCharacters = DraftStore.maximumSelectionDraftCharacters - "Keep\n\n".count
+        try draft.addSelectedText(String(repeating: "a", count: availableCharacters))
+        #expect(draft.markdown.count == DraftStore.maximumSelectionDraftCharacters)
+
+        #expect(throws: SelectionCaptureError.tooLarge) {
+            try draft.addSelectedText("b")
+        }
+        #expect(draft.markdown.count == DraftStore.maximumSelectionDraftCharacters)
+    }
+
     @Test("Capture rejects blank input and returns newest Thoughts first")
     func captureValidationAndOrdering() throws {
         let repository = try ThoughtRepository.inMemory()

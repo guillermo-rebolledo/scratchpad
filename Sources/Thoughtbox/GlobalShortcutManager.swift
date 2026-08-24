@@ -4,33 +4,54 @@ enum GlobalShortcutError: Error, Equatable {
     case unavailable
 }
 
+enum GlobalShortcutKind: UInt32, CaseIterable, Sendable {
+    case quickCapture = 1
+    case captureSelection = 2
+}
+
 @MainActor
 final class GlobalShortcutManager {
-    nonisolated(unsafe) private var hotKey: EventHotKeyRef?
+    private static let signature = OSType(0x54484F54) // THOT
+
+    nonisolated(unsafe) private var hotKeys: [GlobalShortcutKind: EventHotKeyRef] = [:]
     nonisolated(unsafe) private var eventHandler: EventHandlerRef?
-    private var nextIdentifier: UInt32 = 1
-    private(set) var registeredShortcut: CaptureShortcut?
-    private let action: () -> Void
+    private var registeredShortcuts: [GlobalShortcutKind: CaptureShortcut] = [:]
+    private let actions: [GlobalShortcutKind: () -> Void]
+
+    var registeredShortcut: CaptureShortcut? { registeredShortcuts[.quickCapture] }
 
     init(action: @escaping () -> Void) {
-        self.action = action
+        actions = [.quickCapture: action]
+        installHandler()
+    }
+
+    init(
+        quickCapture: @escaping () -> Void,
+        captureSelection: @escaping () -> Void
+    ) {
+        actions = [
+            .quickCapture: quickCapture,
+            .captureSelection: captureSelection
+        ]
         installHandler()
     }
 
     deinit {
-        if let hotKey { UnregisterEventHotKey(hotKey) }
+        for hotKey in hotKeys.values { UnregisterEventHotKey(hotKey) }
         if let eventHandler { RemoveEventHandler(eventHandler) }
     }
 
     func register(_ shortcut: CaptureShortcut) throws {
-        guard registeredShortcut != shortcut, eventHandler != nil else {
-            if registeredShortcut == shortcut { return }
+        try register(shortcut, for: .quickCapture)
+    }
+
+    func register(_ shortcut: CaptureShortcut, for kind: GlobalShortcutKind) throws {
+        guard registeredShortcuts[kind] != shortcut, eventHandler != nil else {
+            if registeredShortcuts[kind] == shortcut { return }
             throw GlobalShortcutError.unavailable
         }
 
-        let signature = OSType(0x54484F54) // THOT
-        let identifier = EventHotKeyID(signature: signature, id: nextIdentifier)
-        nextIdentifier &+= 1
+        let identifier = EventHotKeyID(signature: Self.signature, id: kind.rawValue)
         var candidate: EventHotKeyRef?
         let status = RegisterEventHotKey(
             shortcut.keyCode,
@@ -42,14 +63,14 @@ final class GlobalShortcutManager {
         )
         guard status == noErr, let candidate else { throw GlobalShortcutError.unavailable }
 
-        if let hotKey {
-            guard UnregisterEventHotKey(hotKey) == noErr else {
+        if let current = hotKeys[kind] {
+            guard UnregisterEventHotKey(current) == noErr else {
                 UnregisterEventHotKey(candidate)
                 throw GlobalShortcutError.unavailable
             }
         }
-        hotKey = candidate
-        registeredShortcut = shortcut
+        hotKeys[kind] = candidate
+        registeredShortcuts[kind] = shortcut
     }
 
     private func installHandler() {
@@ -60,10 +81,25 @@ final class GlobalShortcutManager {
         let pointer = Unmanaged.passUnretained(self).toOpaque()
         InstallEventHandler(
             GetApplicationEventTarget(),
-            { _, _, context in
-                guard let context else { return noErr }
+            { _, event, context in
+                guard let event, let context else { return noErr }
+                var identifier = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &identifier
+                )
+                guard status == noErr,
+                      identifier.signature == GlobalShortcutManager.signature,
+                      let kind = GlobalShortcutKind(rawValue: identifier.id) else {
+                    return noErr
+                }
                 let manager = Unmanaged<GlobalShortcutManager>.fromOpaque(context).takeUnretainedValue()
-                Task { @MainActor in manager.action() }
+                Task { @MainActor in manager.actions[kind]?() }
                 return noErr
             },
             1,

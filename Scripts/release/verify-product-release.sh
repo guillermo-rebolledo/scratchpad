@@ -76,7 +76,10 @@ if grep -RInE 'URLSession|WKWebView|import[[:space:]]+(Network|WebKit)|NSSharing
     exit 1
 fi
 if grep -RInE 'Logger\(|os_log|NSLog\(|(^|[^[:alnum:]_])print\(' \
-    "$sources" --include='*.swift'; then
+    "$sources" \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper" \
+    "$repository_directory/Sources/ThoughtboxSelectionSupport" \
+    --include='*.swift'; then
     printf '%s\n' "App source must not emit Thought content or other product data to logs." >&2
     exit 1
 fi

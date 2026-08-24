@@ -57,6 +57,24 @@ codesign -d --entitlements :- "$app_path" >"$entitlements_path" 2>/dev/null
 plutil -convert json -o - "$entitlements_path" |
     ruby "$script_directory/verify-entitlements.rb" app
 
+selection_helper="$app_path/Contents/XPCServices/ThoughtboxSelectionHelper.xpc"
+selection_helper_executable="$selection_helper/Contents/MacOS/ThoughtboxSelectionHelper"
+[ -d "$selection_helper" ] && [ -x "$selection_helper_executable" ] || {
+    printf '%s\n' "The isolated Capture Selection helper is missing." >&2
+    exit 1
+}
+[ "$(plutil -extract CFBundleIdentifier raw "$selection_helper/Contents/Info.plist")" = "com.memoji.Thoughtbox.SelectionHelper" ] || {
+    printf '%s\n' "The Capture Selection helper has an unexpected bundle identifier." >&2
+    exit 1
+}
+codesign -d --entitlements :- "$selection_helper" >"$nested_entitlements_path" 2>/dev/null || true
+if [ -s "$nested_entitlements_path" ]; then
+    plutil -convert json -o - "$nested_entitlements_path" |
+        ruby "$script_directory/verify-entitlements.rb" selection-helper "$selection_helper"
+else
+    printf '{}' | ruby "$script_directory/verify-entitlements.rb" selection-helper "$selection_helper"
+fi
+
 feed_url="$(plutil -extract SUFeedURL raw "$info_path")"
 case "$feed_url" in
     https://*) ;;

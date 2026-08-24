@@ -1,9 +1,18 @@
 import Foundation
 import Observation
 
+enum SelectionCaptureError: Error, Equatable, Sendable {
+    case permissionRequired
+    case noSelection
+    case tooLarge
+    case unavailable
+}
+
 @MainActor
 @Observable
 final class DraftStore {
+    static let maximumSelectionDraftCharacters = 50_000
+
     private enum Key {
         static let markdown = "draft.markdown"
         static let projectID = "draft.projectID"
@@ -41,6 +50,18 @@ final class DraftStore {
     func prepareForCapture(in projectID: UUID?) {
         self.projectID = projectID
         destinationNotice = nil
+    }
+
+    func addSelectedText(_ text: String) throws {
+        let selection = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !selection.isEmpty else { throw SelectionCaptureError.noSelection }
+
+        let candidate = markdown.isEmpty ? selection : markdown + "\n\n" + selection
+        guard candidate.count <= Self.maximumSelectionDraftCharacters else {
+            throw SelectionCaptureError.tooLarge
+        }
+
+        markdown = candidate
     }
 
     func clear() {

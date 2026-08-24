@@ -6,7 +6,8 @@ let package = Package(
     name: "Thoughtbox",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "Thoughtbox", targets: ["Thoughtbox"])
+        .executable(name: "Thoughtbox", targets: ["Thoughtbox"]),
+        .executable(name: "ThoughtboxSelectionHelper", targets: ["ThoughtboxSelectionHelper"])
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.8.0"),
@@ -22,9 +23,18 @@ let package = Package(
             path: "Sources/Thoughtbox",
             resources: [.process("Localizable.xcstrings")]
         ),
+        .target(
+            name: "ThoughtboxSelectionSupport",
+            path: "Sources/ThoughtboxSelectionSupport"
+        ),
+        .executableTarget(
+            name: "ThoughtboxSelectionHelper",
+            dependencies: ["ThoughtboxSelectionSupport"],
+            path: "Sources/ThoughtboxSelectionHelper"
+        ),
         .testTarget(
             name: "ThoughtboxTests",
-            dependencies: ["Thoughtbox"],
+            dependencies: ["Thoughtbox", "ThoughtboxSelectionSupport"],
             path: "Tests/ThoughtboxTests"
         )
     ]

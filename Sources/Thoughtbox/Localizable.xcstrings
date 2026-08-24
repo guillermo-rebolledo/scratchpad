@@ -82,7 +82,16 @@
     "A Project named “%@” already exists. Project names are compared without regard to capitalization." : {
 
     },
+    "Accessibility Permission" : {
+
+    },
+    "Accessibility permission is required to capture selected text." : {
+
+    },
     "All Thoughts" : {
+
+    },
+    "Allow Selection Capture" : {
 
     },
     "Always asks for confirmation before permanently deleting the selected Thoughts." : {
@@ -107,6 +116,12 @@
 
     },
     "Canceling export safely…" : {
+
+    },
+    "Capture Selection" : {
+
+    },
+    "Capture Selection Shortcut" : {
 
     },
     "Capture Thought" : {
@@ -465,6 +480,12 @@
     "No Thoughts Yet" : {
 
     },
+    "Open Accessibility Settings" : {
+
+    },
+    "Opens Privacy and Security settings for Thoughtbox." : {
+
+    },
     "Opens a confirmation that states how many Thoughts will be permanently deleted." : {
 
     },
@@ -536,6 +557,12 @@
     "Projects" : {
 
     },
+    "Prompts for permission, then opens Privacy and Security settings for Thoughtbox." : {
+
+    },
+    "Reinstates Control–Option–Shift–Space." : {
+
+    },
     "Rename Project" : {
 
     },
@@ -555,6 +582,9 @@
 
     },
     "Restore Selected" : {
+
+    },
+    "Restore Selection Default" : {
 
     },
     "Restored %lld Thought%@ to %@ former destination." : {
@@ -747,6 +777,9 @@
     "Thoughtbox could not save this Thought. Your Draft is still here. Try again." : {
 
     },
+    "Thoughtbox reads only explicitly selected accessible text when you invoke this shortcut. Secure text fields are rejected." : {
+
+    },
     "Thoughts" : {
 
     },
@@ -768,8 +801,96 @@
     "active" : {
 
     },
+    "common.cancel" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
     "image" : {
 
+    },
+    "selectionCapture.added" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected text added to the Draft."
+          }
+        }
+      }
+    },
+    "selectionCapture.noSelection" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No selected text was available."
+          }
+        }
+      }
+    },
+    "selectionCapture.openSettings" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Accessibility Settings"
+          }
+        }
+      }
+    },
+    "selectionCapture.permissionRequired" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Accessibility permission is required to capture selected text."
+          }
+        }
+      }
+    },
+    "selectionCapture.permissionTitle" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Allow Selection Capture"
+          }
+        }
+      }
+    },
+    "selectionCapture.tooLarge" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The Draft and selected text must be 50,000 characters or fewer."
+          }
+        }
+      }
+    },
+    "selectionCapture.unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Thoughtbox could not capture the selected text."
+          }
+        }
+      }
     },
     "settings.login.approval" : {
       "localizations" : {
@@ -817,6 +938,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Launch at Login is unavailable for this copy of Thoughtbox."
+          }
+        }
+      }
+    },
+    "settings.selectionShortcut.conflictError" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "That shortcut is unavailable or used by another app. The previous shortcut is still active."
+          }
+        }
+      }
+    },
+    "settings.selectionShortcut.modifierError" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include Control, Option, or Command with the shortcut key."
+          }
+        }
+      }
+    },
+    "settings.selectionShortcut.startupError" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The saved Capture Selection shortcut is unavailable. Choose another shortcut."
           }
         }
       }

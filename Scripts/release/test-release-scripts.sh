@@ -21,6 +21,28 @@ release_build_settings="$(
         -configuration Release \
         -showBuildSettings
 )"
+helper_release_build_settings="$(
+    xcodebuild \
+        -project "$repository_directory/Thoughtbox.xcodeproj" \
+        -target ThoughtboxSelectionHelper \
+        -configuration Release \
+        -showBuildSettings
+)"
+printf '%s\n' "$helper_release_build_settings" | grep -E '^[[:space:]]*ENABLE_APP_SANDBOX = NO$' >/dev/null || {
+    printf '%s\n' "Capture Selection helper must remain outside the App Sandbox." >&2
+    exit 1
+}
+printf '%s\n' "$helper_release_build_settings" | grep -E '^[[:space:]]*ENABLE_HARDENED_RUNTIME = YES$' >/dev/null || {
+    printf '%s\n' "Capture Selection helper release build must use hardened runtime." >&2
+    exit 1
+}
+authenticated_peer_files="$(grep -l -F 'setCodeSigningRequirement' \
+    "$repository_directory/Sources/Thoughtbox/SelectionHelperClient.swift" \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper/main.swift")"
+[ "$(printf '%s\n' "$authenticated_peer_files" | wc -l | tr -d ' ')" = "2" ] || {
+    printf '%s\n' "Both sides of the selection XPC boundary must authenticate peers." >&2
+    exit 1
+}
 printf '%s\n' "$release_build_settings" |
     awk '
         $1 == "LD_RUNPATH_SEARCH_PATHS" && $2 == "=" {
@@ -99,6 +121,21 @@ if printf '%s' '{"com.apple.security.get-task-allow":false}' |
     ruby "$script_directory/verify-entitlements.rb" nested fixture >/dev/null 2>&1
 then
     printf '%s\n' "Nested code containing get-task-allow unexpectedly passed." >&2
+    exit 1
+fi
+
+printf '{}' |
+    ruby "$script_directory/verify-entitlements.rb" selection-helper fixture
+if printf '%s' '{"com.apple.security.app-sandbox":true}' |
+    ruby "$script_directory/verify-entitlements.rb" selection-helper fixture >/dev/null 2>&1
+then
+    printf '%s\n' "A sandboxed selection helper unexpectedly passed." >&2
+    exit 1
+fi
+if printf '%s' '{"com.apple.security.network.client":true}' |
+    ruby "$script_directory/verify-entitlements.rb" selection-helper fixture >/dev/null 2>&1
+then
+    printf '%s\n' "A selection helper with unrelated entitlements unexpectedly passed." >&2
     exit 1
 fi
 

@@ -30,8 +30,21 @@ build_number="${CURRENT_PROJECT_VERSION:-1}"
 
 swift build -c "$configuration"
 rm -rf "$app_path"
-mkdir -p "$app_path/Contents/MacOS" "$app_path/Contents/Resources" "$app_path/Contents/Frameworks"
+helper_path="$app_path/Contents/XPCServices/ThoughtboxSelectionHelper.xpc"
+mkdir -p \
+    "$app_path/Contents/MacOS" \
+    "$app_path/Contents/Resources" \
+    "$app_path/Contents/Frameworks" \
+    "$helper_path/Contents/MacOS"
 cp "$binary_directory/Thoughtbox" "$app_path/Contents/MacOS/Thoughtbox"
+cp "$binary_directory/ThoughtboxSelectionHelper" \
+    "$helper_path/Contents/MacOS/ThoughtboxSelectionHelper"
+cp Resources/SelectionHelper-Info.plist "$helper_path/Contents/Info.plist"
+plutil -replace CFBundleExecutable -string ThoughtboxSelectionHelper "$helper_path/Contents/Info.plist"
+plutil -replace CFBundleIdentifier -string com.memoji.Thoughtbox.SelectionHelper "$helper_path/Contents/Info.plist"
+plutil -replace CFBundleName -string ThoughtboxSelectionHelper "$helper_path/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$marketing_version" "$helper_path/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$build_number" "$helper_path/Contents/Info.plist"
 ditto "$binary_directory/Sparkle.framework" "$app_path/Contents/Frameworks/Sparkle.framework"
 install_name_tool -add_rpath @executable_path/../Frameworks "$app_path/Contents/MacOS/Thoughtbox"
 xcrun xcstringstool compile Sources/Thoughtbox/Localizable.xcstrings \
@@ -39,6 +52,7 @@ xcrun xcstringstool compile Sources/Thoughtbox/Localizable.xcstrings \
 cp Resources/Info.plist "$app_path/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "$marketing_version" "$app_path/Contents/Info.plist"
 plutil -replace CFBundleVersion -string "$build_number" "$app_path/Contents/Info.plist"
+codesign --force --sign - "$helper_path"
 codesign --force --sign - --entitlements Resources/Thoughtbox.entitlements "$app_path"
 codesign --verify --deep --strict --verbose=2 "$app_path"
 

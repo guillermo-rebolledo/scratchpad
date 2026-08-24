@@ -86,6 +86,13 @@ struct CaptureView: View {
         .onReceive(NotificationCenter.default.publisher(for: .focusCaptureEditor)) { _ in
             focusEditor()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .moveCaptureEditorToEnd)) { _ in
+            focusEditor()
+            Task { @MainActor in
+                await Task.yield()
+                NSApp.sendAction(#selector(NSResponder.moveToEndOfDocument(_:)), to: nil, from: nil)
+            }
+        }
         .confirmationDialog(
             "Clear this Draft?",
             isPresented: $confirmsClear,

@@ -44,6 +44,11 @@ struct CaptureShortcut: Codable, Equatable, Hashable, Sendable {
         modifiers: [.control, .option]
     )
 
+    static let selectionDefault = CaptureShortcut(
+        keyCode: UInt32(kVK_Space),
+        modifiers: [.control, .option, .shift]
+    )
+
     var isValid: Bool {
         UInt16(exactly: keyCode) != nil
             && !modifiers.intersection([.control, .option, .command]).isEmpty
@@ -149,14 +154,22 @@ final class SettingsModel {
     private enum Key {
         static let shortcutKeyCode = "settings.shortcut.keyCode"
         static let shortcutModifiers = "settings.shortcut.modifiers"
+        static let selectionShortcutKeyCode = "settings.selectionShortcut.keyCode"
+        static let selectionShortcutModifiers = "settings.selectionShortcut.modifiers"
     }
 
     private let defaults: UserDefaults
     private let loginItemService: LoginItemServicing
     private var registerShortcut: ((CaptureShortcut) throws -> Void)?
+    private var registerSelectionShortcut: ((CaptureShortcut) throws -> Void)?
+    private var selectionPermissionStatus: ((Bool) async -> Bool)?
 
     private(set) var shortcut: CaptureShortcut
     private(set) var shortcutError: String?
+    private(set) var selectionShortcut: CaptureShortcut
+    private(set) var selectionShortcutError: String?
+    private(set) var selectionPermissionGranted: Bool?
+    private(set) var selectionPermissionAlertRequested = false
     private(set) var launchAtLoginEnabled = false
     private(set) var launchAtLoginNeedsApproval = false
     private(set) var launchAtLoginError: String?
@@ -164,18 +177,18 @@ final class SettingsModel {
     init(defaults: UserDefaults, loginItemService: LoginItemServicing) {
         self.defaults = defaults
         self.loginItemService = loginItemService
-        if let savedKeyCode = UInt16(exactly: defaults.integer(forKey: Key.shortcutKeyCode)),
-           let savedModifiers = UInt8(exactly: defaults.integer(forKey: Key.shortcutModifiers)),
-           defaults.object(forKey: Key.shortcutKeyCode) != nil,
-           defaults.object(forKey: Key.shortcutModifiers) != nil {
-            let saved = CaptureShortcut(
-                keyCode: UInt32(savedKeyCode),
-                modifiers: ShortcutModifiers(rawValue: savedModifiers)
-            )
-            shortcut = saved.isValid ? saved : .default
-        } else {
-            shortcut = .default
-        }
+        shortcut = Self.savedShortcut(
+            defaults: defaults,
+            keyCodeKey: Key.shortcutKeyCode,
+            modifiersKey: Key.shortcutModifiers,
+            fallback: .default
+        )
+        selectionShortcut = Self.savedShortcut(
+            defaults: defaults,
+            keyCodeKey: Key.selectionShortcutKeyCode,
+            modifiersKey: Key.selectionShortcutModifiers,
+            fallback: .selectionDefault
+        )
         refreshLaunchAtLogin()
     }
 
@@ -219,6 +232,65 @@ final class SettingsModel {
         assignShortcut(.default)
     }
 
+    func connectSelectionShortcutRegistration(_ registration: @escaping (CaptureShortcut) throws -> Void) {
+        registerSelectionShortcut = registration
+        do {
+            try registration(selectionShortcut)
+            selectionShortcutError = nil
+        } catch {
+            selectionShortcutError = String(
+                localized: "settings.selectionShortcut.startupError",
+                defaultValue: "The saved Capture Selection shortcut is unavailable. Choose another shortcut."
+            )
+        }
+    }
+
+    func assignSelectionShortcut(_ candidate: CaptureShortcut) {
+        guard candidate.isValid else {
+            selectionShortcutError = String(
+                localized: "settings.selectionShortcut.modifierError",
+                defaultValue: "Include Control, Option, or Command with the shortcut key."
+            )
+            return
+        }
+        guard let registerSelectionShortcut else { return }
+        do {
+            try registerSelectionShortcut(candidate)
+            selectionShortcut = candidate
+            defaults.set(Int(candidate.keyCode), forKey: Key.selectionShortcutKeyCode)
+            defaults.set(Int(candidate.modifiers.rawValue), forKey: Key.selectionShortcutModifiers)
+            selectionShortcutError = nil
+            requestSelectionPermissionOnboardingIfNeeded()
+        } catch {
+            selectionShortcutError = String(
+                localized: "settings.selectionShortcut.conflictError",
+                defaultValue: "That shortcut is unavailable or used by another app. The previous shortcut is still active."
+            )
+        }
+    }
+
+    func restoreDefaultSelectionShortcut() {
+        assignSelectionShortcut(.selectionDefault)
+    }
+
+    func connectSelectionPermissionStatus(_ status: @escaping (Bool) async -> Bool) {
+        selectionPermissionStatus = status
+    }
+
+    func refreshSelectionPermission() async {
+        guard let selectionPermissionStatus else { return }
+        selectionPermissionGranted = await selectionPermissionStatus(false)
+    }
+
+    func requestSelectionPermission() async {
+        guard let selectionPermissionStatus else { return }
+        selectionPermissionGranted = await selectionPermissionStatus(true)
+    }
+
+    func dismissSelectionPermissionAlert() {
+        selectionPermissionAlertRequested = false
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         var operationError: String?
         do {
@@ -251,11 +323,38 @@ final class SettingsModel {
             launchAtLoginError = nil
         }
     }
+
+    private static func savedShortcut(
+        defaults: UserDefaults,
+        keyCodeKey: String,
+        modifiersKey: String,
+        fallback: CaptureShortcut
+    ) -> CaptureShortcut {
+        guard defaults.object(forKey: keyCodeKey) != nil,
+              defaults.object(forKey: modifiersKey) != nil,
+              let keyCode = UInt16(exactly: defaults.integer(forKey: keyCodeKey)),
+              let modifiers = UInt8(exactly: defaults.integer(forKey: modifiersKey)) else {
+            return fallback
+        }
+        let candidate = CaptureShortcut(
+            keyCode: UInt32(keyCode),
+            modifiers: ShortcutModifiers(rawValue: modifiers)
+        )
+        return candidate.isValid ? candidate : fallback
+    }
+
+    private func requestSelectionPermissionOnboardingIfNeeded() {
+        guard selectionPermissionGranted == false,
+              !defaults.bool(forKey: SelectionFailurePresenter.permissionAlertShownKey) else { return }
+        defaults.set(true, forKey: SelectionFailurePresenter.permissionAlertShownKey)
+        selectionPermissionAlertRequested = true
+    }
 }
 
 struct ThoughtboxSettingsView: View {
     @Bindable var model: SettingsModel
     @AccessibilityFocusState private var shortcutErrorFocused: Bool
+    @AccessibilityFocusState private var selectionShortcutErrorFocused: Bool
     @AccessibilityFocusState private var loginErrorFocused: Bool
 
     var body: some View {
@@ -291,6 +390,51 @@ struct ThoughtboxSettingsView: View {
             }
 
             Section {
+                LabeledContent("Capture Selection Shortcut") {
+                    ShortcutRecorderView(
+                        shortcut: model.selectionShortcut,
+                        identifier: "settings.selectionShortcut.recorder",
+                        accessibilityLabel: "Capture Selection shortcut recorder",
+                        accessibilityHelp: "Activate, then type the shortcut for adding selected text to the Draft. Press Escape to cancel."
+                    ) { shortcut in
+                        model.assignSelectionShortcut(shortcut)
+                    }
+                    .frame(width: 210, height: 28)
+                }
+                Button("Restore Selection Default") {
+                    model.restoreDefaultSelectionShortcut()
+                }
+                .disabled(model.selectionShortcut == .selectionDefault)
+                .help("Reinstates Control–Option–Shift–Space.")
+                .accessibilityHint("Reinstates Control–Option–Shift–Space.")
+                .accessibilityIdentifier("settings.selectionShortcut.restore")
+
+                LabeledContent("Accessibility Permission") {
+                    Text(selectionPermissionLabel)
+                        .foregroundStyle(model.selectionPermissionGranted == true ? .green : .secondary)
+                        .accessibilityIdentifier("settings.selectionPermission.status")
+                }
+                Button("Open Accessibility Settings") {
+                    requestSelectionPermissionAndOpenSettings()
+                }
+                .accessibilityHint("Prompts for permission, then opens Privacy and Security settings for Thoughtbox.")
+                .accessibilityIdentifier("settings.selectionPermission.openSettings")
+
+                if let error = model.selectionShortcutError {
+                    AccessibleErrorMessage(
+                        message: error,
+                        accessibilityLabel: "Capture Selection shortcut error: \(error)",
+                        identifier: "settings.selectionShortcut.error"
+                    )
+                    .accessibilityFocused($selectionShortcutErrorFocused)
+                }
+            } header: {
+                Text("Capture Selection")
+            } footer: {
+                Text("Thoughtbox reads only explicitly selected accessible text when you invoke this shortcut. Secure text fields are rejected.")
+            }
+
+            Section {
                 Toggle(
                     String(localized: "settings.login.label", defaultValue: "Launch at Login"),
                     isOn: Binding(
@@ -319,24 +463,66 @@ struct ThoughtboxSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(8)
-        .frame(width: 480, height: 310)
-        .onAppear { model.refreshLaunchAtLogin() }
+        .frame(width: 520, height: 520)
+        .onAppear {
+            model.refreshLaunchAtLogin()
+            Task { await model.refreshSelectionPermission() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             model.refreshLaunchAtLogin()
+            Task { await model.refreshSelectionPermission() }
         }
         .onChange(of: model.shortcutError) { _, error in shortcutErrorFocused = error != nil }
+        .onChange(of: model.selectionShortcutError) { _, error in selectionShortcutErrorFocused = error != nil }
         .onChange(of: model.launchAtLoginError) { _, error in loginErrorFocused = error != nil }
+        .alert(
+            "Allow Selection Capture",
+            isPresented: Binding(
+                get: { model.selectionPermissionAlertRequested },
+                set: { if !$0 { model.dismissSelectionPermissionAlert() } }
+            )
+        ) {
+            Button("Open Accessibility Settings") { requestSelectionPermissionAndOpenSettings() }
+            Button("Cancel", role: .cancel) { model.dismissSelectionPermissionAlert() }
+        } message: {
+            Text("Accessibility permission is required to capture selected text.")
+        }
+    }
+
+    private var selectionPermissionLabel: String {
+        switch model.selectionPermissionGranted {
+        case true: "Granted"
+        case false: "Required"
+        case nil: "Checking…"
+        }
+    }
+
+    private func requestSelectionPermissionAndOpenSettings() {
+        Task { @MainActor in
+            await model.requestSelectionPermission()
+            guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+            NSWorkspace.shared.open(url)
+        }
     }
 }
 
 private struct ShortcutRecorderView: NSViewRepresentable {
     let shortcut: CaptureShortcut
+    var identifier = "settings.shortcut.recorder"
+    var accessibilityLabel = String(localized: "settings.shortcut.recorderLabel", defaultValue: "Capture shortcut recorder")
+    var accessibilityHelp = String(localized: "settings.shortcut.recorderHelp", defaultValue: "Activate, then type the new shortcut. Press Escape to cancel.")
     let onChange: (CaptureShortcut) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onChange: onChange) }
 
     func makeNSView(context: Context) -> ShortcutRecorderButton {
-        ShortcutRecorderButton(shortcut: shortcut, onChange: context.coordinator.onChange)
+        ShortcutRecorderButton(
+            shortcut: shortcut,
+            identifier: identifier,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityHelp: accessibilityHelp,
+            onChange: context.coordinator.onChange
+        )
     }
 
     func updateNSView(_ button: ShortcutRecorderButton, context: Context) {
@@ -356,7 +542,13 @@ private final class ShortcutRecorderButton: NSButton {
     private var shortcut: CaptureShortcut
     private var isRecording = false
 
-    init(shortcut: CaptureShortcut, onChange: @escaping (CaptureShortcut) -> Void) {
+    init(
+        shortcut: CaptureShortcut,
+        identifier: String,
+        accessibilityLabel: String,
+        accessibilityHelp: String,
+        onChange: @escaping (CaptureShortcut) -> Void
+    ) {
         self.shortcut = shortcut
         self.onChange = onChange
         super.init(frame: .zero)
@@ -364,10 +556,10 @@ private final class ShortcutRecorderButton: NSButton {
         setButtonType(.momentaryPushIn)
         target = self
         action = #selector(beginRecording)
-        identifier = NSUserInterfaceItemIdentifier("settings.shortcut.recorder")
-        setAccessibilityIdentifier("settings.shortcut.recorder")
-        setAccessibilityLabel(String(localized: "settings.shortcut.recorderLabel", defaultValue: "Capture shortcut recorder"))
-        setAccessibilityHelp(String(localized: "settings.shortcut.recorderHelp", defaultValue: "Activate, then type the new shortcut. Press Escape to cancel."))
+        self.identifier = NSUserInterfaceItemIdentifier(identifier)
+        setAccessibilityIdentifier(identifier)
+        setAccessibilityLabel(accessibilityLabel)
+        setAccessibilityHelp(accessibilityHelp)
         updateAppearance()
     }
 
