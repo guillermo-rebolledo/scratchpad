@@ -6,8 +6,7 @@ struct PeerCodeSigningRequirementTests {
     func teamRequirement() {
         let requirement = PeerCodeSigningRequirement.make(
             bundleIdentifier: "com.memoji.Thoughtbox.SelectionHelper",
-            teamIdentifier: "LY8CA9554J",
-            permitsIdentifierOnly: false
+            teamIdentifier: "LY8CA9554J"
         )
 
         #expect(requirement.contains("anchor apple generic"))
@@ -15,17 +14,11 @@ struct PeerCodeSigningRequirementTests {
         #expect(requirement.contains("LY8CA9554J"))
     }
 
-    @Test("Missing production identity fails closed while explicit ad-hoc development stays usable")
-    func missingIdentityBehavior() {
+    @Test("Missing cryptographic identity always fails closed")
+    func missingIdentityFailsClosed() {
         #expect(PeerCodeSigningRequirement.make(
             bundleIdentifier: "com.memoji.Thoughtbox",
-            teamIdentifier: nil,
-            permitsIdentifierOnly: false
+            teamIdentifier: nil
         ) == "never")
-        #expect(PeerCodeSigningRequirement.make(
-            bundleIdentifier: "com.memoji.Thoughtbox",
-            teamIdentifier: nil,
-            permitsIdentifierOnly: true
-        ) == "identifier \"com.memoji.Thoughtbox\"")
     }
 }

@@ -14,6 +14,41 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+selection_source_fixture="$test_directory/selection-source-fixture"
+mkdir -p \
+    "$selection_source_fixture/Sources/ThoughtboxSelectionHelper" \
+    "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+"$script_directory/verify-selection-source-directories.sh" \
+    "$selection_source_fixture" >/dev/null
+rm -rf "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+if "$script_directory/verify-selection-source-directories.sh" \
+    "$selection_source_fixture" >/dev/null 2>&1
+then
+    printf '%s\n' "Missing selection source directory unexpectedly passed verification." >&2
+    exit 1
+fi
+mkdir -p "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+chmod 000 "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+if "$script_directory/verify-selection-source-directories.sh" \
+    "$selection_source_fixture" >/dev/null 2>&1
+then
+    printf '%s\n' "Unreadable selection source directory unexpectedly passed verification." >&2
+    exit 1
+fi
+chmod 700 "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+
+grep -F ': "${DEVELOPER_ID_APPLICATION:?' \
+    "$repository_directory/Scripts/build-app.sh" >/dev/null || {
+        printf '%s\n' "Release app assembly must require a configured signing identity." >&2
+        exit 1
+    }
+if grep -F 'codesign --force --sign - "$helper_path"' \
+    "$repository_directory/Scripts/build-app.sh" >/dev/null
+then
+    printf '%s\n' "Release-capable app assembly must not always ad-hoc sign the helper." >&2
+    exit 1
+fi
+
 release_build_settings="$(
     xcodebuild \
         -project "$repository_directory/Thoughtbox.xcodeproj" \
