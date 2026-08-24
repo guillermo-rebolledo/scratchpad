@@ -9,6 +9,7 @@ Thoughtbox ships as an unlisted direct download. A beta user downloads the app, 
 - The private Sparkle key is stored under the `com.memoji.Thoughtbox` account in the release owner's Keychain. CI receives an exported seed only through the protected `SPARKLE_PRIVATE_KEY` secret. Never commit or attach that seed.
 - Release entitlements are an allowlist: App Sandbox, user-selected read/write export, outbound network access, and the two Sparkle installer Mach service names. Incoming networking, broad file access, automation, microphone, camera, location, contacts, profiling, and `get-task-allow` are forbidden.
 - Release configuration requires hardened runtime, a timestamped Developer ID Application signature, strict verification of every nested code bundle, accepted notarization, a stapled ticket, and successful Gatekeeper assessment.
+- Capture Selection uses the mutually authenticated, on-demand `ThoughtboxSelectionHelper.xpc`. The main app remains sandboxed; the narrowly scoped helper is unsandboxed because cross-application Accessibility inspection is incompatible with App Sandbox. The helper has no extra entitlements and selected text is never logged or persisted by the helper. See [ADR 0003](adr/0003-isolate-selection-access-in-an-xpc-helper.md).
 
 ## Responsibilities
 
@@ -43,6 +44,8 @@ The workflow creates a temporary keychain and credential directory, never enable
 4. Download the retained archive, appcast, `source-commit.txt`, and `notary.json`. Confirm the latter says `Accepted` and record its submission ID in the release issue. `source-commit.txt` binds the artifacts to the exact reviewed workflow commit.
 5. Confirm `docs/releases/VERSION.md` contains the reviewed user-facing notes, then create the draft GitHub release with `Scripts/release/publish.sh VERSION UPDATE_ZIP APPCAST SOURCE_COMMIT_FILE`. The script verifies the notes and recorded commit locally and on GitHub, uses those exact notes, creates the tag at that exact commit even if `main` has advanced, and deliberately stops at a draft.
 6. Publish the approved draft, confirm its archive URL works without authentication, then commit the already verified generated appcast to `main`. A feed must never advertise an unavailable archive.
+
+Capture Selection additionally requires every row in the [release qualification matrix](releases/MEM-189-selection-capture-verification.md). The signed helper and app are one notarized Sparkle payload: never replace, re-sign, or roll back the helper independently of its containing app.
 
 Local invocation uses the same `Scripts/release/build-and-notarize.sh` gates. Supply credential file paths and release values through environment variables; do not pass secrets as command-line values.
 

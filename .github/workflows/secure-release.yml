@@ -141,6 +141,7 @@ jobs:
             .build/release/source-commit.txt
             docs/releases/${{ inputs.version }}.md
             docs/releases/MEM-177-verification.md
+            docs/releases/MEM-189-selection-capture-verification.md
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 14

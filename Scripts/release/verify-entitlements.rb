@@ -39,6 +39,13 @@ when "app"
 when "nested"
   nested_code = ARGV.shift || "nested code"
   abort "Nested release code must not include get-task-allow: #{nested_code}" if entitlements.key?(get_task_allow)
+when "selection-helper"
+  helper = ARGV.shift || "selection helper"
+  abort "Selection helper must remain outside the App Sandbox: #{helper}" if entitlements["com.apple.security.app-sandbox"] == true
+  abort "Selection helper must not include get-task-allow: #{helper}" if entitlements.key?(get_task_allow)
+  allowed = %w[com.apple.application-identifier com.apple.developer.team-identifier]
+  unexpected = entitlements.keys - allowed
+  abort "Unexpected selection helper entitlement: #{unexpected.first}" unless unexpected.empty?
 else
-  abort "Usage: verify-entitlements.rb app|nested [NESTED_CODE_PATH]"
+  abort "Usage: verify-entitlements.rb app|nested|selection-helper [NESTED_CODE_PATH]"
 end

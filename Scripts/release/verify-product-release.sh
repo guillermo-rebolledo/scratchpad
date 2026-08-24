@@ -70,16 +70,43 @@ for key, value in catalog.get("strings", {}).items():
         raise SystemExit(f"English-only beta contains unexpected localizations for {key!r}: {unexpected}")
 PY
 
-if grep -RInE 'URLSession|WKWebView|import[[:space:]]+(Network|WebKit)|NSSharingService|Telemetry|Analytics|Crashlytics|Sentry' \
-    "$sources" --include='*.swift'; then
-    printf '%s\n' "An unapproved network, telemetry, or sharing API was found in app source." >&2
-    exit 1
-fi
-if grep -RInE 'Logger\(|os_log|NSLog\(|(^|[^[:alnum:]_])print\(' \
-    "$sources" --include='*.swift'; then
-    printf '%s\n' "App source must not emit Thought content or other product data to logs." >&2
-    exit 1
-fi
+"$script_directory/verify-selection-source-directories.sh" "$repository_directory"
+
+require_no_matches() {
+    failure_message="$1"
+    shift
+    if grep "$@"; then
+        printf '%s\n' "$failure_message" >&2
+        exit 1
+    else
+        grep_status="$?"
+        if [ "$grep_status" -ne 1 ]; then
+            printf '%s\n' "A required source policy scan could not read every path." >&2
+            exit 1
+        fi
+    fi
+}
+
+require_no_matches \
+    "An unapproved network, telemetry, or sharing API was found in app source." \
+    -RInE 'URLSession|WKWebView|import[[:space:]]+(Network|WebKit)|NSSharingService|Telemetry|Analytics|Crashlytics|Sentry' \
+    "$sources" \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper" \
+    "$repository_directory/Sources/ThoughtboxSelectionSupport" \
+    --include='*.swift'
+require_no_matches \
+    "The selection helper must not use clipboard, persistence, screen capture, or automation APIs." \
+    -RInE 'NSPasteboard|UserDefaults|FileManager|import[[:space:]]+(SwiftData|CoreData|ScreenCaptureKit|AVFoundation)|NSAppleScript|CGWindowList' \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper" \
+    "$repository_directory/Sources/ThoughtboxSelectionSupport" \
+    --include='*.swift'
+require_no_matches \
+    "App source must not emit Thought content or other product data to logs." \
+    -RInE 'Logger\(|os_log|NSLog\(|(^|[^[:alnum:]_])print\(' \
+    "$sources" \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper" \
+    "$repository_directory/Sources/ThoughtboxSelectionSupport" \
+    --include='*.swift'
 if grep -RInE 'withAnimation|\.animation\(' "$sources" --include='*.swift'; then
     printf '%s\n' "Animation requires an explicit Reduce Motion implementation and release review." >&2
     exit 1

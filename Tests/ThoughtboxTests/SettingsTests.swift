@@ -52,6 +52,48 @@ struct SettingsTests {
         #expect(modifiedEscape.displayName(resolvedKeyName: nil) == "Control–Option–Escape")
     }
 
+    @Test("Capture Selection shortcut is independent, persistent, and resettable")
+    func selectionShortcutLifecycle() throws {
+        let suiteName = "ThoughtboxSelectionSettingsTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let model = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+        var quickRegistrations: [CaptureShortcut] = []
+        var selectionRegistrations: [CaptureShortcut] = []
+        model.connectShortcutRegistration { quickRegistrations.append($0) }
+        model.connectSelectionShortcutRegistration { shortcut in
+            if shortcut.keyCode == 40 { throw GlobalShortcutError.unavailable }
+            selectionRegistrations.append(shortcut)
+        }
+
+        #expect(model.shortcut == .default)
+        #expect(model.selectionShortcut == .selectionDefault)
+        #expect(model.selectionShortcut.displayName == "Control–Option–Shift–Space")
+        #expect(quickRegistrations == [.default])
+        #expect(selectionRegistrations == [.selectionDefault])
+
+        model.assignSelectionShortcut(.init(keyCode: 40, modifiers: [.control, .option]))
+        #expect(model.selectionShortcut == .selectionDefault)
+        #expect(model.selectionShortcutError != nil)
+        #expect(model.shortcut == .default)
+
+        let replacement = CaptureShortcut(keyCode: 38, modifiers: [.command, .shift])
+        model.assignSelectionShortcut(replacement)
+        #expect(model.selectionShortcut == replacement)
+        #expect(model.selectionShortcutError == nil)
+        #expect(model.shortcut == .default)
+
+        let relaunched = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+        var restoredRegistration: CaptureShortcut?
+        relaunched.connectSelectionShortcutRegistration { restoredRegistration = $0 }
+        #expect(relaunched.selectionShortcut == replacement)
+        #expect(restoredRegistration == replacement)
+
+        relaunched.restoreDefaultSelectionShortcut()
+        #expect(relaunched.selectionShortcut == .selectionDefault)
+        #expect(restoredRegistration == .selectionDefault)
+    }
+
     @Test("Launch at Login mirrors system registration and preserves state on failure")
     func launchAtLoginLifecycle() {
         let defaults = UserDefaults(suiteName: "ThoughtboxLoginTests-\(UUID().uuidString)")!
@@ -94,6 +136,54 @@ struct SettingsTests {
         defaults.set(Int(ShortcutModifiers.control.rawValue), forKey: "settings.shortcut.modifiers")
         let oversized = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
         #expect(oversized.shortcut == .default)
+
+        defaults.set(-1, forKey: "settings.selectionShortcut.keyCode")
+        defaults.set(10_000, forKey: "settings.selectionShortcut.modifiers")
+        let malformedSelection = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+        #expect(malformedSelection.selectionShortcut == .selectionDefault)
+    }
+
+    @Test("Capture Selection permission is checked without prompting and prompted only on request")
+    func selectionPermissionLifecycle() async {
+        let defaults = UserDefaults(suiteName: "ThoughtboxPermissionSettings-\(UUID().uuidString)")!
+        let model = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+        var prompts: [Bool] = []
+        model.connectSelectionPermissionStatus { prompt in
+            prompts.append(prompt)
+            return prompt
+        }
+
+        await model.refreshSelectionPermission()
+        #expect(prompts == [false])
+        #expect(model.selectionPermissionGranted == false)
+
+        model.connectSelectionShortcutRegistration { _ in }
+        model.assignSelectionShortcut(.init(keyCode: 38, modifiers: [.control, .option, .shift]))
+        #expect(model.selectionPermissionAlertRequested)
+        model.dismissSelectionPermissionAlert()
+        #expect(model.selectionPermissionAlertRequested == false)
+
+        await model.requestSelectionPermission()
+        #expect(prompts == [false, true])
+        #expect(model.selectionPermissionGranted == true)
+    }
+
+    @Test("Configuring Capture Selection waits for an unknown permission status before onboarding")
+    func selectionPermissionUnknownDuringConfiguration() async {
+        let defaults = UserDefaults(suiteName: "ThoughtboxPendingPermissionSettings-\(UUID().uuidString)")!
+        let model = SettingsModel(defaults: defaults, loginItemService: TestLoginItemService())
+        model.connectSelectionShortcutRegistration { _ in }
+
+        model.assignSelectionShortcut(.init(keyCode: 38, modifiers: [.control, .option, .shift]))
+        for _ in 0..<4 { await Task.yield() }
+        #expect(model.selectionPermissionGranted == nil)
+        #expect(model.selectionPermissionAlertRequested == false)
+
+        model.connectSelectionPermissionStatus { _ in false }
+        for _ in 0..<4 where !model.selectionPermissionAlertRequested { await Task.yield() }
+
+        #expect(model.selectionPermissionGranted == false)
+        #expect(model.selectionPermissionAlertRequested)
     }
 }
 

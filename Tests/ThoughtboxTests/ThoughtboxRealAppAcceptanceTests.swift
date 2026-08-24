@@ -283,6 +283,64 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
     }
 
+    func testCaptureSelectionAppendsOnlyProvidedSelectionAndPreservesDestination() throws {
+        let selectedText = "  Selected from another app  "
+        let app = try launch(
+            reset: true,
+            additionalEnvironment: ["THOUGHTBOX_UI_SELECTED_TEXT": selectedText]
+        )
+        createProject("Selection Project", in: app)
+        let editor = openCapture(in: app)
+        choose("Selection Project", from: "capture.destination", in: app)
+        editor.typeText("Existing Draft")
+        editor.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        finder.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
+
+        let captured = app.textViews["capture.editor"]
+        XCTAssertTrue(captured.waitForExistence(timeout: 3))
+        XCTAssertEqual(captured.value as? String, "Existing Draft\n\nSelected from another app")
+        XCTAssertEqual(
+            app.descendants(matching: .any)["capture.destination"].value as? String,
+            "Selection Project"
+        )
+        XCTAssertTrue(waitForKeyboardFocus(captured))
+    }
+
+    func testUnavailableSelectionShowsToastWithoutOpeningCapture() throws {
+        let app = try launch(reset: true)
+        // Global delivery from another app is covered by the successful capture test. Keep the
+        // target app active here so XCTest does not wait for Finder to idle past the toast timeout.
+        app.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
+
+        let toast = app.descendants(matching: .any)["selectionCapture.toast"]
+        XCTAssertTrue(toast.waitForExistence(timeout: 3))
+        XCTAssertTrue(accessibilityText(of: toast).contains("No selected text was available"))
+        XCTAssertFalse(app.textViews["capture.editor"].exists)
+    }
+
+    func testSelectionPermissionUsesOneAlertThenAnActionableToast() throws {
+        let app = try launch(
+            reset: true,
+            additionalArguments: ["--simulate-selection-permission-required"]
+        )
+        app.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
+
+        let permissionDialog = app.dialogs.firstMatch
+        XCTAssertTrue(permissionDialog.waitForExistence(timeout: 3))
+        let cancel = permissionDialog.buttons["Cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Allow Selection Capture"].exists)
+        cancel.click()
+
+        app.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option, .shift])
+        XCTAssertTrue(app.descendants(matching: .any)["selectionCapture.toast"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["selectionCapture.toast.openSettings"].exists)
+        XCTAssertFalse(app.textViews["capture.editor"].exists)
+    }
+
     func testShortcutSettingsRejectConflictActivatePersistAndRestore() throws {
         let app = try launch(reset: true, additionalArguments: ["--simulate-shortcut-conflict"])
         var recorder = openSettings(in: app)
@@ -1093,7 +1151,8 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         reset: Bool,
         simulateSaveFailure: Bool = false,
         simulateBulkMoveFailure: Bool = false,
-        additionalArguments: [String] = []
+        additionalArguments: [String] = [],
+        additionalEnvironment: [String: String] = [:]
     ) throws -> XCUIApplication {
         guard ProcessInfo.processInfo.environment["THOUGHTBOX_RUN_UI_TESTS"] == "1" else {
             throw XCTSkip("Run this file from the Xcode Thoughtbox UI-test scheme.")
@@ -1101,6 +1160,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
 
         let app = try application()
         app.launchEnvironment["THOUGHTBOX_UI_TEST_SESSION"] = UUID().uuidString
+        for (key, value) in additionalEnvironment { app.launchEnvironment[key] = value }
         app.launchArguments = ["--ui-testing"]
         if reset { app.launchArguments.append("--reset-ui-test-store") }
         if simulateSaveFailure { app.launchArguments.append("--simulate-save-failure") }

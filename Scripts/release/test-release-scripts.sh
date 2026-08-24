@@ -14,6 +14,41 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+selection_source_fixture="$test_directory/selection-source-fixture"
+mkdir -p \
+    "$selection_source_fixture/Sources/ThoughtboxSelectionHelper" \
+    "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+"$script_directory/verify-selection-source-directories.sh" \
+    "$selection_source_fixture" >/dev/null
+rm -rf "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+if "$script_directory/verify-selection-source-directories.sh" \
+    "$selection_source_fixture" >/dev/null 2>&1
+then
+    printf '%s\n' "Missing selection source directory unexpectedly passed verification." >&2
+    exit 1
+fi
+mkdir -p "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+chmod 000 "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+if "$script_directory/verify-selection-source-directories.sh" \
+    "$selection_source_fixture" >/dev/null 2>&1
+then
+    printf '%s\n' "Unreadable selection source directory unexpectedly passed verification." >&2
+    exit 1
+fi
+chmod 700 "$selection_source_fixture/Sources/ThoughtboxSelectionSupport"
+
+grep -F ': "${DEVELOPER_ID_APPLICATION:?' \
+    "$repository_directory/Scripts/build-app.sh" >/dev/null || {
+        printf '%s\n' "Release app assembly must require a configured signing identity." >&2
+        exit 1
+    }
+if grep -F 'codesign --force --sign - "$helper_path"' \
+    "$repository_directory/Scripts/build-app.sh" >/dev/null
+then
+    printf '%s\n' "Release-capable app assembly must not always ad-hoc sign the helper." >&2
+    exit 1
+fi
+
 release_build_settings="$(
     xcodebuild \
         -project "$repository_directory/Thoughtbox.xcodeproj" \
@@ -21,6 +56,37 @@ release_build_settings="$(
         -configuration Release \
         -showBuildSettings
 )"
+helper_release_build_settings="$(
+    xcodebuild \
+        -project "$repository_directory/Thoughtbox.xcodeproj" \
+        -target ThoughtboxSelectionHelper \
+        -configuration Release \
+        -showBuildSettings
+)"
+printf '%s\n' "$helper_release_build_settings" | grep -E '^[[:space:]]*ENABLE_APP_SANDBOX = NO$' >/dev/null || {
+    printf '%s\n' "Capture Selection helper must remain outside the App Sandbox." >&2
+    exit 1
+}
+printf '%s\n' "$helper_release_build_settings" | grep -E '^[[:space:]]*ENABLE_HARDENED_RUNTIME = YES$' >/dev/null || {
+    printf '%s\n' "Capture Selection helper release build must use hardened runtime." >&2
+    exit 1
+}
+authenticated_peer_files="$(grep -l -F 'setCodeSigningRequirement' \
+    "$repository_directory/Sources/Thoughtbox/SelectionHelperClient.swift" \
+    "$repository_directory/Sources/ThoughtboxSelectionHelper/main.swift")"
+[ "$(printf '%s\n' "$authenticated_peer_files" | wc -l | tr -d ' ')" = "2" ] || {
+    printf '%s\n' "Both sides of the selection XPC boundary must authenticate peers." >&2
+    exit 1
+}
+grep -F 'Sources/ThoughtboxSelectionHelper' \
+    "$repository_directory/Scripts/release/verify-product-release.sh" >/dev/null
+grep -F 'Sources/ThoughtboxSelectionSupport' \
+    "$repository_directory/Scripts/release/verify-product-release.sh" >/dev/null
+grep -E 'NSPasteboard.*UserDefaults.*FileManager' \
+    "$repository_directory/Scripts/release/verify-product-release.sh" >/dev/null || {
+    printf '%s\n' "Selection helper privacy API gates are missing." >&2
+    exit 1
+}
 printf '%s\n' "$release_build_settings" |
     awk '
         $1 == "LD_RUNPATH_SEARCH_PATHS" && $2 == "=" {
@@ -99,6 +165,33 @@ if printf '%s' '{"com.apple.security.get-task-allow":false}' |
     ruby "$script_directory/verify-entitlements.rb" nested fixture >/dev/null 2>&1
 then
     printf '%s\n' "Nested code containing get-task-allow unexpectedly passed." >&2
+    exit 1
+fi
+
+printf '{}' |
+    ruby "$script_directory/verify-entitlements.rb" selection-helper fixture
+if printf '%s' '{"com.apple.security.app-sandbox":true}' |
+    ruby "$script_directory/verify-entitlements.rb" selection-helper fixture >/dev/null 2>&1
+then
+    printf '%s\n' "A sandboxed selection helper unexpectedly passed." >&2
+    exit 1
+fi
+if printf '%s' '{"com.apple.security.network.client":true}' |
+    ruby "$script_directory/verify-entitlements.rb" selection-helper fixture >/dev/null 2>&1
+then
+    printf '%s\n' "A selection helper with unrelated entitlements unexpectedly passed." >&2
+    exit 1
+fi
+
+unauthorized_peer="$test_directory/unauthorized-peer"
+cp /bin/echo "$unauthorized_peer"
+codesign --force --sign - --identifier com.memoji.Thoughtbox "$unauthorized_peer" >/dev/null 2>&1
+codesign --verify -R='identifier "com.memoji.Thoughtbox"' "$unauthorized_peer"
+if codesign --verify \
+    -R='anchor apple generic and identifier "com.memoji.Thoughtbox" and certificate leaf[subject.OU] = "LY8CA9554J"' \
+    "$unauthorized_peer" >/dev/null 2>&1
+then
+    printf '%s\n' "An unauthorized identifier-only peer unexpectedly passed the production requirement." >&2
     exit 1
 fi
 
