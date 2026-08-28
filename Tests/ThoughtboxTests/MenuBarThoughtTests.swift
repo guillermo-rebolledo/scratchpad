@@ -29,6 +29,28 @@ struct MenuBarThoughtTests {
         #expect(relaunched.scope == .inbox)
     }
 
+    @Test("A specific Thought can be selected from the active source and persists")
+    func specificThoughtSelectionPersists() throws {
+        let suiteName = "MenuBarThoughtSpecificSelection-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let project = Project(name: "Work")
+        let first = Thought(markdown: "First", project: project)
+        let selected = Thought(markdown: "Selected", project: project)
+        let inbox = Thought(markdown: "Inbox")
+        let thoughts = [first, selected, inbox]
+        let projectIDs: Set<UUID> = [project.id]
+        let selection = MenuBarThoughtSelection(defaults: defaults)
+        selection.selectScope(.project(project.id), thoughts: thoughts, projectIDs: projectIDs)
+
+        #expect(selection.selectThought(selected.id, thoughts: thoughts, projectIDs: projectIDs)?.id == selected.id)
+        #expect(selection.selectThought(inbox.id, thoughts: thoughts, projectIDs: projectIDs) == nil)
+        #expect(selection.thoughtID == selected.id)
+
+        let relaunched = MenuBarThoughtSelection(defaults: defaults)
+        #expect(relaunched.reconcile(thoughts: thoughts, projectIDs: projectIDs)?.id == selected.id)
+    }
+
     @Test("A removed Project falls back to All Thoughts")
     func missingProjectFallsBack() throws {
         let defaults = try #require(UserDefaults(suiteName: "MenuBarThoughtMissingProject-\(UUID().uuidString)"))

@@ -311,7 +311,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         XCTAssertEqual(editor.value as? String, "Rewritten menu-bar Thought")
 
-        app.buttons["menuBarThought.another"].click()
+        choose("Older menu-bar Thought — Inbox", from: "menuBarThought.thoughtPicker", in: app)
         XCTAssertTrue(waitForValue(editor, containing: "Older menu-bar Thought"))
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
         finder.activate()

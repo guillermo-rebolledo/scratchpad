@@ -112,6 +112,14 @@ final class MenuBarThoughtSelection {
         self.scope = scope
         thoughtID = availableThoughts(from: thoughts, projectIDs: projectIDs).first?.id
     }
+
+    @discardableResult
+    func selectThought(_ id: UUID, thoughts: [Thought], projectIDs: Set<UUID>) -> Thought? {
+        guard let thought = availableThoughts(from: thoughts, projectIDs: projectIDs)
+            .first(where: { $0.id == id }) else { return nil }
+        thoughtID = thought.id
+        return thought
+    }
 }
 
 enum MenuBarThoughtEditError: LocalizedError, Equatable {
@@ -238,8 +246,26 @@ private struct MenuBarThoughtView: View {
                 .accessibilityValue(scopeName)
                 .accessibilityHint("Choose All Thoughts, Inbox, or one Project.")
                 .accessibilityIdentifier("menuBarThought.source")
+                .frame(maxWidth: 130)
 
-                Spacer()
+                Picker("Thought", selection: thoughtBinding) {
+                    if availableThoughts.isEmpty {
+                        Text("No Thoughts")
+                            .tag(UUID?.none)
+                    } else {
+                        ForEach(availableThoughts) { thought in
+                            Text(thoughtChoiceName(thought))
+                                .tag(Optional(thought.id))
+                        }
+                    }
+                }
+                .labelsHidden()
+                .disabled(availableThoughts.isEmpty)
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel("Selected Thought")
+                .accessibilityValue(selectedThought.map(thoughtChoiceName) ?? String(localized: "No Thoughts"))
+                .accessibilityHint("Choose a specific Thought from \(scopeName). Unsaved changes are saved before switching.")
+                .accessibilityIdentifier("menuBarThought.thoughtPicker")
 
                 Button("Another Thought", systemImage: "arrow.right") {
                     guard saveCurrentThought() else { return }
@@ -397,6 +423,33 @@ private struct MenuBarThoughtView: View {
                 focusEditor()
             }
         )
+    }
+
+    private var thoughtBinding: Binding<UUID?> {
+        Binding(
+            get: { selection.thoughtID },
+            set: { thoughtID in
+                guard let thoughtID,
+                      thoughtID == selection.thoughtID || saveCurrentThought() else { return }
+                selection.selectThought(thoughtID, thoughts: thoughts, projectIDs: projectIDs)
+                loadSelectedThought()
+                focusEditor()
+            }
+        )
+    }
+
+    private func thoughtChoiceName(_ thought: Thought) -> String {
+        let excerpt = MarkdownDocument(source: thought.markdown).excerpt
+            .replacingOccurrences(of: "\n", with: " ")
+        let label: String
+        if selection.scope == .allThoughts {
+            let destination = thought.project?.name ?? String(localized: "Inbox")
+            label = "\(excerpt) — \(destination)"
+        } else {
+            label = excerpt
+        }
+        guard label.count > 90 else { return label }
+        return String(label.prefix(89)) + "…"
     }
 
     private var hasUnsavedChanges: Bool { markdown != lastSavedMarkdown }
