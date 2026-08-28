@@ -137,7 +137,10 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
     }
 
     func testCollapsedSidebarReclaimsWidthAfterWindowExpansion() throws {
-        let app = try launch(reset: true)
+        let app = try launch(
+            reset: true,
+            additionalArguments: ["--ui-test-position-window-for-expansion"]
+        )
         capture("Expanded window Thought", in: app)
 
         let window = app.windows.firstMatch
