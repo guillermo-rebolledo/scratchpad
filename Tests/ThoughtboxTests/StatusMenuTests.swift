@@ -14,7 +14,8 @@ struct StatusMenuTests {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let controller = CaptureController(
             container: repository.container,
-            draft: DraftStore(defaults: defaults)
+            draft: DraftStore(defaults: defaults),
+            statusItem: NSStatusItem()
         )
         var invoked: [String] = []
 

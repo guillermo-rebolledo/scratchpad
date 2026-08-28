@@ -16,11 +16,11 @@ final class CaptureController: NSObject, NSPopoverDelegate {
     private var checkForUpdates: (() -> Void)?
     private var shortcutItems: [GlobalShortcutKind: NSMenuItem] = [:]
 
-    init(container: ModelContainer, draft: DraftStore) {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    init(container: ModelContainer, draft: DraftStore, statusItem: NSStatusItem? = nil) {
+        self.statusItem = statusItem ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
-        if let button = statusItem.button {
+        if let button = self.statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "square.and.pencil",
                 accessibilityDescription: String(localized: "Thoughtbox")
