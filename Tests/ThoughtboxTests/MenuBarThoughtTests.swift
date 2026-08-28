@@ -54,6 +54,34 @@ struct MenuBarThoughtTests {
         #expect(selection.scope == .inbox)
     }
 
+    @Test("A moved Thought follows another Project")
+    func movedThoughtFollowsAnotherProject() throws {
+        let defaults = try #require(UserDefaults(suiteName: "MenuBarThoughtMovedProject-\(UUID().uuidString)"))
+        let originalProject = Project(name: "Original")
+        let destinationProject = Project(name: "Destination")
+        let thought = Thought(markdown: "Follow me", project: originalProject)
+        let selection = MenuBarThoughtSelection(defaults: defaults)
+        let projectIDs: Set<UUID> = [originalProject.id, destinationProject.id]
+        selection.selectScope(.project(originalProject.id), thoughts: [thought], projectIDs: projectIDs)
+
+        thought.project = destinationProject
+
+        #expect(selection.reconcile(thoughts: [thought], projectIDs: projectIDs)?.id == thought.id)
+        #expect(selection.scope == .project(destinationProject.id))
+    }
+
+    @Test("A deleted selected Thought falls back to the next available Thought")
+    func deletedThoughtFallsBack() throws {
+        let defaults = try #require(UserDefaults(suiteName: "MenuBarThoughtDeleted-\(UUID().uuidString)"))
+        let deleted = Thought(markdown: "Deleted")
+        let fallback = Thought(markdown: "Fallback")
+        let selection = MenuBarThoughtSelection(defaults: defaults)
+
+        #expect(selection.reconcile(thoughts: [deleted, fallback], projectIDs: [])?.id == deleted.id)
+        #expect(selection.reconcile(thoughts: [fallback], projectIDs: [])?.id == fallback.id)
+        #expect(selection.thoughtID == fallback.id)
+    }
+
     @Test("Appending preserves Markdown and keeps the same Thought")
     func appendNote() throws {
         let repository = try ThoughtRepository.inMemory()
@@ -162,6 +190,22 @@ struct MenuBarThoughtTests {
         #expect(relaunched.menuBarThoughtShortcutError != nil)
         relaunched.restoreDefaultMenuBarThoughtShortcut()
         #expect(relaunched.menuBarThoughtShortcut == .menuBarThoughtDefault)
+    }
+
+    @Test("Shortcut assignment waits until registration is connected")
+    func shortcutAssignmentBeforeRegistration() throws {
+        let suiteName = "MenuBarThoughtDisconnectedShortcut-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let model = SettingsModel(defaults: defaults, loginItemService: MenuBarThoughtTestLoginItemService())
+        let candidate = CaptureShortcut(keyCode: 17, modifiers: [.command, .shift])
+
+        model.assignMenuBarThoughtShortcut(candidate)
+
+        #expect(model.menuBarThoughtShortcut == .menuBarThoughtDefault)
+        var registered: CaptureShortcut?
+        model.connectMenuBarThoughtShortcutRegistration { registered = $0 }
+        #expect(registered == .menuBarThoughtDefault)
     }
 }
 
