@@ -286,7 +286,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
     }
 
-    func testMenuBarThoughtShortcutAppendsAndRetainsTheSelectedThought() throws {
+    func testMenuBarThoughtShortcutEditsAndRetainsTheSelectedThought() throws {
         let app = try launch(reset: true)
         capture("Older menu-bar Thought", in: app)
         capture("Current menu-bar Thought", in: app)
@@ -295,30 +295,28 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         finder.activate()
         finder.typeKey("t", modifierFlags: [.control, .option])
 
-        let thought = app.descendants(matching: .any)["menuBarThought.thought"]
-        let note = app.textViews["menuBarThought.note"]
-        XCTAssertTrue(thought.waitForExistence(timeout: 3))
-        XCTAssertEqual(thought.value as? String, "Current menu-bar Thought")
-        XCTAssertTrue(note.waitForExistence(timeout: 3))
-        XCTAssertTrue(waitForKeyboardFocus(note))
+        let editor = app.textViews["menuBarThought.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(editor.value as? String, "Current menu-bar Thought")
+        XCTAssertTrue(waitForKeyboardFocus(editor))
+        XCTAssertTrue(app.descendants(matching: .any)["menuBarThought.saveHint"].exists)
 
-        note.typeText("Follow-up from the menu bar")
-        note.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
-        XCTAssertTrue(waitForValue(thought, containing: "Follow-up from the menu bar"))
-        XCTAssertEqual(note.value as? String, "")
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeText("Rewritten menu-bar Thought")
+        editor.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
 
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
         finder.activate()
         finder.typeKey("t", modifierFlags: [.control, .option])
-        XCTAssertTrue(note.waitForExistence(timeout: 3))
-        XCTAssertTrue(waitForValue(thought, containing: "Follow-up from the menu bar"))
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(editor.value as? String, "Rewritten menu-bar Thought")
 
         app.buttons["menuBarThought.another"].click()
-        XCTAssertTrue(waitForValue(thought, containing: "Older menu-bar Thought"))
+        XCTAssertTrue(waitForValue(editor, containing: "Older menu-bar Thought"))
         app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
         finder.activate()
         finder.typeKey("t", modifierFlags: [.control, .option])
-        XCTAssertTrue(waitForValue(thought, containing: "Older menu-bar Thought"))
+        XCTAssertTrue(waitForValue(editor, containing: "Older menu-bar Thought"))
     }
 
     func testCaptureSelectionAppendsOnlyProvidedSelectionAndPreservesDestination() throws {

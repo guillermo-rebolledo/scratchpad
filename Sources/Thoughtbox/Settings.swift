@@ -615,7 +615,7 @@ private struct MenuBarThoughtSettingsSection: View {
         } header: {
             Text("Menu Bar Thought")
         } footer: {
-            Text("Opens the currently selected Thought so you can append notes. It stays selected until you choose another one.")
+            Text("Opens the currently selected Thought for editing. Press Command–Return to save; it stays selected until you choose another one.")
         }
         .onChange(of: model.menuBarThoughtShortcutError) { _, error in errorFocused = error != nil }
     }

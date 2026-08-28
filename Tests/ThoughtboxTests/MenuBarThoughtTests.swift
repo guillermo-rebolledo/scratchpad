@@ -82,43 +82,40 @@ struct MenuBarThoughtTests {
         #expect(selection.thoughtID == fallback.id)
     }
 
-    @Test("Appending preserves Markdown and keeps the same Thought")
-    func appendNote() throws {
+    @Test("Editing replaces the complete Markdown while keeping the same Thought")
+    func editThought() throws {
         let repository = try ThoughtRepository.inMemory()
         let thought = try repository.capture(markdown: "Original")
         let editedAt = Date(timeIntervalSince1970: 100)
 
-        try ThoughtAppender.append("Follow-up", to: thought, using: repository, at: editedAt)
+        try MenuBarThoughtEditor.save("Rewritten\n\nwith **Markdown**", to: thought, using: repository, at: editedAt)
 
-        #expect(thought.markdown == "Original\n\nFollow-up")
+        #expect(thought.markdown == "Rewritten\n\nwith **Markdown**")
         #expect(thought.editedAt == editedAt)
-        try ThoughtAppender.append("One more", to: thought, using: repository)
-        #expect(thought.markdown == "Original\n\nFollow-up\n\nOne more")
-        #expect(throws: ThoughtAppendError.emptyNote) {
-            try ThoughtAppender.append("  \n", to: thought, using: repository)
+        #expect(throws: MenuBarThoughtEditError.emptyThought) {
+            try MenuBarThoughtEditor.save("  \n", to: thought, using: repository)
         }
+        #expect(thought.markdown == "Rewritten\n\nwith **Markdown**")
     }
 
-    @Test("Appending preserves meaningful Markdown whitespace and existing separators")
-    func appendPreservesMarkdownWhitespace() throws {
+    @Test("Editing preserves meaningful Markdown whitespace exactly")
+    func editPreservesMarkdownWhitespace() throws {
         let repository = try ThoughtRepository.inMemory()
-        let thought = try repository.capture(markdown: "Original\n")
+        let thought = try repository.capture(markdown: "Original")
+        let edited = "  leading text\n\n    indented code  \n"
 
-        try ThoughtAppender.append("    indented code  \n", to: thought, using: repository)
-        #expect(thought.markdown == "Original\n\n    indented code  \n")
-
-        try ThoughtAppender.append("\nAlready separated", to: thought, using: repository)
-        #expect(thought.markdown == "Original\n\n    indented code  \n\nAlready separated")
+        try MenuBarThoughtEditor.save(edited, to: thought, using: repository)
+        #expect(thought.markdown == edited)
     }
 
-    @Test("Append failures preserve the Thought and map to a retryable error")
-    func appendFailureIsAtomic() throws {
+    @Test("Edit failures preserve the Thought and map to a retryable error")
+    func editFailureIsAtomic() throws {
         let repository = try ThoughtRepository.inMemory()
         let thought = try repository.capture(markdown: "Original")
         struct SaveFailure: Error {}
 
-        #expect(throws: ThoughtAppendError.couldNotSave) {
-            try ThoughtAppender.append("Retry me", to: thought, using: repository) {
+        #expect(throws: MenuBarThoughtEditError.couldNotSave) {
+            try MenuBarThoughtEditor.save("Retry me", to: thought, using: repository) {
                 throw SaveFailure()
             }
         }
