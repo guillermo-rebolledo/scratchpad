@@ -33,6 +33,15 @@ struct ShortcutModifiers: OptionSet, Codable, Equatable, Hashable, Sendable {
         if contains(.command) { result |= UInt32(cmdKey) }
         return result
     }
+
+    var eventFlags: NSEvent.ModifierFlags {
+        var result: NSEvent.ModifierFlags = []
+        if contains(.control) { result.insert(.control) }
+        if contains(.option) { result.insert(.option) }
+        if contains(.shift) { result.insert(.shift) }
+        if contains(.command) { result.insert(.command) }
+        return result
+    }
 }
 
 struct CaptureShortcut: Codable, Equatable, Hashable, Sendable {
@@ -61,6 +70,27 @@ struct CaptureShortcut: Codable, Equatable, Hashable, Sendable {
 
     var displayName: String {
         displayName(resolvedKeyName: KeyboardLayoutKeyNameResolver.name(for: keyCode))
+    }
+
+    var menuKeyEquivalent: String {
+        menuKeyEquivalent(resolvedKeyName: KeyboardLayoutKeyNameResolver.name(for: keyCode))
+    }
+
+    func menuKeyEquivalent(resolvedKeyName: String?) -> String {
+        let equivalents: [UInt32: String] = [
+            UInt32(kVK_Space): " ",
+            UInt32(kVK_Return): "\r",
+            UInt32(kVK_Tab): "\t",
+            UInt32(kVK_Escape): "\u{1b}",
+            UInt32(kVK_Delete): "\u{8}",
+            UInt32(kVK_ForwardDelete): String(UnicodeScalar(NSDeleteFunctionKey)!),
+            UInt32(kVK_LeftArrow): String(UnicodeScalar(NSLeftArrowFunctionKey)!),
+            UInt32(kVK_RightArrow): String(UnicodeScalar(NSRightArrowFunctionKey)!),
+            UInt32(kVK_UpArrow): String(UnicodeScalar(NSUpArrowFunctionKey)!),
+            UInt32(kVK_DownArrow): String(UnicodeScalar(NSDownArrowFunctionKey)!)
+        ]
+        if let equivalent = equivalents[keyCode] { return equivalent }
+        return resolvedKeyName?.lowercased() ?? ""
     }
 
     func displayName(resolvedKeyName: String?) -> String {

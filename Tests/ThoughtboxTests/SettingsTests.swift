@@ -21,6 +21,8 @@ struct SettingsTests {
 
         #expect(model.shortcut == .default)
         #expect(model.shortcut.displayName == "Control–Option–Space")
+        #expect(model.shortcut.menuKeyEquivalent == " ")
+        #expect(model.shortcut.modifiers.eventFlags == [.control, .option])
         #expect(registered == [.default])
 
         model.assignShortcut(.init(keyCode: 40, modifiers: [.control, .option]))
@@ -31,6 +33,7 @@ struct SettingsTests {
 
         let replacement = CaptureShortcut(keyCode: 38, modifiers: [.control, .option])
         #expect(replacement.displayName(resolvedKeyName: "ñ") == "Control–Option–Ñ")
+        #expect(replacement.menuKeyEquivalent(resolvedKeyName: "ñ") == "ñ")
         model.assignShortcut(replacement)
         #expect(model.shortcut == replacement)
         #expect(model.shortcutError == nil)

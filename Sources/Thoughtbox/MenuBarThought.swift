@@ -189,19 +189,13 @@ final class MenuBarThoughtController: NSObject {
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
 
-    init(container: ModelContainer, selection: MenuBarThoughtSelection) {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    init(
+        container: ModelContainer,
+        selection: MenuBarThoughtSelection,
+        statusItem: NSStatusItem
+    ) {
+        self.statusItem = statusItem
         super.init()
-
-        if let button = statusItem.button {
-            let image = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: "Thoughtbox Thought")
-            image?.isTemplate = true
-            button.image = image
-            button.toolTip = String(localized: "Open a Thought")
-            button.target = self
-            button.action = #selector(togglePopover)
-            button.sendAction(on: [.leftMouseUp])
-        }
 
         popover.behavior = .transient
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -212,21 +206,12 @@ final class MenuBarThoughtController: NSObject {
         )
     }
 
-    @objc func togglePopover() {
-        if popover.isShown {
-            popover.performClose(nil)
-        } else {
-            showPopover()
-        }
-    }
-
     func showPopover() {
         guard let button = statusItem.button else { return }
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if !popover.isShown {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
-        NSApp.activate(ignoringOtherApps: true)
         popover.contentViewController?.view.window?.makeKey()
         NotificationCenter.default.post(name: .focusMenuBarThoughtEditor, object: nil)
     }

@@ -54,7 +54,8 @@ final class AppState {
         captureController = controller
         let menuBarController = MenuBarThoughtController(
             container: container,
-            selection: menuBarThoughtSelection
+            selection: menuBarThoughtSelection,
+            statusItem: controller.statusItem
         )
         menuBarThoughtController = menuBarController
         let coordinator = SelectionCaptureCoordinator(
@@ -70,6 +71,21 @@ final class AppState {
             }
         )
         selectionCaptureCoordinator = coordinator
+        controller.configureStatusMenu(
+            quickCaptureShortcut: settings.shortcut,
+            selectionShortcut: settings.selectionShortcut,
+            openThoughtShortcut: settings.menuBarThoughtShortcut,
+            captureSelection: { [weak coordinator] in
+                Task { @MainActor in await coordinator?.captureSelection() }
+            },
+            openThought: { [weak menuBarController] in menuBarController?.showPopover() },
+            openLibrary: { AppState.showLibraryWindow() },
+            openSettings: { AppState.showSettingsWindow() },
+            checkForUpdates: { [updaterController] in
+                NSApp.activate(ignoringOtherApps: true)
+                updaterController.checkForUpdates(nil)
+            }
+        )
         let manager = GlobalShortcutManager(
             quickCapture: { [weak controller] in controller?.showCapture() },
             captureSelection: { [weak coordinator] in
@@ -85,18 +101,21 @@ final class AppState {
                 throw GlobalShortcutError.unavailable
             }
             try manager.register(shortcut)
+            controller.updateStatusMenuShortcut(shortcut, for: .quickCapture)
         }
         settings.connectSelectionShortcutRegistration { shortcut in
             if ProcessInfo.processInfo.arguments.contains("--simulate-selection-shortcut-conflict") {
                 throw GlobalShortcutError.unavailable
             }
             try manager.register(shortcut, for: .captureSelection)
+            controller.updateStatusMenuShortcut(shortcut, for: .captureSelection)
         }
         settings.connectMenuBarThoughtShortcutRegistration { shortcut in
             if ProcessInfo.processInfo.arguments.contains("--simulate-menu-bar-shortcut-conflict") {
                 throw GlobalShortcutError.unavailable
             }
             try manager.register(shortcut, for: .menuBarThought)
+            controller.updateStatusMenuShortcut(shortcut, for: .menuBarThought)
         }
         settings.connectSelectionPermissionStatus { [weak selectionProvider] prompt in
             await selectionProvider?.accessibilityPermissionStatus(prompt: prompt) ?? false
@@ -105,6 +124,17 @@ final class AppState {
 
     func showCapture() {
         captureController?.showCapture()
+    }
+
+    private static func showLibraryWindow() {
+        guard let window = NSApp.windows.first(where: { $0.title == "Thoughtbox" }) else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private static func showSettingsWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     private func requestSelectionPermissionAndOpenSettings() {

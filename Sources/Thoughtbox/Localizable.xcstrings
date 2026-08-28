@@ -133,9 +133,6 @@
     "Capture Thought" : {
 
     },
-    "Capture a Thought" : {
-
-    },
     "Capture a Thought from the menu bar or press Command N." : {
 
     },
@@ -516,10 +513,13 @@
     "Open Accessibility Settings" : {
 
     },
+    "Open Thought" : {
+
+    },
     "Open Thought Shortcut" : {
 
     },
-    "Open a Thought" : {
+    "Open Thoughtbox" : {
 
     },
     "Opens Privacy and Security settings for Thoughtbox." : {
@@ -603,6 +603,9 @@
 
     },
     "Prompts for permission, then opens Privacy and Security settings for Thoughtbox." : {
+
+    },
+    "Quit Thoughtbox" : {
 
     },
     "Reinstates Control–Option–Shift–Space." : {
@@ -728,6 +731,9 @@
 
     },
     "Selected Thought" : {
+
+    },
+    "Settings…" : {
 
     },
     "Shows active Thoughts in %@, newest first." : {

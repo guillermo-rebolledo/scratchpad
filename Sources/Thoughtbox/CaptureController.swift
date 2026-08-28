@@ -1,27 +1,34 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftData
 import SwiftUI
 
 @MainActor
 final class CaptureController: NSObject, NSPopoverDelegate {
-    private let statusItem: NSStatusItem
+    let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let toastPopover = NSPopover()
     private var toastDismissalTask: Task<Void, Never>?
+    private var captureSelection: (() -> Void)?
+    private var openThought: (() -> Void)?
+    private var openLibrary: (() -> Void)?
+    private var openSettings: (() -> Void)?
+    private var checkForUpdates: (() -> Void)?
+    private var shortcutItems: [GlobalShortcutKind: NSMenuItem] = [:]
 
-    init(container: ModelContainer, draft: DraftStore) {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    init(container: ModelContainer, draft: DraftStore, statusItem: NSStatusItem? = nil) {
+        self.statusItem = statusItem ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
-        if let button = statusItem.button {
+        if let button = self.statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "square.and.pencil",
-                accessibilityDescription: String(localized: "Capture Thought")
+                accessibilityDescription: String(localized: "Thoughtbox")
             )
-            button.toolTip = String(localized: "Capture a Thought")
-            button.target = self
-            button.action = #selector(toggleCapture)
-            button.sendAction(on: [.leftMouseUp])
+            button.image?.isTemplate = true
+            button.toolTip = String(localized: "Thoughtbox")
+            button.identifier = NSUserInterfaceItemIdentifier("thoughtbox.statusItem")
+            button.setAccessibilityIdentifier("thoughtbox.statusItem")
         }
 
         popover.behavior = .transient
@@ -40,15 +47,123 @@ final class CaptureController: NSObject, NSPopoverDelegate {
         toastPopover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
-    @objc private func toggleCapture() {
-        popover.isShown ? popover.performClose(nil) : showCapture()
+    func configureStatusMenu(
+        quickCaptureShortcut: CaptureShortcut,
+        selectionShortcut: CaptureShortcut,
+        openThoughtShortcut: CaptureShortcut,
+        captureSelection: @escaping () -> Void,
+        openThought: @escaping () -> Void,
+        openLibrary: @escaping () -> Void,
+        openSettings: @escaping () -> Void,
+        checkForUpdates: @escaping () -> Void
+    ) {
+        self.captureSelection = captureSelection
+        self.openThought = openThought
+        self.openLibrary = openLibrary
+        self.openSettings = openSettings
+        self.checkForUpdates = checkForUpdates
+
+        let menu = NSMenu()
+        let quickCapture = menuItem(
+            title: String(localized: "New Thought"),
+            action: #selector(openCaptureFromMenu),
+            shortcut: quickCaptureShortcut
+        )
+        let selection = menuItem(
+            title: String(localized: "Capture Selection"),
+            action: #selector(captureSelectionFromMenu),
+            shortcut: selectionShortcut
+        )
+        let thought = menuItem(
+            title: String(localized: "Open Thought"),
+            action: #selector(openThoughtFromMenu),
+            shortcut: openThoughtShortcut
+        )
+        shortcutItems = [
+            .quickCapture: quickCapture,
+            .captureSelection: selection,
+            .menuBarThought: thought
+        ]
+        menu.items = [
+            quickCapture,
+            selection,
+            thought,
+            .separator(),
+            menuItem(
+                title: String(localized: "Open Thoughtbox"),
+                action: #selector(openLibraryFromMenu),
+                shortcut: CaptureShortcut(keyCode: UInt32(kVK_ANSI_O), modifiers: [.command])
+            ),
+            menuItem(
+                title: String(localized: "Settings…"),
+                action: #selector(openSettingsFromMenu),
+                shortcut: CaptureShortcut(keyCode: UInt32(kVK_ANSI_Comma), modifiers: [.command])
+            ),
+            menuItem(
+                title: String(localized: "Check for Updates…"),
+                action: #selector(checkForUpdatesFromMenu),
+                shortcut: CaptureShortcut(keyCode: UInt32(kVK_ANSI_U), modifiers: [.command, .shift])
+            ),
+            .separator(),
+            menuItem(
+                title: String(localized: "Quit Thoughtbox"),
+                action: #selector(quitFromMenu),
+                shortcut: CaptureShortcut(keyCode: UInt32(kVK_ANSI_Q), modifiers: [.command])
+            )
+        ]
+        statusItem.menu = menu
+    }
+
+    func updateStatusMenuShortcut(_ shortcut: CaptureShortcut, for kind: GlobalShortcutKind) {
+        guard let item = shortcutItems[kind] else { return }
+        item.keyEquivalent = shortcut.menuKeyEquivalent
+        item.keyEquivalentModifierMask = shortcut.modifiers.eventFlags
+    }
+
+    private func menuItem(title: String, action: Selector, shortcut: CaptureShortcut) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: shortcut.menuKeyEquivalent)
+        item.keyEquivalentModifierMask = shortcut.modifiers.eventFlags
+        item.target = self
+        return item
+    }
+
+    @objc private func openCaptureFromMenu() {
+        afterStatusMenuCloses { [weak self] in self?.showCapture() }
+    }
+
+    @objc private func captureSelectionFromMenu() {
+        afterStatusMenuCloses { [weak self] in self?.captureSelection?() }
+    }
+
+    @objc private func openThoughtFromMenu() {
+        afterStatusMenuCloses { [weak self] in self?.openThought?() }
+    }
+
+    @objc private func openLibraryFromMenu() {
+        openLibrary?()
+    }
+
+    @objc private func openSettingsFromMenu() {
+        openSettings?()
+    }
+
+    @objc private func checkForUpdatesFromMenu() {
+        checkForUpdates?()
+    }
+
+    @objc private func quitFromMenu() {
+        NSApp.terminate(nil)
+    }
+
+    private func afterStatusMenuCloses(_ action: @escaping @MainActor () -> Void) {
+        DispatchQueue.main.async(execute: action)
     }
 
     func showCapture() {
         guard let button = statusItem.button else { return }
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
         NotificationCenter.default.post(name: .focusCaptureEditor, object: nil)
     }
 
