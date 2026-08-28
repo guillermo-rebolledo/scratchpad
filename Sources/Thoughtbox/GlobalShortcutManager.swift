@@ -7,6 +7,7 @@ enum GlobalShortcutError: Error, Equatable {
 enum GlobalShortcutKind: UInt32, CaseIterable, Sendable {
     case quickCapture = 1
     case captureSelection = 2
+    case menuBarThought = 3
 }
 
 @MainActor
@@ -27,11 +28,13 @@ final class GlobalShortcutManager {
 
     init(
         quickCapture: @escaping () -> Void,
-        captureSelection: @escaping () -> Void
+        captureSelection: @escaping () -> Void,
+        menuBarThought: @escaping () -> Void = {}
     ) {
         actions = [
             .quickCapture: quickCapture,
-            .captureSelection: captureSelection
+            .captureSelection: captureSelection,
+            .menuBarThought: menuBarThought
         ]
         installHandler()
     }

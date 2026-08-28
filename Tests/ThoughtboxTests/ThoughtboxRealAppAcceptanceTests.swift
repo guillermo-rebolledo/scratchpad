@@ -286,6 +286,39 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
     }
 
+    func testMenuBarThoughtShortcutEditsAndRetainsTheSelectedThought() throws {
+        let app = try launch(reset: true)
+        capture("Older menu-bar Thought", in: app)
+        capture("Current menu-bar Thought", in: app)
+
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        finder.typeKey("t", modifierFlags: [.control, .option])
+
+        let editor = app.textViews["menuBarThought.editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(editor.value as? String, "Current menu-bar Thought")
+        XCTAssertTrue(waitForKeyboardFocus(editor))
+        XCTAssertTrue(app.descendants(matching: .any)["menuBarThought.saveHint"].exists)
+
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeText("Rewritten menu-bar Thought")
+        editor.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
+
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        finder.activate()
+        finder.typeKey("t", modifierFlags: [.control, .option])
+        XCTAssertTrue(editor.waitForExistence(timeout: 3))
+        XCTAssertEqual(editor.value as? String, "Rewritten menu-bar Thought")
+
+        choose("Older menu-bar Thought — Inbox", from: "menuBarThought.thoughtPicker", in: app)
+        XCTAssertTrue(waitForValue(editor, containing: "Older menu-bar Thought"))
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        finder.activate()
+        finder.typeKey("t", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForValue(editor, containing: "Older menu-bar Thought"))
+    }
+
     func testCaptureSelectionAppendsOnlyProvidedSelectionAndPreservesDestination() throws {
         let selectedText = "  Selected from another app  "
         let app = try launch(
@@ -1340,6 +1373,14 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
     private func waitForLabel(_ element: XCUIElement, containing text: String) -> Bool {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", text, text),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForValue(_ element: XCUIElement, containing text: String) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", text),
             object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
