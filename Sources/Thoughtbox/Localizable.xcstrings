@@ -443,6 +443,9 @@
     "Moves keyboard focus to the Thought list. Command A selects all visible results." : {
 
     },
+    "Moves only this Thought to Trash. You can restore it later." : {
+
+    },
     "Moves the selected active Thoughts to Inbox or one Project." : {
 
     },
@@ -484,6 +487,9 @@
 
     },
     "Opens Privacy and Security settings for Thoughtbox." : {
+
+    },
+    "Opens a confirmation before permanently deleting only this Thought." : {
 
     },
     "Opens a confirmation that states how many Thoughts will be permanently deleted." : {
@@ -611,6 +617,9 @@
 
     },
     "Restores each selected Thought to its former Project when available, otherwise Inbox." : {
+
+    },
+    "Restores only this Thought to its former Project when available, otherwise Inbox." : {
 
     },
     "Restores selected Thoughts to their former destinations when available." : {
