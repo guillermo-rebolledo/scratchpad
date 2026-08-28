@@ -11,9 +11,11 @@ final class AppState {
     let container: ModelContainer
     let draft: DraftStore
     let settings: SettingsModel
+    let menuBarThoughtSelection: MenuBarThoughtSelection
     let updaterController: SPUStandardUpdaterController
     private(set) var captureController: CaptureController?
     private(set) var shortcutManager: GlobalShortcutManager?
+    private(set) var menuBarThoughtController: MenuBarThoughtController?
     private var selectionCaptureCoordinator: SelectionCaptureCoordinator?
     private let selectionProvider: SelectionProviding
     private let selectionFailurePresenter: SelectionFailurePresenter
@@ -32,6 +34,7 @@ final class AppState {
         }
         let defaults = PersistenceFactory.makeDraftDefaults()
         draft = DraftStore(defaults: defaults)
+        menuBarThoughtSelection = MenuBarThoughtSelection(defaults: defaults)
         selectionProvider = processInfo.arguments.contains("--ui-testing")
             ? UITestSelectionProvider(processInfo: processInfo)
             : SelectionHelperClient()
@@ -49,6 +52,11 @@ final class AppState {
         guard captureController == nil else { return }
         let controller = CaptureController(container: container, draft: draft)
         captureController = controller
+        let menuBarController = MenuBarThoughtController(
+            container: container,
+            selection: menuBarThoughtSelection
+        )
+        menuBarThoughtController = menuBarController
         let coordinator = SelectionCaptureCoordinator(
             draft: draft,
             provider: selectionProvider,
@@ -66,7 +74,8 @@ final class AppState {
             quickCapture: { [weak controller] in controller?.showCapture() },
             captureSelection: { [weak coordinator] in
                 Task { @MainActor in await coordinator?.captureSelection() }
-            }
+            },
+            menuBarThought: { [weak menuBarController] in menuBarController?.showPopover() }
         )
         shortcutManager = manager
         settings.connectShortcutRegistration { shortcut in
@@ -82,6 +91,12 @@ final class AppState {
                 throw GlobalShortcutError.unavailable
             }
             try manager.register(shortcut, for: .captureSelection)
+        }
+        settings.connectMenuBarThoughtShortcutRegistration { shortcut in
+            if ProcessInfo.processInfo.arguments.contains("--simulate-menu-bar-shortcut-conflict") {
+                throw GlobalShortcutError.unavailable
+            }
+            try manager.register(shortcut, for: .menuBarThought)
         }
         settings.connectSelectionPermissionStatus { [weak selectionProvider] prompt in
             await selectionProvider?.accessibilityPermissionStatus(prompt: prompt) ?? false

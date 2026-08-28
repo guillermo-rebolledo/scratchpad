@@ -49,6 +49,11 @@ struct CaptureShortcut: Codable, Equatable, Hashable, Sendable {
         modifiers: [.control, .option, .shift]
     )
 
+    static let menuBarThoughtDefault = CaptureShortcut(
+        keyCode: UInt32(kVK_ANSI_T),
+        modifiers: [.control, .option]
+    )
+
     var isValid: Bool {
         UInt16(exactly: keyCode) != nil
             && !modifiers.intersection([.control, .option, .command]).isEmpty
@@ -156,12 +161,15 @@ final class SettingsModel {
         static let shortcutModifiers = "settings.shortcut.modifiers"
         static let selectionShortcutKeyCode = "settings.selectionShortcut.keyCode"
         static let selectionShortcutModifiers = "settings.selectionShortcut.modifiers"
+        static let menuBarThoughtShortcutKeyCode = "settings.menuBarThoughtShortcut.keyCode"
+        static let menuBarThoughtShortcutModifiers = "settings.menuBarThoughtShortcut.modifiers"
     }
 
     private let defaults: UserDefaults
     private let loginItemService: LoginItemServicing
     private var registerShortcut: ((CaptureShortcut) throws -> Void)?
     private var registerSelectionShortcut: ((CaptureShortcut) throws -> Void)?
+    private var registerMenuBarThoughtShortcut: ((CaptureShortcut) throws -> Void)?
     private var selectionPermissionStatus: ((Bool) async -> Bool)?
     private var selectionPermissionOnboardingTask: Task<Void, Never>?
     private var selectionPermissionOnboardingPending = false
@@ -170,6 +178,8 @@ final class SettingsModel {
     private(set) var shortcutError: String?
     private(set) var selectionShortcut: CaptureShortcut
     private(set) var selectionShortcutError: String?
+    private(set) var menuBarThoughtShortcut: CaptureShortcut
+    private(set) var menuBarThoughtShortcutError: String?
     private(set) var selectionPermissionGranted: Bool?
     private(set) var selectionPermissionAlertRequested = false
     private(set) var launchAtLoginEnabled = false
@@ -190,6 +200,12 @@ final class SettingsModel {
             keyCodeKey: Key.selectionShortcutKeyCode,
             modifiersKey: Key.selectionShortcutModifiers,
             fallback: .selectionDefault
+        )
+        menuBarThoughtShortcut = Self.savedShortcut(
+            defaults: defaults,
+            keyCodeKey: Key.menuBarThoughtShortcutKeyCode,
+            modifiersKey: Key.menuBarThoughtShortcutModifiers,
+            fallback: .menuBarThoughtDefault
         )
         refreshLaunchAtLogin()
     }
@@ -273,6 +289,37 @@ final class SettingsModel {
 
     func restoreDefaultSelectionShortcut() {
         assignSelectionShortcut(.selectionDefault)
+    }
+
+    func connectMenuBarThoughtShortcutRegistration(_ registration: @escaping (CaptureShortcut) throws -> Void) {
+        registerMenuBarThoughtShortcut = registration
+        do {
+            try registration(menuBarThoughtShortcut)
+            menuBarThoughtShortcutError = nil
+        } catch {
+            menuBarThoughtShortcutError = String(localized: "The saved Open Thought shortcut is unavailable. Choose another shortcut.")
+        }
+    }
+
+    func assignMenuBarThoughtShortcut(_ candidate: CaptureShortcut) {
+        guard candidate.isValid else {
+            menuBarThoughtShortcutError = String(localized: "Include Control, Option, or Command with the shortcut key.")
+            return
+        }
+        guard let registerMenuBarThoughtShortcut else { return }
+        do {
+            try registerMenuBarThoughtShortcut(candidate)
+            menuBarThoughtShortcut = candidate
+            defaults.set(Int(candidate.keyCode), forKey: Key.menuBarThoughtShortcutKeyCode)
+            defaults.set(Int(candidate.modifiers.rawValue), forKey: Key.menuBarThoughtShortcutModifiers)
+            menuBarThoughtShortcutError = nil
+        } catch {
+            menuBarThoughtShortcutError = String(localized: "That shortcut is unavailable or used by another app. The previous shortcut is still active.")
+        }
+    }
+
+    func restoreDefaultMenuBarThoughtShortcut() {
+        assignMenuBarThoughtShortcut(.menuBarThoughtDefault)
     }
 
     func connectSelectionPermissionStatus(_ status: @escaping (Bool) async -> Bool) {
@@ -413,6 +460,8 @@ struct ThoughtboxSettingsView: View {
                 Text(String(localized: "settings.shortcut.help", defaultValue: "Activate the recorder, then type a shortcut. The change takes effect immediately."))
             }
 
+            MenuBarThoughtSettingsSection(model: model)
+
             Section {
                 LabeledContent("Capture Selection Shortcut") {
                     ShortcutRecorderView(
@@ -487,7 +536,7 @@ struct ThoughtboxSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(8)
-        .frame(width: 520, height: 520)
+        .frame(width: 520, height: 650)
         .onAppear {
             model.refreshLaunchAtLogin()
             Task { await model.refreshSelectionPermission() }
@@ -527,6 +576,48 @@ struct ThoughtboxSettingsView: View {
             guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
             NSWorkspace.shared.open(url)
         }
+    }
+}
+
+private struct MenuBarThoughtSettingsSection: View {
+    @Bindable var model: SettingsModel
+    @AccessibilityFocusState private var errorFocused: Bool
+
+    var body: some View {
+        Section {
+            LabeledContent("Open Thought Shortcut") {
+                ShortcutRecorderView(
+                    shortcut: model.menuBarThoughtShortcut,
+                    identifier: "settings.menuBarThoughtShortcut.recorder",
+                    accessibilityLabel: "Open Thought shortcut recorder",
+                    accessibilityHelp: "Activate, then type the shortcut for opening the selected Thought from the menu bar. Press Escape to cancel."
+                ) { shortcut in
+                    model.assignMenuBarThoughtShortcut(shortcut)
+                }
+                .frame(width: 210, height: 28)
+            }
+            Button("Restore Open Thought Default") {
+                model.restoreDefaultMenuBarThoughtShortcut()
+            }
+            .disabled(model.menuBarThoughtShortcut == .menuBarThoughtDefault)
+            .help("Reinstates Control–Option–T.")
+            .accessibilityHint("Reinstates Control–Option–T.")
+            .accessibilityIdentifier("settings.menuBarThoughtShortcut.restore")
+
+            if let error = model.menuBarThoughtShortcutError {
+                AccessibleErrorMessage(
+                    message: error,
+                    accessibilityLabel: "Open Thought shortcut error: \(error)",
+                    identifier: "settings.menuBarThoughtShortcut.error"
+                )
+                .accessibilityFocused($errorFocused)
+            }
+        } header: {
+            Text("Menu Bar Thought")
+        } footer: {
+            Text("Opens the currently selected Thought so you can append notes. It stays selected until you choose another one.")
+        }
+        .onChange(of: model.menuBarThoughtShortcutError) { _, error in errorFocused = error != nil }
     }
 }
 

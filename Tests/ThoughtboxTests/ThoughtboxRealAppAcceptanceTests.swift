@@ -286,6 +286,41 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
     }
 
+    func testMenuBarThoughtShortcutAppendsAndRetainsTheSelectedThought() throws {
+        let app = try launch(reset: true)
+        capture("Older menu-bar Thought", in: app)
+        capture("Current menu-bar Thought", in: app)
+
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        finder.typeKey("t", modifierFlags: [.control, .option])
+
+        let thought = app.descendants(matching: .any)["menuBarThought.thought"]
+        let note = app.textViews["menuBarThought.note"]
+        XCTAssertTrue(thought.waitForExistence(timeout: 3))
+        XCTAssertEqual(thought.value as? String, "Current menu-bar Thought")
+        XCTAssertTrue(note.waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForKeyboardFocus(note))
+
+        note.typeText("Follow-up from the menu bar")
+        note.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: .command)
+        XCTAssertTrue(waitForValue(thought, containing: "Follow-up from the menu bar"))
+        XCTAssertEqual(note.value as? String, "")
+
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        finder.activate()
+        finder.typeKey("t", modifierFlags: [.control, .option])
+        XCTAssertTrue(note.waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForValue(thought, containing: "Follow-up from the menu bar"))
+
+        app.buttons["menuBarThought.another"].click()
+        XCTAssertTrue(waitForValue(thought, containing: "Older menu-bar Thought"))
+        app.typeKey(XCUIKeyboardKey.escape.rawValue, modifierFlags: [])
+        finder.activate()
+        finder.typeKey("t", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForValue(thought, containing: "Older menu-bar Thought"))
+    }
+
     func testCaptureSelectionAppendsOnlyProvidedSelectionAndPreservesDestination() throws {
         let selectedText = "  Selected from another app  "
         let app = try launch(
@@ -1340,6 +1375,14 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
     private func waitForLabel(_ element: XCUIElement, containing text: String) -> Bool {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", text, text),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForValue(_ element: XCUIElement, containing text: String) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", text),
             object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
