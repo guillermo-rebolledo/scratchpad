@@ -62,6 +62,35 @@ struct MenuBarThoughtTests {
         #expect(selection.scope == .allThoughts)
     }
 
+    @Test("Only Projects with active Thoughts appear as menu bar sources")
+    func projectSourcesExcludeEmptyAndTrashOnlyProjects() {
+        let activeProject = Project(name: "Active")
+        let emptyProject = Project(name: "Empty")
+        let trashOnlyProject = Project(name: "Trash only")
+        let activeThought = Thought(markdown: "Available", project: activeProject)
+        let trashedThought = Thought(markdown: "Trashed", trashedAt: .now, project: trashOnlyProject)
+
+        let projects = MenuBarThoughtScope.populatedProjects(
+            from: [activeProject, emptyProject, trashOnlyProject],
+            thoughts: [activeThought, trashedThought]
+        )
+
+        #expect(projects.map(\.id) == [activeProject.id])
+    }
+
+    @Test("A selected Project falls back to All Thoughts when it becomes empty")
+    func emptyProjectFallsBack() throws {
+        let defaults = try #require(UserDefaults(suiteName: "MenuBarThoughtEmptyProject-\(UUID().uuidString)"))
+        let project = Project(name: "Work")
+        let projectThought = Thought(markdown: "Project", project: project)
+        let inboxThought = Thought(markdown: "Inbox")
+        let selection = MenuBarThoughtSelection(defaults: defaults)
+        selection.selectScope(.project(project.id), thoughts: [projectThought, inboxThought], projectIDs: [project.id])
+
+        #expect(selection.reconcile(thoughts: [inboxThought], projectIDs: [project.id])?.id == inboxThought.id)
+        #expect(selection.scope == .allThoughts)
+    }
+
     @Test("A moved Thought stays selected and its source follows its new destination")
     func movedThoughtStaysSelected() throws {
         let defaults = try #require(UserDefaults(suiteName: "MenuBarThoughtMoved-\(UUID().uuidString)"))

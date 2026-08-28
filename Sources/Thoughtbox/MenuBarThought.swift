@@ -36,6 +36,15 @@ enum MenuBarThoughtScope: Codable, Equatable, Hashable {
         case let .project(id): thought.project?.id == id
         }
     }
+
+    static func populatedProjects(from projects: [Project], thoughts: [Thought]) -> [Project] {
+        let populatedIDs = Set(
+            thoughts
+                .filter { $0.trashedAt == nil }
+                .compactMap { $0.project?.id }
+        )
+        return projects.filter { populatedIDs.contains($0.id) }
+    }
 }
 
 @MainActor
@@ -70,7 +79,8 @@ final class MenuBarThoughtSelection {
     }
 
     func availableThoughts(from thoughts: [Thought], projectIDs: Set<UUID>) -> [Thought] {
-        if case let .project(id) = scope, !projectIDs.contains(id) {
+        if case let .project(id) = scope,
+           !projectIDs.contains(id) || !thoughts.contains(where: scope.includes) {
             scope = .allThoughts
         }
         return thoughts.filter(scope.includes)
@@ -78,14 +88,12 @@ final class MenuBarThoughtSelection {
 
     @discardableResult
     func reconcile(thoughts: [Thought], projectIDs: Set<UUID>) -> Thought? {
+        if let thoughtID, let currentThought = thoughts.first(where: { $0.id == thoughtID }) {
+            if scope.includes(currentThought) { return currentThought }
+            scope = currentThought.project.map { .project($0.id) } ?? .inbox
+            return currentThought
+        }
         let available = availableThoughts(from: thoughts, projectIDs: projectIDs)
-        if let thoughtID, let selected = available.first(where: { $0.id == thoughtID }) {
-            return selected
-        }
-        if let thoughtID, let movedThought = thoughts.first(where: { $0.id == thoughtID }) {
-            scope = movedThought.project.map { .project($0.id) } ?? .inbox
-            return movedThought
-        }
         thoughtID = available.first?.id
         return available.first
     }
@@ -233,9 +241,9 @@ private struct MenuBarThoughtView: View {
                         .tag(MenuBarThoughtScope.allThoughts)
                     Label("Inbox", systemImage: "tray")
                         .tag(MenuBarThoughtScope.inbox)
-                    if !projects.isEmpty {
+                    if !populatedProjects.isEmpty {
                         Divider()
-                        ForEach(projects) { project in
+                        ForEach(populatedProjects) { project in
                             Label(project.name, systemImage: "folder")
                                 .tag(MenuBarThoughtScope.project(project.id))
                         }
@@ -385,6 +393,10 @@ private struct MenuBarThoughtView: View {
     }
 
     private var projectIDs: Set<UUID> { Set(projects.map(\.id)) }
+
+    private var populatedProjects: [Project] {
+        MenuBarThoughtScope.populatedProjects(from: projects, thoughts: thoughts)
+    }
 
     private var thoughtDestinations: [String] {
         thoughts.map { thought in
