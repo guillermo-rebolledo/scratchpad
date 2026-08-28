@@ -144,9 +144,14 @@ private struct ThoughtCommands: Commands {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var didConfigureExpansionTestWindow = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppState.shared.startCaptureServices()
         NSApp.setActivationPolicy(.regular)
+        Task { @MainActor [weak self] in
+            self?.configureExpansionTestWindowIfRequested()
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -159,5 +164,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    @MainActor
+    private func configureExpansionTestWindowIfRequested() {
+        guard !didConfigureExpansionTestWindow,
+              ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+              ProcessInfo.processInfo.arguments.contains("--ui-test-position-window-for-expansion"),
+              let window = NSApp.windows.first(where: { $0.canBecomeMain }),
+              let visibleFrame = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+        else { return }
+
+        didConfigureExpansionTestWindow = true
+        window.setContentSize(
+            NSSize(
+                width: ThoughtboxWindowMetrics.minimumWidth,
+                height: ThoughtboxWindowMetrics.minimumHeight
+            )
+        )
+        window.setFrameTopLeftPoint(
+            NSPoint(x: visibleFrame.minX, y: visibleFrame.maxY)
+        )
     }
 }
