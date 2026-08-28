@@ -682,6 +682,71 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         XCTAssertTrue(accessibilityText(of: trashedInboxRow).contains("Trash"))
     }
 
+    func testTrailingSwipeTrashesOnlyItsThoughtAndSelectsTheAdjacentRow() throws {
+        let app = try launch(reset: true)
+        createProject("Swipe Project", in: app)
+        capture("Older Swipe Thought", destination: "Swipe Project", in: app)
+        capture("Newer Swipe Thought", destination: "Swipe Project", in: app)
+
+        app.staticTexts["Swipe Project"].firstMatch.click()
+        let newerRow = thoughtRow("Newer Swipe Thought", in: app)
+        newerRow.click()
+        newerRow.swipeLeft()
+        let moveToTrash = app.buttons["thought.swipe.trash"]
+        XCTAssertTrue(moveToTrash.waitForExistence(timeout: 3))
+        moveToTrash.click()
+
+        XCTAssertFalse(newerRow.exists)
+        XCTAssertTrue(thoughtRow("Older Swipe Thought", in: app).exists)
+        let detail = app.descendants(matching: .any)["thought.detail"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 3))
+        XCTAssertTrue(detail.staticTexts["Older Swipe Thought"].exists)
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        XCTAssertTrue(thoughtRow("Newer Swipe Thought", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(thoughtRow("Older Swipe Thought", in: app).exists)
+    }
+
+    func testTrashSwipesRestoreOneThoughtAndRequireConfirmationToDeleteAnother() throws {
+        let app = try launch(reset: true)
+        createProject("Swipe Restore Project", in: app)
+        capture("Restore Swipe Thought", destination: "Swipe Restore Project", in: app)
+        capture("Delete Swipe Thought", destination: "Swipe Restore Project", in: app)
+
+        app.staticTexts["Swipe Restore Project"].firstMatch.click()
+        app.typeKey("l", modifierFlags: .command)
+        app.typeKey("a", modifierFlags: .command)
+        actionButton("trash.move", in: app).click()
+        app.descendants(matching: .any)["trash.sidebar"].click()
+
+        let restoreRow = thoughtRow("Restore Swipe Thought", in: app)
+        restoreRow.click()
+        restoreRow.swipeRight()
+        let restore = app.buttons["thought.swipe.restore"]
+        XCTAssertTrue(restore.waitForExistence(timeout: 3))
+        restore.click()
+
+        XCTAssertFalse(restoreRow.exists)
+        XCTAssertTrue(thoughtRow("Delete Swipe Thought", in: app).exists)
+        let detail = app.descendants(matching: .any)["thought.detail"]
+        XCTAssertTrue(detail.staticTexts["Delete Swipe Thought"].exists)
+        app.staticTexts["Swipe Restore Project"].firstMatch.click()
+        XCTAssertTrue(thoughtRow("Restore Swipe Thought", in: app).waitForExistence(timeout: 3))
+
+        app.descendants(matching: .any)["trash.sidebar"].click()
+        let deleteRow = thoughtRow("Delete Swipe Thought", in: app)
+        deleteRow.swipeLeft()
+        let deletePermanently = app.buttons["thought.swipe.delete"]
+        XCTAssertTrue(deletePermanently.waitForExistence(timeout: 3))
+        XCTAssertTrue(deleteRow.exists)
+        deletePermanently.click()
+
+        XCTAssertTrue(app.staticTexts["Permanently delete this Thought?"].waitForExistence(timeout: 3))
+        XCTAssertTrue(deleteRow.exists)
+        app.buttons["trash.delete.confirm"].click()
+        XCTAssertFalse(deleteRow.exists)
+    }
+
     func testDraftProjectDestinationPersistsAndResetsAfterCapture() throws {
         let app = try launch(reset: true)
         createProject("Persistent Destination", in: app)

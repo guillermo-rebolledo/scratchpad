@@ -110,6 +110,7 @@ struct MainView: View {
     @State private var operationIsError = false
     @State private var confirmsPermanentDeletion = false
     @State private var pendingPermanentDeletionIDs: Set<UUID> = []
+    @State private var pendingPermanentDeletionSelectionAfterRemoval: Set<UUID>?
     @State private var projectDeletionConfirmation: ProjectDeletionConfirmation?
     @State private var confirmsProjectDeletion = false
     @State private var exportIsRunning = false
@@ -193,6 +194,37 @@ struct MainView: View {
                             restoreDestinationName: restoreDestinationName(for: thought)
                         )
                             .tag(thought.id)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: collection != .trash) {
+                                if collection == .trash {
+                                    Button(role: .destructive) {
+                                        requestPermanentDeletion(for: thought)
+                                    } label: {
+                                        Label("Delete Permanently", systemImage: "trash.slash")
+                                    }
+                                    .accessibilityHint("Opens a confirmation before permanently deleting only this Thought.")
+                                    .accessibilityIdentifier("thought.swipe.delete")
+                                } else {
+                                    Button(role: .destructive) {
+                                        trashThought(thought)
+                                    } label: {
+                                        Label("Move to Trash", systemImage: "trash")
+                                    }
+                                    .accessibilityHint("Moves only this Thought to Trash. You can restore it later.")
+                                    .accessibilityIdentifier("thought.swipe.trash")
+                                }
+                            }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                if collection == .trash {
+                                    Button {
+                                        restoreThought(thought)
+                                    } label: {
+                                        Label("Restore", systemImage: "arrow.uturn.backward")
+                                    }
+                                    .tint(.accentColor)
+                                    .accessibilityHint("Restores only this Thought to its former Project when available, otherwise Inbox.")
+                                    .accessibilityIdentifier("thought.swipe.restore")
+                                }
+                            }
                             .contextMenu {
                                 if collection != .trash {
                                     Button(role: .destructive) {
@@ -707,10 +739,13 @@ struct MainView: View {
     }
 
     private func trashThought(_ thought: Thought) {
-        trashThoughts([thought])
+        trashThoughts([thought], selectionAfterRemoval: selectionAfterRemovingRow(thought))
     }
 
-    private func trashThoughts(_ selected: [Thought]) {
+    private func trashThoughts(
+        _ selected: [Thought],
+        selectionAfterRemoval: Set<UUID>? = nil
+    ) {
         guard editNavigationGuard.canLeaveEditor() else { return }
         guard !selected.isEmpty else { return }
 
@@ -722,6 +757,9 @@ struct MainView: View {
             } else {
                 count = try repository.trash(selected)
             }
+            if let selectionAfterRemoval {
+                selectedThoughtIDs = selectionAfterRemoval
+            }
             operationMessage = String(localized: "Moved \(count) Thought\(count == 1 ? "" : "s") to Trash.")
             operationIsError = false
             focusOperationStatus()
@@ -732,9 +770,40 @@ struct MainView: View {
         }
     }
 
+    private func selectionAfterRemovingRow(_ thought: Thought) -> Set<UUID> {
+        guard selectedThoughtIDs.contains(thought.id) else { return selectedThoughtIDs }
+
+        var remainingSelection = selectedThoughtIDs
+        remainingSelection.remove(thought.id)
+        guard remainingSelection.isEmpty,
+              let removedIndex = visibleThoughts.firstIndex(where: { $0.id == thought.id }) else {
+            return remainingSelection
+        }
+
+        let nextIndex = visibleThoughts.index(after: removedIndex)
+        if nextIndex < visibleThoughts.endIndex {
+            return [visibleThoughts[nextIndex].id]
+        }
+        if removedIndex > visibleThoughts.startIndex {
+            return [visibleThoughts[visibleThoughts.index(before: removedIndex)].id]
+        }
+        return []
+    }
+
     private func restoreSelection() {
-        guard editNavigationGuard.canLeaveEditor() else { return }
         let selected = trashedThoughts.filter { selectedThoughtIDs.contains($0.id) }
+        restoreThoughts(selected)
+    }
+
+    private func restoreThought(_ thought: Thought) {
+        restoreThoughts([thought], selectionAfterRemoval: selectionAfterRemovingRow(thought))
+    }
+
+    private func restoreThoughts(
+        _ selected: [Thought],
+        selectionAfterRemoval: Set<UUID>? = nil
+    ) {
+        guard editNavigationGuard.canLeaveEditor() else { return }
         guard !selected.isEmpty else { return }
 
         do {
@@ -744,6 +813,9 @@ struct MainView: View {
                 result = try repository.restore(selected) { throw TrashError.restoreFailed }
             } else {
                 result = try repository.restore(selected)
+            }
+            if let selectionAfterRemoval {
+                selectedThoughtIDs = selectionAfterRemoval
             }
             if result.inboxFallbackCount == 0 {
                 operationMessage = String(localized: "Restored \(result.restoredCount) Thought\(result.restoredCount == 1 ? "" : "s") to \(result.restoredCount == 1 ? "its" : "their") former destination.")
@@ -762,7 +834,15 @@ struct MainView: View {
     private func requestPermanentDeletion() {
         guard editNavigationGuard.canLeaveEditor() else { return }
         pendingPermanentDeletionIDs = selectedThoughtIDs.intersection(Set(trashedThoughts.map(\.id)))
+        pendingPermanentDeletionSelectionAfterRemoval = nil
         confirmsPermanentDeletion = !pendingPermanentDeletionIDs.isEmpty
+    }
+
+    private func requestPermanentDeletion(for thought: Thought) {
+        guard editNavigationGuard.canLeaveEditor(), thought.trashedAt != nil else { return }
+        pendingPermanentDeletionIDs = [thought.id]
+        pendingPermanentDeletionSelectionAfterRemoval = selectionAfterRemovingRow(thought)
+        confirmsPermanentDeletion = true
     }
 
     private func permanentlyDeleteConfirmed() {
@@ -778,8 +858,13 @@ struct MainView: View {
             } else {
                 count = try repository.permanentlyDelete(deleting)
             }
-            selectedThoughtIDs.subtract(pendingPermanentDeletionIDs)
+            if let pendingPermanentDeletionSelectionAfterRemoval {
+                selectedThoughtIDs = pendingPermanentDeletionSelectionAfterRemoval
+            } else {
+                selectedThoughtIDs.subtract(pendingPermanentDeletionIDs)
+            }
             pendingPermanentDeletionIDs = []
+            pendingPermanentDeletionSelectionAfterRemoval = nil
             operationMessage = String(localized: "Permanently deleted \(count) Thought\(count == 1 ? "" : "s").")
             operationIsError = false
             focusOperationStatus()
