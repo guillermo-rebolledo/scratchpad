@@ -284,6 +284,30 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         finder.typeKey(XCUIKeyboardKey.space.rawValue, modifierFlags: [.control, .option])
 
         XCTAssertTrue(app.textViews["capture.editor"].waitForExistence(timeout: 3))
+        XCTAssertEqual(app.state, .runningBackground)
+    }
+
+    func testSingleStatusItemShowsEveryTask() throws {
+        let app = try launch(reset: true)
+        let statusItems = app.statusItems.matching(identifier: "thoughtbox.statusItem")
+        XCTAssertEqual(statusItems.count, 1)
+
+        statusItems.firstMatch.click()
+
+        let statusMenuItems = statusItems.firstMatch.menuItems
+        for title in [
+            "New Thought",
+            "Capture Selection",
+            "Open Thought",
+            "Open Thoughtbox",
+            "Settings…",
+            "Check for Updates…",
+            "Quit Thoughtbox"
+        ] {
+            let item = statusMenuItems[title]
+            XCTAssertTrue(item.waitForExistence(timeout: 3), "Missing status-menu task: \(title)")
+            XCTAssertTrue(item.isEnabled)
+        }
     }
 
     func testMenuBarThoughtShortcutEditsAndRetainsTheSelectedThought() throws {
