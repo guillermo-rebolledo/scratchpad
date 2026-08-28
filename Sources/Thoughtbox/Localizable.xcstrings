@@ -82,6 +82,9 @@
     "A Project named “%@” already exists. Project names are compared without regard to capitalization." : {
 
     },
+    "A Thought can’t be empty. Restore some content before saving." : {
+
+    },
     "Accessibility Permission" : {
 
     },
@@ -98,6 +101,9 @@
 
     },
     "An export with this stable ID already exists. No file was overwritten." : {
+
+    },
+    "Another Thought" : {
 
     },
     "Asks for confirmation before permanently deleting the selected Thoughts." : {
@@ -157,6 +163,9 @@
     "Checks the signed Thoughtbox update channel for a newer version." : {
 
     },
+    "Choose All Thoughts, Inbox, or one Project." : {
+
+    },
     "Choose Export All or export the selected trashed Thoughts." : {
 
     },
@@ -185,6 +194,9 @@
     "Choose a folder. Thoughtbox will create Inbox and Project folders inside it." : {
 
     },
+    "Choose a specific Thought from %@. Unsaved changes are saved before switching." : {
+
+    },
     "Clear Draft" : {
 
     },
@@ -201,6 +213,9 @@
 
     },
     "Column %lld" : {
+
+    },
+    "Command Return saves the Thought" : {
 
     },
     "Completed task" : {
@@ -264,6 +279,9 @@
 
     },
     "Edit the canonical Markdown source." : {
+
+    },
+    "Edit the complete Thought. Press Command Return to save." : {
 
     },
     "Edited %@" : {
@@ -369,6 +387,9 @@
     "Inbox Is Empty" : {
 
     },
+    "Include Control, Option, or Command with the shortcut key." : {
+
+    },
     "Incomplete task" : {
 
     },
@@ -381,7 +402,13 @@
     "Keep in Trash" : {
 
     },
+    "Keeps the selected source and moves to its next Thought." : {
+
+    },
     "List item" : {
+
+    },
+    "Menu Bar Thought" : {
 
     },
     "Move" : {
@@ -480,10 +507,19 @@
     "No Search Results" : {
 
     },
+    "No Thoughts" : {
+
+    },
     "No Thoughts Yet" : {
 
     },
     "Open Accessibility Settings" : {
+
+    },
+    "Open Thought Shortcut" : {
+
+    },
+    "Open a Thought" : {
 
     },
     "Opens Privacy and Security settings for Thoughtbox." : {
@@ -493,6 +529,9 @@
 
     },
     "Opens a confirmation that states how many Thoughts will be permanently deleted." : {
+
+    },
+    "Opens the currently selected Thought for editing. Press Command–Return to save; it stays selected until you choose another one." : {
 
     },
     "Opens the persistent Draft editor and preserves Inbox as its destination." : {
@@ -569,6 +608,9 @@
     "Reinstates Control–Option–Shift–Space." : {
 
     },
+    "Reinstates Control–Option–T." : {
+
+    },
     "Rename Project" : {
 
     },
@@ -585,6 +627,9 @@
 
     },
     "Restore" : {
+
+    },
+    "Restore Open Thought Default" : {
 
     },
     "Restore Selected" : {
@@ -634,6 +679,9 @@
     "Save and return to rendered Markdown." : {
 
     },
+    "Save the complete Thought. Shortcut: Command–Return." : {
+
+    },
     "Save to" : {
 
     },
@@ -644,6 +692,9 @@
 
     },
     "Saves pending changes and returns to rendered Markdown." : {
+
+    },
+    "Saves the complete edited Thought and keeps it selected." : {
 
     },
     "Saves the trimmed Project name if it is unique." : {
@@ -673,6 +724,9 @@
     "Select one or more Thoughts in Trash before exporting." : {
 
     },
+    "Select the next Thought from %@." : {
+
+    },
     "Selected Thought" : {
 
     },
@@ -700,6 +754,9 @@
     "Shows trashed Thoughts newest first. Trash is retained until you permanently delete it." : {
 
     },
+    "Source" : {
+
+    },
     "Stops before the next Markdown file. Files already exported remain in the chosen folder." : {
 
     },
@@ -722,10 +779,22 @@
     "Task checkboxes are visual. Switch to Edit to change the task." : {
 
     },
+    "That shortcut is unavailable or used by another app. The previous shortcut is still active." : {
+
+    },
     "The empty Project will be permanently deleted. This cannot be undone." : {
 
     },
+    "The saved Open Thought shortcut is unavailable. Choose another shortcut." : {
+
+    },
     "The selected Project no longer exists. Your Draft is intact and will save to Inbox." : {
+
+    },
+    "The selected Thought changed because the previous one is no longer available. Your unsaved edits are preserved." : {
+
+    },
+    "There are no active Thoughts in %@. Choose another source or capture a Thought first." : {
 
     },
     "There are no active Thoughts to export. Trash is excluded from Export All." : {
@@ -759,6 +828,12 @@
     "Thought destination" : {
 
     },
+    "Thought saved." : {
+
+    },
+    "Thought source" : {
+
+    },
     "Thoughtbox" : {
 
     },
@@ -778,6 +853,9 @@
 
     },
     "Thoughtbox could not save these changes. Restore non-empty content or retry before leaving Edit." : {
+
+    },
+    "Thoughtbox could not save these changes. Your text is still here; try again." : {
 
     },
     "Thoughtbox could not save this Project change. Try again." : {
@@ -804,7 +882,13 @@
     "Unordered list with %lld items" : {
 
     },
+    "Unsaved changes" : {
+
+    },
     "Use the available Trash actions to restore, export, or permanently delete this Thought." : {
+
+    },
+    "Your unsaved edits are preserved, but their Thought is no longer available." : {
 
     },
     "active" : {
@@ -1205,6 +1289,9 @@
       }
     },
     "trashed" : {
+
+    },
+    "⌘↩ to save" : {
 
     }
   },
