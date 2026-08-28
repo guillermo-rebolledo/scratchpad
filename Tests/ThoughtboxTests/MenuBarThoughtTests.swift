@@ -149,6 +149,36 @@ struct MenuBarThoughtTests {
         #expect(thought.markdown == "Rewritten\n\nwith **Markdown**")
     }
 
+    @Test("A disappeared loaded Thought cannot redirect preserved edits to another Thought")
+    func disappearedLoadedThoughtDoesNotCorruptSelection() throws {
+        let repository = try ThoughtRepository.inMemory()
+        let original = try repository.capture(markdown: "Original")
+        let unrelated = try repository.capture(markdown: "Unrelated")
+
+        #expect(throws: MenuBarThoughtEditError.thoughtUnavailable) {
+            try MenuBarThoughtEditor.save(
+                "Preserved edits",
+                loadedThoughtID: original.id,
+                among: [unrelated],
+                using: repository
+            )
+        }
+        #expect(original.markdown == "Original")
+        #expect(unrelated.markdown == "Unrelated")
+
+        original.trashedAt = .now
+        #expect(throws: MenuBarThoughtEditError.thoughtUnavailable) {
+            try MenuBarThoughtEditor.save(
+                "Preserved edits",
+                loadedThoughtID: original.id,
+                among: [original, unrelated],
+                using: repository
+            )
+        }
+        #expect(original.markdown == "Original")
+        #expect(unrelated.markdown == "Unrelated")
+    }
+
     @Test("Editing preserves meaningful Markdown whitespace exactly")
     func editPreservesMarkdownWhitespace() throws {
         let repository = try ThoughtRepository.inMemory()

@@ -133,17 +133,36 @@ final class MenuBarThoughtSelection {
 enum MenuBarThoughtEditError: LocalizedError, Equatable {
     case emptyThought
     case couldNotSave
+    case thoughtUnavailable
 
     var errorDescription: String? {
         switch self {
         case .emptyThought: String(localized: "A Thought can’t be empty. Restore some content before saving.")
         case .couldNotSave: String(localized: "Thoughtbox could not save these changes. Your text is still here; try again.")
+        case .thoughtUnavailable: String(localized: "The original Thought is no longer available. Your edits were not saved.")
         }
     }
 }
 
 @MainActor
 enum MenuBarThoughtEditor {
+    static func save(
+        _ markdown: String,
+        loadedThoughtID: UUID?,
+        among thoughts: [Thought],
+        using repository: ThoughtRepository,
+        at date: Date = .now,
+        saveChanges: (() throws -> Void)? = nil
+    ) throws {
+        guard let loadedThoughtID,
+              let thought = thoughts.first(where: {
+                  $0.id == loadedThoughtID && $0.trashedAt == nil
+              }) else {
+            throw MenuBarThoughtEditError.thoughtUnavailable
+        }
+        try save(markdown, to: thought, using: repository, at: date, saveChanges: saveChanges)
+    }
+
     static func save(
         _ markdown: String,
         to thought: Thought,
@@ -468,15 +487,17 @@ private struct MenuBarThoughtView: View {
 
     @discardableResult
     private func saveCurrentThought() -> Bool {
-        guard let thought = thoughts.first(where: { $0.id == loadedThoughtID }) ?? selectedThought else {
-            return !hasUnsavedChanges
-        }
         guard hasUnsavedChanges else {
             errorMessage = nil
             return true
         }
         do {
-            try MenuBarThoughtEditor.save(markdown, to: thought, using: ThoughtRepository(context: modelContext))
+            try MenuBarThoughtEditor.save(
+                markdown,
+                loadedThoughtID: loadedThoughtID,
+                among: thoughts,
+                using: ThoughtRepository(context: modelContext)
+            )
             lastSavedMarkdown = markdown
             errorMessage = nil
             selectionNotice = nil
