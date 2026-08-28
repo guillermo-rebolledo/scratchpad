@@ -7,7 +7,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let appMenu = app.menuBars.menuBarItems["Thoughtbox"]
         XCTAssertTrue(appMenu.waitForExistence(timeout: 3))
         appMenu.click()
-        let command = app.menuItems["Check for Updates…"]
+        let command = appMenu.menuItems["Check for Updates…"]
         XCTAssertTrue(command.waitForExistence(timeout: 3))
         XCTAssertTrue(command.isEnabled)
     }
@@ -44,7 +44,7 @@ final class ThoughtboxRealAppAcceptanceTests: XCTestCase {
         let appMenu = app.menuBars.menuBarItems["Thoughtbox"]
         XCTAssertTrue(appMenu.waitForExistence(timeout: 3))
         appMenu.click()
-        let checkCommand = app.menuItems["Check for Updates…"]
+        let checkCommand = appMenu.menuItems["Check for Updates…"]
         XCTAssertTrue(checkCommand.waitForExistence(timeout: 3))
         checkCommand.click()
 
