@@ -9,6 +9,14 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         <description>Signed Thoughtbox beta releases.</description>
         <language>en</language>
         <item>
+            <title>1.0.0-beta.6</title>
+            <pubDate>Sat, 29 Aug 2026 01:37:04 +0000</pubDate>
+            <sparkle:version>7</sparkle:version>
+            <sparkle:shortVersionString>1.0.0-beta.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/guillermo-rebolledo/scratchpad/releases/download/thoughtbox-v1.0.0-beta.6/Thoughtbox-1.0.0-beta.6.zip" length="2821009" type="application/octet-stream" sparkle:edSignature="0guKo5OjwbxuPrQaqQ7PkQ10JQe8fBg4HznlroFPg5edAYw6YByiqIwXKDS0FaM6SKpgj6gaFN0BunVKLegOAw=="/>
+        </item>
+        <item>
             <title>1.0.0-beta.3</title>
             <pubDate>Fri, 21 Aug 2026 23:15:36 +0000</pubDate>
             <sparkle:version>4</sparkle:version>
@@ -24,17 +32,9 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/guillermo-rebolledo/scratchpad/releases/download/thoughtbox-v1.0.0-beta.2/Thoughtbox-1.0.0-beta.2.zip" length="2476543" type="application/octet-stream" sparkle:edSignature="58dwW0Zga7Ujxyh0plG1G3VkA6d+5Aq7G9DqtGbqvwrg3alPUrR2QkqHU1WrYhCqyXaAuYJziJIYmWfIF9g1BA=="/>
         </item>
-        <item>
-            <title>1.0.0-beta.1</title>
-            <pubDate>Fri, 21 Aug 2026 06:00:42 +0000</pubDate>
-            <sparkle:version>2</sparkle:version>
-            <sparkle:shortVersionString>1.0.0-beta.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/guillermo-rebolledo/scratchpad/releases/download/thoughtbox-v1.0.0-beta.1/Thoughtbox-1.0.0-beta.1.zip" length="2477380" type="application/octet-stream" sparkle:edSignature="EJ579UYERjgmQVqBMBs6fQCxtP+ani+Z2UhvE7NcggXr/bvKib3l9oLGbEc5WIO+8jOjZyWj6Y32CuG1E+TOCQ=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: P6D/0T7nl5bfVR1etcLVgJDSPhOjPHxvjpghGcvSXOxDD8RmMbiSqMjfq3uKKeG3gdag2+FlnUTJ+ugXzwhoCQ==
+edSignature: 4DxgEpDQVkRpa6j9IbqK2VRTCTD5SI6GHDrBbl4Q3S3aMc1KllXpYemB8MdBiHMUTrMMe/KUnaAXASU2WsExDA==
 length: 2632
 -->
